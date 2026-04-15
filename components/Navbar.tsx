@@ -25,10 +25,10 @@ export function Navbar() {
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">Z</span>
+              <span className="text-white font-bold text-lg">M</span>
             </div>
             <span className="hidden sm:inline text-white font-bold text-xl">
-              ZoomClone
+              Meetme
             </span>
           </Link>
 

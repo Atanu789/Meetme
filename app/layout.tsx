@@ -5,9 +5,9 @@ import { AuthProvider } from '@/components/AuthProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'ZoomClone - Video Conferencing',
+  title: 'Meetme - Video Conferencing',
   description: 'A modern, open-source video conferencing platform built with Jitsi',
-  keywords: ['video conferencing', 'zoom clone', 'jitsi', 'meetings'],
+  keywords: ['video conferencing', 'meetme', 'jitsi', 'meetings'],
 };
 
 export default function RootLayout({

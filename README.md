@@ -1,4 +1,4 @@
-# ZoomClone - SaaS-Grade Video Conferencing Platform
+# Meetme - SaaS-Grade Video Conferencing Platform
 
 A complete, production-ready video conferencing application built with Next.js 14, TypeScript, Tailwind CSS, Clerk Authentication, MongoDB, and Jitsi Meet.
 
@@ -34,7 +34,7 @@ A complete, production-ready video conferencing application built with Next.js 1
 ## 📁 Project Structure
 
 ```
-zoom-clone/
+meetme/
 ├── app/
 │   ├── api/
 │   │   ├── create-meeting/route.ts
@@ -87,7 +87,7 @@ zoom-clone/
 
 ```bash
 # Navigate to project directory
-cd zoom-clone
+cd meetme
 
 # Install dependencies
 npm install
@@ -106,7 +106,7 @@ CLERK_SECRET_KEY=sk_test_xxx
 NEXT_PUBLIC_JITSI_DOMAIN=meet.myapp.com
 
 # MongoDB
-MONGODB_URI=mongodb://localhost:27017/zoom-clone
+MONGODB_URI=mongodb://localhost:27017/meetme
 ```
 
 #### Get Clerk API Keys:
@@ -132,7 +132,7 @@ brew services start mongodb-community
 1. Go to https://www.mongodb.com/cloud/atlas
 2. Create a free account
 3. Create a new cluster
-4. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/zoom-clone`
+4. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/meetme`
 5. Update `.env.local` with the connection string
 
 #### Jitsi Domain:

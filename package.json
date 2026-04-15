@@ -1,7 +1,7 @@
 {
-  "name": "zoom-clone",
+  "name": "meetme",
   "version": "1.0.0",
-  "description": "SaaS-grade Zoom clone using Jitsi",
+  "description": "SaaS-grade Meetme video conferencing app using Jitsi",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
