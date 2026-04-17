@@ -21,11 +21,23 @@ interface Meeting {
   lastSessionAt?: string | null;
 }
 
+interface DashboardMeetingActivity {
+  _id: string;
+  meetingId: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  type: 'created' | 'joined' | 'left' | 'chat' | 'recording-started' | 'recording-stopped';
+  details?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [activity, setActivity] = useState<MeetingActivity[]>([]);
+  const [activity, setActivity] = useState<DashboardMeetingActivity[]>([]);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
