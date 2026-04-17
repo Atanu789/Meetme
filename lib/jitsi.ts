@@ -77,11 +77,20 @@ export function getCleanDomain(domain: string): string {
 export async function validateJitsiDomain(domain: string): Promise<boolean> {
   try {
     const apiUrl = getJitsiApiUrl(domain);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(apiUrl, {
       method: 'HEAD',
       mode: 'no-cors',
-      timeout: 5000,
-    }).catch(() => ({ ok: false }));
+      signal: controller.signal,
+    }).catch(() => null);
+
+    clearTimeout(timeoutId);
+    if (!response) {
+      return false;
+    }
+
     return response.ok || response.status === 0; // CORS requests may return 0
   } catch {
     return false;
