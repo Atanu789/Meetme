@@ -3,7 +3,7 @@
 import { JitsiMeeting, type JitsiMeetingProps } from './JitsiMeeting';
 import { Loader } from './Loader';
 
-interface JitsiMeetingContainerProps extends Omit<JitsiMeetingProps, 'className'> {
+interface JitsiMeetingContainerProps extends JitsiMeetingProps {
   /** Show loading state */
   isLoading?: boolean;
   /** Error message to display */

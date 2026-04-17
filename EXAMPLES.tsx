@@ -3,6 +3,7 @@
  * Copy these examples to use advanced features
  */
 
+import React from 'react';
 import { JitsiMeeting } from '@/components/JitsiMeeting';
 import { JitsiMeetingContainer } from '@/components/JitsiMeetingContainer';
 import { useJitsiMeeting } from '@/hooks/useJitsiMeeting';

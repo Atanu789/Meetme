@@ -24,7 +24,7 @@ declare global {
   }
 }
 
-interface JitsiMeetingProps {
+export interface JitsiMeetingProps {
   /** Meeting room identifier */
   roomName: string;
   /** User display name - defaults to "Guest" */
