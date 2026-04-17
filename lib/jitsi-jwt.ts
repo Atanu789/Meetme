@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 
 export interface JitsiJwtUser {
   id: string;
@@ -29,7 +29,7 @@ export function createJitsiJwt(params: {
     domain,
     user,
     secret,
-    issuer = 'meetme',
+    issuer = 'melanam',
     ttlSeconds = 60 * 60,
     moderator = true,
   } = params;

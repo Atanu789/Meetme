@@ -1,6 +1,6 @@
-# Jitsi Integration Guide for Next.js
+﻿# Jitsi Integration Guide for Next.js
 
-This guide covers integrating your self-hosted Jitsi Meet server with the Meetme Next.js application.
+This guide covers integrating your self-hosted Jitsi Meet server with the Melanam Next.js application.
 
 ## Quick Start
 
@@ -178,13 +178,13 @@ CLERK_SECRET_KEY=your_secret
 
 Your server is configured correctly if:
 
-1. ✅ Domain resolves: `meet.melanam.com` → `38.45.94.222`
-2. ✅ External API accessible: `https://meet.melanam.com/external_api.js`
-3. ✅ All ports exposed:
+1. âœ… Domain resolves: `meet.melanam.com` â†’ `38.45.94.222`
+2. âœ… External API accessible: `https://meet.melanam.com/external_api.js`
+3. âœ… All ports exposed:
    - Port 80 (HTTP)
    - Port 443 (HTTPS)
    - Port 10000/UDP (media traffic)
-4. ✅ Reverse proxy configured (handled by Jitsi Docker web container)
+4. âœ… Reverse proxy configured (handled by Jitsi Docker web container)
 
 ## HTTP vs HTTPS Considerations
 
@@ -249,7 +249,7 @@ The component emits these events internally:
 ### Video Not Starting
 
 **Solution**: Check browser console for errors:
-1. Browser DevTools → Console tab
+1. Browser DevTools â†’ Console tab
 2. Look for CORS or security errors
 3. Verify Jitsi services running: `docker ps` on your server
 4. Check Jitsi logs: `docker logs jitsi-web`
@@ -292,3 +292,4 @@ The component emits these events internally:
 - [Docker Jitsi Meet GitHub](https://github.com/jitsi/docker-jitsi-meet)
 - [Jitsi External API Docs](https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-iframe/)
 - [Advanced Configuration](https://jitsi.github.io/handbook/docs/config/)
+

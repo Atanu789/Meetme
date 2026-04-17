@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { clerkClient } from '@clerk/nextjs/server';
 import dbConnect from '@/lib/db';
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
 
     const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
-    const issuer = process.env.JITSI_JWT_ISSUER || 'meetme';
+    const issuer = process.env.JITSI_JWT_ISSUER || 'melanam';
     const clerkUser = await clerkClient.users.getUser(userId);
 
     const token = createJitsiJwt({

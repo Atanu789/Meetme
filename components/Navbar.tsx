@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -49,7 +49,7 @@ export function Navbar() {
               <span className="font-display text-base font-semibold">M</span>
             </div>
             <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950">
-              Meetme
+              Melanam
             </span>
           </Link>
 
@@ -115,3 +115,4 @@ export function Navbar() {
     </nav>
   );
 }
+

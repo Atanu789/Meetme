@@ -1,8 +1,8 @@
-# 📋 SETUP GUIDE - ZoomClone
+﻿# ðŸ“‹ SETUP GUIDE - ZoomClone
 
 This guide walks you through setting up the ZoomClone application from scratch.
 
-## 🎯 Quick Start (5 minutes)
+## ðŸŽ¯ Quick Start (5 minutes)
 
 ### Step 1: Install Dependencies
 ```bash
@@ -28,7 +28,7 @@ Navigate to `http://localhost:3000`
 
 ---
 
-## 🔧 Detailed Setup
+## ðŸ”§ Detailed Setup
 
 ### Prerequisites Checklist
 - [ ] Node.js 18+ installed
@@ -39,9 +39,9 @@ Navigate to `http://localhost:3000`
 
 ---
 
-## 📦 Step 1: MongoDB Setup
+## ðŸ“¦ Step 1: MongoDB Setup
 
-### 🔲 Option A: Local MongoDB (Recommended for Development)
+### ðŸ”² Option A: Local MongoDB (Recommended for Development)
 
 #### macOS (Homebrew)
 ```bash
@@ -91,7 +91,7 @@ mongosh
 MONGODB_URI=mongodb://localhost:27017/zoom-clone
 ```
 
-### 🔰 Option B: MongoDB Atlas (Cloud Database)
+### ðŸ”° Option B: MongoDB Atlas (Cloud Database)
 
 #### Setup Steps:
 1. **Create Account**: Visit https://www.mongodb.com/cloud/atlas
@@ -105,7 +105,7 @@ MONGODB_URI=mongodb://localhost:27017/zoom-clone
    - Wait 2-5 minutes for deployment
 
 5. **Create Database User**:
-   - Go to "Security" → "Database Access"
+   - Go to "Security" â†’ "Database Access"
    - Click "Add New Database User"
    - Username: `zoomadmin`
    - Password: Generate strong password (save it!)
@@ -119,7 +119,7 @@ MONGODB_URI=mongodb://localhost:27017/zoom-clone
    - For production use specific IPs
 
 7. **Get Connection String**:
-   - Go to "Clusters" → "Connect"
+   - Go to "Clusters" â†’ "Connect"
    - Choose "Connect your application"
    - Select "Node.js" driver version 5.x
    - Copy connection string
@@ -140,7 +140,7 @@ mongosh "mongodb+srv://zoomadmin:PASSWORD@cluster0.mongodb.net/test"
 
 ---
 
-## 🔐 Step 2: Clerk Authentication Setup
+## ðŸ” Step 2: Clerk Authentication Setup
 
 ### Create Clerk Account
 1. **Visit**: https://clerk.com
@@ -153,7 +153,7 @@ mongosh "mongodb+srv://zoomadmin:PASSWORD@cluster0.mongodb.net/test"
 #### Steps:
 1. **Dashboard**: After login, go to https://dashboard.clerk.com
 2. **Select Application**: Choose your app
-3. **API Keys Tab**: Go to "Configure" → "API Keys"
+3. **API Keys Tab**: Go to "Configure" â†’ "API Keys"
 4. **Copy Keys**:
    - **Publishable Key**: Starts with `pk_test_` or `pk_live_`
    - **Secret Key**: Starts with `sk_test_` or `sk_live_`
@@ -171,7 +171,7 @@ CLERK_SECRET_KEY=sk_test_def456yz...
 ### Enable Authentication Methods
 
 In Clerk Dashboard:
-1. **Go to**: "Customize" → "Sign up"
+1. **Go to**: "Customize" â†’ "Sign up"
 2. **Enable**:
    - [x] Email address
    - [x] Password
@@ -180,16 +180,16 @@ In Clerk Dashboard:
    - [ ] Google (optional, for OAuth)
 
 **To add Google OAuth:**
-1. In Clerk Dashboard → "Social Connections"
+1. In Clerk Dashboard â†’ "Social Connections"
 2. Click "Google"
 3. Follow setup instructions to add your OAuth credentials
 4. Enable the connection
 
 ---
 
-## 🌐 Step 3: Jitsi Domain Configuration
+## ðŸŒ Step 3: Jitsi Domain Configuration
 
-### 🔲 Option A: Public Jitsi (Development/Testing)
+### ðŸ”² Option A: Public Jitsi (Development/Testing)
 
 Fastest setup - use `meet.jit.si`:
 
@@ -207,7 +207,7 @@ NEXT_PUBLIC_JITSI_DOMAIN=meet.jit.si
 - Limited customization
 - Rate limiting possible
 
-### 🔲 Option B: Self-Hosted Jitsi (Production)
+### ðŸ”² Option B: Self-Hosted Jitsi (Production)
 
 For production deployments:
 
@@ -240,7 +240,7 @@ If you want authenticated private rooms, add:
 
 ```env
 JITSI_JWT_SECRET=your_shared_jitsi_secret
-JITSI_JWT_ISSUER=meetme
+JITSI_JWT_ISSUER=melanam
 ```
 
 The app will generate a room token for signed-in users when a meeting is marked private.
@@ -251,7 +251,7 @@ The app will generate a room token for signed-in users when a meeting is marked 
 
 ---
 
-## 💻 Step 4: Project Setup
+## ðŸ’» Step 4: Project Setup
 
 ### Clone Repository (if applicable)
 ```bash
@@ -290,7 +290,7 @@ mongosh "mongodb://localhost:27017"
 
 ---
 
-## 🚀 Step 5: Run the Application
+## ðŸš€ Step 5: Run the Application
 
 ### Development Mode
 ```bash
@@ -299,11 +299,11 @@ npm run dev
 
 **Output should show:**
 ```
-  ▲ Next.js 14.0.0
+  â–² Next.js 14.0.0
   - Local:        http://localhost:3000
   - Environments: .env.local
 
-✓ Ready in 2.3s
+âœ“ Ready in 2.3s
 ```
 
 ### Build for Production
@@ -314,7 +314,7 @@ npm start
 
 ---
 
-## 🧪 Step 6: Test the Application
+## ðŸ§ª Step 6: Test the Application
 
 ### Test Checklist:
 
@@ -364,7 +364,7 @@ npm start
 
 ---
 
-## 📊 Database Verification
+## ðŸ“Š Database Verification
 
 ### Check MongoDB Collections
 
@@ -397,7 +397,7 @@ db.meetings.countDocuments()
 
 ---
 
-## 🔍 Debugging Tips
+## ðŸ” Debugging Tips
 
 ### Enable Verbose Logging
 
@@ -455,7 +455,7 @@ fetch('https://meet.jit.si/external_api.js')
 
 ---
 
-## 📝 Environment Variables Reference
+## ðŸ“ Environment Variables Reference
 
 | Variable | Required | Value Example | Type |
 |----------|----------|--|--|
@@ -466,7 +466,7 @@ fetch('https://meet.jit.si/external_api.js')
 
 ---
 
-## ✅ Final Verification Checklist
+## âœ… Final Verification Checklist
 
 Before considering setup complete:
 
@@ -485,7 +485,7 @@ Before considering setup complete:
 
 ---
 
-## 🎉 Setup Complete!
+## ðŸŽ‰ Setup Complete!
 
 Your ZoomClone application is now ready to use!
 
@@ -497,7 +497,7 @@ Your ZoomClone application is now ready to use!
 
 ---
 
-## 📞 Support Resources
+## ðŸ“ž Support Resources
 
 - **Clerk Docs**: https://clerk.com/docs
 - **MongoDB Docs**: https://docs.mongodb.com/
@@ -508,4 +508,5 @@ Your ZoomClone application is now ready to use!
 
 ---
 
-**Happy coding! 🚀**
+**Happy coding! ðŸš€**
+

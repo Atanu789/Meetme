@@ -1,8 +1,8 @@
-# Quick Start - Jitsi Integration
+﻿# Quick Start - Jitsi Integration
 
 Get your self-hosted Jitsi server integrated in 5 minutes!
 
-## ✅ Step 1: Verify Your Setup
+## âœ… Step 1: Verify Your Setup
 
 Your `.env.local` already has:
 ```bash
@@ -11,14 +11,14 @@ NEXT_PUBLIC_JITSI_DOMAIN=meet.melanam.com
 
 **That's it!** Your custom domain is configured.
 
-## ✅ Step 2: Use the Component
+## âœ… Step 2: Use the Component
 
 Your room page already uses the new `JitsiMeeting` component! It's been refactored to:
 - Work with your custom domain
 - Handle errors gracefully
 - Clean up properly on unmount
 
-## ✅ Step 3: Test It
+## âœ… Step 3: Test It
 
 ```bash
 # 1. Start your dev server
@@ -33,7 +33,7 @@ npm run dev
 # - Your video conference running
 ```
 
-## 🎨 Optional: Customize (5 more min)
+## ðŸŽ¨ Optional: Customize (5 more min)
 
 ### Change Toolbar Buttons
 
@@ -85,7 +85,7 @@ import { CONFIG_PRESETS, TOOLBAR_PRESETS } from '@/lib/jitsi';
 />
 ```
 
-## 📚 Available Components
+## ðŸ“š Available Components
 
 ### `JitsiMeeting` - Main Component
 ```tsx
@@ -111,7 +111,7 @@ import { JitsiMeetingContainer } from '@/components/JitsiMeetingContainer';
 />
 ```
 
-## 🛠️ Available Utilities
+## ðŸ› ï¸ Available Utilities
 
 ### Hook: `useJitsiMeeting`
 ```tsx
@@ -119,7 +119,7 @@ import { useJitsiMeeting } from '@/hooks/useJitsiMeeting';
 
 const { generateRoomName, formatDisplayName } = useJitsiMeeting();
 
-const roomId = generateRoomName();  // "meetme-h4x8gvr-a1b2c3"
+const roomId = generateRoomName();  // "melanam-h4x8gvr-a1b2c3"
 const name = formatDisplayName("John Doe");  // "John Doe"
 ```
 
@@ -137,7 +137,7 @@ const apiUrl = getJitsiApiUrl('meet.melanam.com');
 const isValid = await validateJitsiDomain('meet.melanam.com');
 ```
 
-## 🎯 Toolbar Buttons Quick Reference
+## ðŸŽ¯ Toolbar Buttons Quick Reference
 
 Pick what you need:
 
@@ -157,15 +157,15 @@ Pick what you need:
  'tileview', 'stats', 'shortcuts']
 ```
 
-## 🚀 What's Ready to Use
+## ðŸš€ What's Ready to Use
 
-✅ **Core component** - `JitsiMeeting.tsx`  
-✅ **Your room page** - Already updated to use it  
-✅ **Custom domain** - Configured to `meet.melanam.com`  
-✅ **Utilities** - Ready in `hooks/` and `lib/`  
-✅ **Documentation** - Full guides included  
+âœ… **Core component** - `JitsiMeeting.tsx`  
+âœ… **Your room page** - Already updated to use it  
+âœ… **Custom domain** - Configured to `meet.melanam.com`  
+âœ… **Utilities** - Ready in `hooks/` and `lib/`  
+âœ… **Documentation** - Full guides included  
 
-## 🔍 Verify It Works
+## ðŸ” Verify It Works
 
 1. Check if your domain is accessible:
 ```bash
@@ -175,7 +175,7 @@ curl -I https://meet.melanam.com/external_api.js
 
 2. Check browser console when joining a meeting:
 ```
-No errors = ✅ Good to go
+No errors = âœ… Good to go
 ```
 
 3. Test with a friend:
@@ -183,7 +183,7 @@ No errors = ✅ Good to go
 - Share the link
 - Both should see each other
 
-## 📖 Need More Info?
+## ðŸ“– Need More Info?
 
 See these files:
 
@@ -191,7 +191,7 @@ See these files:
 - **Full guide:** [JITSI_INTEGRATION_GUIDE.md](./JITSI_INTEGRATION_GUIDE.md)
 - **Component reference:** [components/README.md](./components/README.md)
 
-## ⚠️ Common Issues
+## âš ï¸ Common Issues
 
 ### Jitsi not loading
 ```
@@ -210,7 +210,7 @@ Solution: Test from different networks
          Check Jitsi logs: docker logs jitsi-jvb
 ```
 
-## 🎉 That's It!
+## ðŸŽ‰ That's It!
 
 Your Jitsi integration is ready. Start using it:
 
@@ -228,3 +228,4 @@ When you get an SSL certificate:
 3. Restart your Next.js app
 
 **Questions?** Check the [JITSI_INTEGRATION_GUIDE.md](./JITSI_INTEGRATION_GUIDE.md) troubleshooting section!
+

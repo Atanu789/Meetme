@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 import { Navbar } from '@/components/Navbar';
@@ -16,9 +16,9 @@ const display = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'Meetme',
+  title: 'Melanam',
   description: 'Simple, secure video meetings with chat, recording, and private rooms.',
-  keywords: ['video conferencing', 'meetme', 'jitsi', 'meetings', 'chat', 'recording'],
+  keywords: ['video conferencing', 'melanam', 'jitsi', 'meetings', 'chat', 'recording'],
 };
 
 export default function RootLayout({
@@ -62,3 +62,4 @@ export default function RootLayout({
     </ClerkProvider>
   );
 }
+

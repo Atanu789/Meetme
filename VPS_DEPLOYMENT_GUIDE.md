@@ -1,4 +1,4 @@
-# VPS Deployment Guide - Jitsi Integration
+﻿# VPS Deployment Guide - Jitsi Integration
 
 ## Overview
 
@@ -29,9 +29,9 @@ NEXT_PUBLIC_JITSI_DOMAIN=meet.melanam.com
 ## Production Deployment on VPS
 
 ### Prerequisites
-1. ✅ SSL/TLS certificate installed on melanam.com
-2. ✅ Jitsi running on HTTPS
-3. ✅ DNS records pointing correctly
+1. âœ… SSL/TLS certificate installed on melanam.com
+2. âœ… Jitsi running on HTTPS
+3. âœ… DNS records pointing correctly
 
 ### VPS Configuration (Recommended)
 
@@ -60,12 +60,12 @@ The component tries to load the Jitsi API with the protocol you specified:
 
 ```
 1. Try: https://melanam.com/external_api.js
-   ├─ ✅ Success? → Use HTTPS
-   └─ ❌ Failed? → Try step 2
+   â”œâ”€ âœ… Success? â†’ Use HTTPS
+   â””â”€ âŒ Failed? â†’ Try step 2
    
 2. Try: http://melanam.com/external_api.js
-   ├─ ✅ Success? → Use HTTP (fallback)
-   └─ ❌ Failed? → Show error
+   â”œâ”€ âœ… Success? â†’ Use HTTP (fallback)
+   â””â”€ âŒ Failed? â†’ Show error
 ```
 
 This means:
@@ -130,8 +130,8 @@ NEXT_PUBLIC_JITSI_DOMAIN=https://melanam.com
 ```bash
 NEXT_PUBLIC_JITSI_DOMAIN=melanam.com
 # Auto-detects protocol based on where app is loaded from
-# http://localhost:3000 → tries http://melanam.com
-# https://melanam.com → tries https://melanam.com
+# http://localhost:3000 â†’ tries http://melanam.com
+# https://melanam.com â†’ tries https://melanam.com
 # Fallback to opposite if first fails
 ```
 
@@ -170,7 +170,7 @@ npm run build  # This reads .env.local
 npm run start
 ```
 
-## Migration Path: HTTP → HTTPS
+## Migration Path: HTTP â†’ HTTPS
 
 ### Step 1: Development (No changes needed)
 ```bash
@@ -213,7 +213,7 @@ If running via Docker on VPS:
 
 ```bash
 # Build for production
-docker build -t meetme-app .
+docker build -t melanam-app .
 
 # Run with environment
 docker run -p 3000:3000 \
@@ -221,7 +221,7 @@ docker run -p 3000:3000 \
   -e MONGODB_URI=your_mongodb_uri \
   -e NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_key \
   -e CLERK_SECRET_KEY=your_secret \
-  meetme-app
+  melanam-app
 ```
 
 ## Quick Test Commands
@@ -261,4 +261,5 @@ If something doesn't work:
 
 ---
 
-**You're ready to deploy to production with HTTPS!** 🚀
+**You're ready to deploy to production with HTTPS!** ðŸš€
+

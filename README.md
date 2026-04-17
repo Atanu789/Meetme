@@ -1,22 +1,22 @@
-# Meetme - SaaS-Grade Video Conferencing Platform
+﻿# Melanam - SaaS-Grade Video Conferencing Platform
 
 A complete, production-ready video conferencing application built with Next.js 14, TypeScript, Tailwind CSS, Clerk Authentication, MongoDB, and Jitsi Meet.
 
-## 🚀 Features
+## ðŸš€ Features
 
-- ✅ User authentication with Clerk (Email/Password + Google OAuth)
-- ✅ Create and manage video meetings
-- ✅ Join meetings via ID
-- ✅ HD video conferencing with Jitsi
-- ✅ Screen sharing
-- ✅ Real-time chat
-- ✅ Meeting recordings
-- ✅ Responsive design with modern glass UI
-- ✅ MongoDB database integration
-- ✅ Fully TypeScript typed
-- ✅ Zero external UI libraries (pure Tailwind CSS)
+- âœ… User authentication with Clerk (Email/Password + Google OAuth)
+- âœ… Create and manage video meetings
+- âœ… Join meetings via ID
+- âœ… HD video conferencing with Jitsi
+- âœ… Screen sharing
+- âœ… Real-time chat
+- âœ… Meeting recordings
+- âœ… Responsive design with modern glass UI
+- âœ… MongoDB database integration
+- âœ… Fully TypeScript typed
+- âœ… Zero external UI libraries (pure Tailwind CSS)
 
-## 🧱 Tech Stack
+## ðŸ§± Tech Stack
 
 ### Frontend
 - **Next.js 14** (App Router)
@@ -31,51 +31,51 @@ A complete, production-ready video conferencing application built with Next.js 1
 - **Mongoose** (ODM)
 - **Jitsi Meet** (video conferencing)
 
-## 📁 Project Structure
+## ðŸ“ Project Structure
 
 ```
-meetme/
-├── app/
-│   ├── api/
-│   │   ├── create-meeting/route.ts
-│   │   ├── get-meeting/route.ts
-│   │   └── get-meetings/route.ts
-│   ├── room/
-│   │   └── [id]/page.tsx
-│   ├── dashboard/page.tsx
-│   ├── sign-in/page.tsx
-│   ├── sign-up/page.tsx
-│   ├── page.tsx
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   ├── Navbar.tsx
-│   ├── MeetingCard.tsx
-│   ├── JoinModal.tsx
-│   ├── Loader.tsx
-│   └── AuthProvider.tsx
-├── hooks/
-│   └── useScript.ts
-├── lib/
-│   ├── clerk.ts
-│   ├── auth.ts
-│   └── db.ts
-├── models/
-│   ├── User.ts
-│   └── Meeting.ts
-├── store/
-│   └── useUserStore.ts
-├── middleware.ts
-├── tsconfig.json
-├── tailwind.config.ts
-├── postcss.config.js
-├── next.config.js
-├── package.json
-├── .env.local
-└── .gitignore
+melanam/
+â”œâ”€â”€ app/
+â”‚   â”œâ”€â”€ api/
+â”‚   â”‚   â”œâ”€â”€ create-meeting/route.ts
+â”‚   â”‚   â”œâ”€â”€ get-meeting/route.ts
+â”‚   â”‚   â””â”€â”€ get-meetings/route.ts
+â”‚   â”œâ”€â”€ room/
+â”‚   â”‚   â””â”€â”€ [id]/page.tsx
+â”‚   â”œâ”€â”€ dashboard/page.tsx
+â”‚   â”œâ”€â”€ sign-in/page.tsx
+â”‚   â”œâ”€â”€ sign-up/page.tsx
+â”‚   â”œâ”€â”€ page.tsx
+â”‚   â”œâ”€â”€ layout.tsx
+â”‚   â””â”€â”€ globals.css
+â”œâ”€â”€ components/
+â”‚   â”œâ”€â”€ Navbar.tsx
+â”‚   â”œâ”€â”€ MeetingCard.tsx
+â”‚   â”œâ”€â”€ JoinModal.tsx
+â”‚   â”œâ”€â”€ Loader.tsx
+â”‚   â””â”€â”€ AuthProvider.tsx
+â”œâ”€â”€ hooks/
+â”‚   â””â”€â”€ useScript.ts
+â”œâ”€â”€ lib/
+â”‚   â”œâ”€â”€ clerk.ts
+â”‚   â”œâ”€â”€ auth.ts
+â”‚   â””â”€â”€ db.ts
+â”œâ”€â”€ models/
+â”‚   â”œâ”€â”€ User.ts
+â”‚   â””â”€â”€ Meeting.ts
+â”œâ”€â”€ store/
+â”‚   â””â”€â”€ useUserStore.ts
+â”œâ”€â”€ middleware.ts
+â”œâ”€â”€ tsconfig.json
+â”œâ”€â”€ tailwind.config.ts
+â”œâ”€â”€ postcss.config.js
+â”œâ”€â”€ next.config.js
+â”œâ”€â”€ package.json
+â”œâ”€â”€ .env.local
+â””â”€â”€ .gitignore
 ```
 
-## ⚙️ Installation & Setup
+## âš™ï¸ Installation & Setup
 
 ### Prerequisites
 - Node.js 18+
@@ -87,7 +87,7 @@ meetme/
 
 ```bash
 # Navigate to project directory
-cd meetme
+cd melanam
 
 # Install dependencies
 npm install
@@ -106,7 +106,7 @@ CLERK_SECRET_KEY=sk_test_xxx
 NEXT_PUBLIC_JITSI_DOMAIN=meet.myapp.com
 
 # MongoDB
-MONGODB_URI=mongodb://localhost:27017/meetme
+MONGODB_URI=mongodb://localhost:27017/melanam
 ```
 
 #### Get Clerk API Keys:
@@ -132,7 +132,7 @@ brew services start mongodb-community
 1. Go to https://www.mongodb.com/cloud/atlas
 2. Create a free account
 3. Create a new cluster
-4. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/meetme`
+4. Get connection string: `mongodb+srv://username:password@cluster.mongodb.net/melanam`
 5. Update `.env.local` with the connection string
 
 #### Jitsi Domain:
@@ -153,7 +153,7 @@ npm run dev
 
 The application will be available at `http://localhost:3000`
 
-## 🔐 Authentication Flow
+## ðŸ” Authentication Flow
 
 ### Signup
 1. Navigate to `http://localhost:3000/sign-up`
@@ -171,7 +171,7 @@ The application will be available at `http://localhost:3000`
 - `/room/[id]` - requires authentication
 - `/` - public landing page
 
-## 🎥 How to Use
+## ðŸŽ¥ How to Use
 
 ### Create a Meeting
 1. Sign in or sign up
@@ -189,14 +189,14 @@ The application will be available at `http://localhost:3000`
 5. Click "Join"
 
 ### In a Meeting
-- 🎤 Toggle microphone
-- 📹 Toggle camera
-- 🖥️ Share screen
-- 💬 Send messages
-- 📝 Annotations
-- 🔴 Record (if enabled)
+- ðŸŽ¤ Toggle microphone
+- ðŸ“¹ Toggle camera
+- ðŸ–¥ï¸ Share screen
+- ðŸ’¬ Send messages
+- ðŸ“ Annotations
+- ðŸ”´ Record (if enabled)
 
-## 📊 Database Models
+## ðŸ“Š Database Models
 
 ### User Model
 ```typescript
@@ -224,7 +224,7 @@ The application will be available at `http://localhost:3000`
 }
 ```
 
-## 🔌 API Routes
+## ðŸ”Œ API Routes
 
 ### POST `/api/create-meeting`
 Create a new meeting.
@@ -269,7 +269,7 @@ Get all meetings for current user (paginated).
 }
 ```
 
-## 🧪 Testing the Complete Flow
+## ðŸ§ª Testing the Complete Flow
 
 ### Scenario 1: Create and Join a Meeting
 ```bash
@@ -310,7 +310,7 @@ npm run dev
 # 7. Both users can see each other
 ```
 
-## 🚨 Troubleshooting
+## ðŸš¨ Troubleshooting
 
 ### Issue: "Meeting not found"
 **Solution:** Ensure MongoDB is running and MONGODB_URI is correct
@@ -343,7 +343,7 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
-## 🏗️ Building for Production
+## ðŸ—ï¸ Building for Production
 
 ### 1. Build the application
 ```bash
@@ -373,32 +373,32 @@ Set these in your hosting platform (Vercel, Heroku, etc.):
 - `NEXT_PUBLIC_JITSI_DOMAIN`
 - `MONGODB_URI`
 
-## 📈 Performance Optimizations
+## ðŸ“ˆ Performance Optimizations
 
-- ✅ Dynamic imports for Jitsi script
-- ✅ Image optimization with Next.js
-- ✅ CSS-in-JS with Tailwind CSS
-- ✅ Mongoose connection pooling
-- ✅ Client-side state with Zustand
-- ✅ API route caching
+- âœ… Dynamic imports for Jitsi script
+- âœ… Image optimization with Next.js
+- âœ… CSS-in-JS with Tailwind CSS
+- âœ… Mongoose connection pooling
+- âœ… Client-side state with Zustand
+- âœ… API route caching
 
-## 🔐 Security Features
+## ðŸ” Security Features
 
-- ✅ Clerk-managed authentication
-- ✅ Middleware route protection
-- ✅ Environment variable encryption
-- ✅ CORS configured
-- ✅ MongoDB injection prevention
+- âœ… Clerk-managed authentication
+- âœ… Middleware route protection
+- âœ… Environment variable encryption
+- âœ… CORS configured
+- âœ… MongoDB injection prevention
 
-## 📝 License
+## ðŸ“ License
 
 MIT License - feel free to use this project for personal or commercial use.
 
-## 🤝 Contributing
+## ðŸ¤ Contributing
 
 Contributions are welcome! Feel free to submit issues and pull requests.
 
-## 📞 Support
+## ðŸ“ž Support
 
 For issues and questions:
 1. Check troubleshooting section above
@@ -408,4 +408,5 @@ For issues and questions:
 
 ---
 
-**Happy connecting! 🎉**
+**Happy connecting! ðŸŽ‰**
+

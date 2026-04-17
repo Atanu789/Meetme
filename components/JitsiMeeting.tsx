@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -287,7 +287,7 @@ export function JitsiMeeting({
           MOBILE_APP_PROMO: false,
           SHOW_POWERED_BY: showLogo,
           DEFAULT_REMOTE_DISPLAY_NAME: 'Fellow Jitsian',
-          APP_NAME: 'Meetme',
+          APP_NAME: 'Melanam',
         },
       };
 
@@ -399,3 +399,4 @@ export function JitsiMeeting({
     </div>
   );
 }
+

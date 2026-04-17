@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+﻿import { useCallback } from 'react';
 
 /**
  * Hook for managing Jitsi meeting operations
@@ -7,12 +7,12 @@ import { useCallback } from 'react';
 export function useJitsiMeeting() {
   /**
    * Generate a unique room name
-   * Format: meetme-{timestamp}-{random}
+   * Format: melanam-{timestamp}-{random}
    */
   const generateRoomName = useCallback(() => {
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 8);
-    return `meetme-${timestamp}-${random}`;
+    return `melanam-${timestamp}-${random}`;
   }, []);
 
   /**
@@ -58,3 +58,4 @@ export function useJitsiMeeting() {
     isValidDomain,
   };
 }
+

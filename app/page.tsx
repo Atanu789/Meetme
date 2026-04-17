@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
@@ -27,7 +27,7 @@ export default function Home() {
               <span className="gradient-text block">secure, and organized.</span>
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-slate-600">
-              Meetme brings video calls, saved chat history, room activity, and optional private-room JWT access into a single workspace teams can actually use.
+              Melanam brings video calls, saved chat history, room activity, and optional private-room JWT access into a single workspace teams can actually use.
             </p>
           </div>
 
@@ -118,3 +118,4 @@ export default function Home() {
     </div>
   );
 }
+

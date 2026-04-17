@@ -1,7 +1,7 @@
-{
-  "name": "meetme",
+﻿{
+  "name": "melanam",
   "version": "1.0.0",
-  "description": "SaaS-grade Meetme video conferencing app using Jitsi",
+  "description": "SaaS-grade Melanam video conferencing app using Jitsi",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -29,3 +29,4 @@
     "tailwindcss": "^3.4.1"
   }
 }
+
