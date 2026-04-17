@@ -14,12 +14,33 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
   const [isJoining, setIsJoining] = useState(false);
   const router = useRouter();
 
+  const normalizeMeetingId = (input: string) => {
+    const trimmed = input.trim();
+    if (!trimmed) return '';
+
+    // Accept full invite links like http://localhost:3000/room/abc123
+    try {
+      const parsed = new URL(trimmed);
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      const roomIndex = parts.findIndex((part) => part === 'room');
+      if (roomIndex >= 0 && parts[roomIndex + 1]) {
+        return decodeURIComponent(parts[roomIndex + 1]);
+      }
+    } catch {
+      // Not a URL, treat as direct meeting id.
+    }
+
+    return trimmed;
+  };
+
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsJoining(true);
 
-    if (!meetingId.trim()) {
+    const normalizedMeetingId = normalizeMeetingId(meetingId);
+
+    if (!normalizedMeetingId) {
       setError('Please enter a meeting ID');
       setIsJoining(false);
       return;
@@ -27,7 +48,9 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
 
     try {
       // Verify meeting exists
-      const response = await fetch(`/api/get-meeting?id=${meetingId}`);
+      const response = await fetch(
+        `/api/get-meeting?id=${encodeURIComponent(normalizedMeetingId)}`
+      );
       
       if (!response.ok) {
         setError('Meeting not found');
@@ -36,7 +59,7 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
       }
 
       setIsJoining(false);
-      router.push(`/room/${meetingId}`);
+      router.push(`/room/${encodeURIComponent(normalizedMeetingId)}`);
       setMeetingId('');
       onClose();
     } catch (err) {
