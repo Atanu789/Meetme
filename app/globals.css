@@ -29,6 +29,14 @@ body {
   position: relative;
 }
 
+html.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 32%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 30%),
+    linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  color: #e2e8f0;
+}
+
 body::before {
   content: '';
   position: fixed;
@@ -70,11 +78,23 @@ body::before {
   box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
 }
 
+html.dark .surface {
+  background: rgba(15, 23, 42, 0.78);
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.35);
+}
+
 .surface-strong {
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(22px);
   border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+}
+
+html.dark .surface-strong {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.4);
 }
 
 .surface-dark {
@@ -97,8 +117,16 @@ body::before {
   color: #0f172a;
 }
 
+html.dark .section-title {
+  color: #f8fafc;
+}
+
 .section-copy {
   color: #475569;
+}
+
+html.dark .section-copy {
+  color: #cbd5e1;
 }
 
 .soft-border {
@@ -144,6 +172,17 @@ body::before {
   transform: translateY(-1px);
 }
 
+html.dark .button-secondary {
+  border-color: rgba(148, 163, 184, 0.34);
+  background: rgba(15, 23, 42, 0.76);
+  color: #f8fafc;
+}
+
+html.dark .button-secondary:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: rgba(30, 41, 59, 0.82);
+}
+
 .input-modern {
   width: 100%;
   border-radius: 1rem;
@@ -163,6 +202,16 @@ body::before {
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
 }
 
+html.dark .input-modern {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(148, 163, 184, 0.32);
+  color: #e2e8f0;
+}
+
+html.dark .input-modern::placeholder {
+  color: #94a3b8;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -176,11 +225,50 @@ body::before {
   font-weight: 600;
 }
 
+html.dark .pill {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.8);
+  color: #cbd5e1;
+}
+
 .gradient-text {
   background: linear-gradient(135deg, #0f172a 0%, #2563eb 50%, #06b6d4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+html.dark .gradient-text {
+  background: linear-gradient(135deg, #f8fafc 0%, #38bdf8 45%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dark mode compatibility for common utility classes used across pages */
+html.dark .text-slate-950,
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-400 {
+  color: #cbd5e1 !important;
+}
+
+html.dark [class*='bg-white'] {
+  background-color: rgba(15, 23, 42, 0.88) !important;
+}
+
+html.dark [class*='border-slate-200'] {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html.dark [class*='border-slate-300'] {
+  border-color: rgba(148, 163, 184, 0.3) !important;
 }
 
 /* Animations */

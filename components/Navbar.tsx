@@ -3,13 +3,34 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser, useClerk } from '@clerk/nextjs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export function Navbar() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    try {
+      const storedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
+
+      document.documentElement.classList.toggle('dark', shouldUseDark);
+      setIsDark(shouldUseDark);
+    } catch {
+      // Keep default if storage/media query are unavailable.
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    document.documentElement.classList.toggle('dark', nextDark);
+    localStorage.setItem('theme', nextDark ? 'dark' : 'light');
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -33,6 +54,14 @@ export function Navbar() {
           </Link>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              className="button-secondary px-3 py-2 text-xs"
+              aria-label="Toggle dark mode"
+              title="Toggle theme"
+            >
+              {isDark ? 'Light' : 'Dark'}
+            </button>
             {user ? (
               <div className="flex items-center gap-4">
                 <span className="hidden text-sm text-slate-500 sm:inline">
