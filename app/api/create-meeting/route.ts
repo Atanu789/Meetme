@@ -18,7 +18,14 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     const body = await req.json();
-    const { hostEmail, title, description } = body;
+    const {
+      hostEmail,
+      title,
+      description,
+      isPrivate = false,
+      chatEnabled = true,
+      recordingEnabled = false,
+    } = body;
 
     if (!hostEmail || !title) {
       return NextResponse.json(
@@ -35,6 +42,9 @@ export async function POST(req: NextRequest) {
       hostEmail,
       title,
       description: description || '',
+      isPrivate,
+      chatEnabled,
+      recordingEnabled,
     });
 
     await meeting.save();

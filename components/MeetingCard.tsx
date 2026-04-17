@@ -7,6 +7,10 @@ interface MeetingCardProps {
   title: string;
   hostEmail: string;
   createdAt: string;
+  isPrivate: boolean;
+  recordingEnabled: boolean;
+  chatEnabled: boolean;
+  joinCount: number;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -27,20 +31,38 @@ export function MeetingCard({
   title,
   hostEmail,
   createdAt,
+  isPrivate,
+  recordingEnabled,
+  chatEnabled,
+  joinCount,
 }: MeetingCardProps) {
   const date = new Date(createdAt);
   const timeAgo = formatTimeAgo(date);
 
   return (
     <Link href={`/room/${meetingId}`}>
-      <div className="backdrop-blur-sm bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:bg-slate-800/80 transition cursor-pointer group">
-        <div className="flex items-start justify-between mb-3">
-          <h3 className="font-semibold text-white group-hover:text-blue-400 transition truncate">
+      <div className="surface group cursor-pointer rounded-3xl p-5 transition hover:-translate-y-0.5 hover:shadow-xl">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <h3 className="truncate font-display text-base font-semibold text-slate-950 transition group-hover:text-blue-700">
             {title}
           </h3>
         </div>
-        <p className="text-xs text-gray-400 mb-2 truncate">{hostEmail}</p>
-        <p className="text-xs text-gray-500">{timeAgo}</p>
+        <p className="mb-4 truncate text-sm text-slate-500">{hostEmail}</p>
+        <div className="mb-4 flex flex-wrap gap-2 text-[11px]">
+          <span className={`pill ${isPrivate ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}`}>
+            {isPrivate ? 'Private' : 'Public'} room
+          </span>
+          <span className="pill">
+            {chatEnabled ? 'Chat stored' : 'Chat off'}
+          </span>
+          <span className="pill">
+            {recordingEnabled ? 'Recording ready' : 'Recording off'}
+          </span>
+          <span className="pill">
+            {joinCount} joins
+          </span>
+        </div>
+        <p className="text-xs text-slate-500">Created {timeAgo}</p>
       </div>
     </Link>
   );

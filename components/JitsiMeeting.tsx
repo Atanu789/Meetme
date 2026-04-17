@@ -45,6 +45,10 @@ interface JitsiMeetingProps {
   prejoinPageEnabled?: boolean;
   /** Custom toolbar buttons to display */
   toolbarButtons?: string[];
+  /** Optional JWT for private rooms */
+  jwt?: string;
+  /** Callback when the Jitsi API instance is ready */
+  onApiReady?: (api: any) => void;
   /** Enable custom styling */
   showLogo?: boolean;
   /** Container height - defaults to 100% */
@@ -81,6 +85,8 @@ export function JitsiMeeting({
   startWithVideoMuted = false,
   prejoinPageEnabled = false,
   toolbarButtons = DEFAULT_TOOLBAR_BUTTONS,
+  jwt,
+  onApiReady,
   showLogo = false,
   height = '100%',
   className = '',
@@ -251,6 +257,7 @@ export function JitsiMeeting({
         parentNode: containerRef.current,
         width: '100%',
         height: height,
+        ...(jwt ? { jwt } : {}),
         userInfo: {
           displayName: displayName,
           ...(userEmail && { email: userEmail }),
@@ -268,9 +275,10 @@ export function JitsiMeeting({
           chromeExtensionBanner: null,
           disableAudioLevels: false,
           enableLayerSuspension: true,
+          enableFeaturesBasedOnToken: Boolean(jwt),
           // Self-hosted Jitsi configuration
           enableWelcomePage: false,
-          enableUserRolesBasedOnToken: false,
+          enableUserRolesBasedOnToken: Boolean(jwt),
         },
         interfaceConfigOverwrite: {
           TOOLBAR_BUTTONS: toolbarButtons,
@@ -284,6 +292,7 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
+      onApiReady?.(jitsiRef.current);
 
       console.log('JitsiMeeting: API instance created successfully');
       // Unblock UI as soon as iframe API is mounted.

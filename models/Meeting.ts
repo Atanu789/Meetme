@@ -6,6 +6,12 @@ interface IMeeting extends Document {
   hostEmail: string;
   title: string;
   description?: string;
+  isPrivate: boolean;
+  chatEnabled: boolean;
+  recordingEnabled: boolean;
+  joinCount: number;
+  lastSessionAt?: Date;
+  lastRecordingAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +39,30 @@ const MeetingSchema = new Schema<IMeeting>(
     description: {
       type: String,
       default: '',
+    },
+    isPrivate: {
+      type: Boolean,
+      default: false,
+    },
+    chatEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    recordingEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    joinCount: {
+      type: Number,
+      default: 0,
+    },
+    lastSessionAt: {
+      type: Date,
+      default: null,
+    },
+    lastRecordingAt: {
+      type: Date,
+      default: null,
     },
     createdAt: {
       type: Date,

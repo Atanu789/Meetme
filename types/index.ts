@@ -14,6 +14,12 @@ export interface Meeting {
   hostEmail: string;
   title: string;
   description: string;
+  isPrivate: boolean;
+  chatEnabled: boolean;
+  recordingEnabled: boolean;
+  joinCount: number;
+  lastSessionAt?: Date | null;
+  lastRecordingAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +28,9 @@ export interface CreateMeetingRequest {
   hostEmail: string;
   title: string;
   description?: string;
+  isPrivate?: boolean;
+  chatEnabled?: boolean;
+  recordingEnabled?: boolean;
 }
 
 export interface CreateMeetingResponse {

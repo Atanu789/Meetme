@@ -234,6 +234,17 @@ For production deployments:
    NEXT_PUBLIC_JITSI_DOMAIN=meet.myapp.com
    ```
 
+### Optional: Private Rooms with JWT
+
+If you want authenticated private rooms, add:
+
+```env
+JITSI_JWT_SECRET=your_shared_jitsi_secret
+JITSI_JWT_ISSUER=meetme
+```
+
+The app will generate a room token for signed-in users when a meeting is marked private.
+
 #### For Complete Setup: Follow
 - Official Docs: https://jitsi.github.io/handbook/docs/dev-guide/dev-guide-start
 - YouTube Guide: Search "Jitsi Meet Self-Hosted Setup"

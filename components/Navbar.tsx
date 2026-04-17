@@ -20,14 +20,14 @@ export function Navbar() {
   const userInitial = userEmail?.[0]?.toUpperCase() || 'U';
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-slate-700">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/80 bg-white/78 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">M</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+              <span className="font-display text-base font-semibold">M</span>
             </div>
-            <span className="hidden sm:inline text-white font-bold text-xl">
+            <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950">
               Meetme
             </span>
           </Link>
@@ -35,28 +35,28 @@ export function Navbar() {
           <div className="flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-300 hidden sm:inline">
+                <span className="hidden text-sm text-slate-500 sm:inline">
                   {userEmail}
                 </span>
                 <div className="relative">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold hover:from-blue-600 hover:to-purple-700 transition"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white shadow-sm"
                   >
                     {userInitial}
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
+                    <div className="absolute right-0 mt-3 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                       <Link
                         href="/dashboard"
-                        className="block px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 transition"
+                        className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                       >
                         Dashboard
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-slate-700 transition"
+                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                       >
                         Logout
                       </button>
@@ -68,13 +68,13 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/sign-in"
-                  className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-950 transition"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/sign-up"
-                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="button-primary px-4 py-2 text-sm"
                 >
                   Sign Up
                 </Link>

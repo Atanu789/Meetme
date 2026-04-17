@@ -72,13 +72,17 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="backdrop-blur-md bg-slate-800/90 border border-slate-700 rounded-xl p-6 w-full max-w-md">
-        <h2 className="text-2xl font-bold text-white mb-4">Join Meeting</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm">
+      <div className="surface-strong w-full max-w-md rounded-3xl p-6">
+        <div className="mb-6">
+          <p className="section-kicker mb-2">Join room</p>
+          <h2 className="font-display text-2xl font-semibold text-slate-950">Enter a meeting link or ID</h2>
+          <p className="mt-2 text-sm text-slate-500">You can paste a full invite URL or just the room code.</p>
+        </div>
 
         <form onSubmit={handleJoin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="mb-2 block text-sm font-medium text-slate-700">
               Meeting ID
             </label>
             <input
@@ -86,12 +90,12 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
               value={meetingId}
               onChange={(e) => setMeetingId(e.target.value)}
               placeholder="Enter meeting ID"
-              className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="input-modern"
             />
           </div>
 
           {error && (
-            <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm">
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -101,14 +105,14 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
               type="button"
               onClick={onClose}
               disabled={isJoining}
-              className="flex-1 px-4 py-2 bg-slate-700 text-gray-300 rounded-lg hover:bg-slate-600 transition font-medium"
+              className="button-secondary flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isJoining}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+              className="button-primary flex-1"
             >
               {isJoining ? 'Joining...' : 'Join'}
             </button>
