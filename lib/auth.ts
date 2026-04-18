@@ -1,12 +1,16 @@
-import { auth } from '@clerk/nextjs';
+import { getServerSession } from 'next-auth';
+import { authOptions } from './auth-options';
 
-export const getClerkUser = async () => {
-  const { userId, sessionId } = await auth();
-  return { userId, sessionId };
+export const getSessionUser = async () => {
+  const session = await getServerSession(authOptions);
+  return {
+    email: session?.user?.email || null,
+    name: session?.user?.name || null,
+  };
 };
 
-export const getClerkToken = async () => {
-  const { getToken } = await auth();
-  return getToken();
+export const isAuthenticated = async () => {
+  const session = await getServerSession(authOptions);
+  return Boolean(session?.user?.email);
 };
 

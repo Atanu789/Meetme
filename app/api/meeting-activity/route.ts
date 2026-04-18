@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-import { clerkClient } from '@clerk/nextjs/server';
 import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
 import MeetingActivity from '../../../models/MeetingActivity';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth-options';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const meetingId = req.nextUrl.searchParams.get('meetingId');
 
     await dbConnect();
 
-    const query = meetingId ? { meetingId } : { userId };
+    if (!meetingId) {
+      return NextResponse.json({ error: 'Meeting ID is required' }, { status: 400 });
+    }
+
+    const query = { meetingId };
     const activity = await MeetingActivity.find(query).sort({ createdAt: -1 }).limit(50);
 
     return NextResponse.json({ success: true, activity }, { status: 200 });
@@ -32,16 +30,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await getServerSession(authOptions);
 
     await dbConnect();
 
     const body = await req.json();
-    const { meetingId, type, details } = body;
+    const { meetingId, type, details, userName, userEmail } = body;
 
     if (!meetingId || !type) {
       return NextResponse.json({ error: 'Meeting ID and type are required' }, { status: 400 });
@@ -52,15 +46,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
     }
 
-    const clerkUser = await clerkClient.users.getUser(userId);
-    const userName = clerkUser.firstName || clerkUser.emailAddresses[0]?.emailAddress || 'Guest';
-    const userEmail = clerkUser.emailAddresses[0]?.emailAddress || '';
+    const fallbackEmail = session?.user?.email || '';
+    const resolvedUserEmail = userEmail || fallbackEmail;
+    const resolvedUserName = userName || resolvedUserEmail || 'Guest';
+    const resolvedUserId = resolvedUserEmail || `guest:${resolvedUserName}`;
 
     const activity = new MeetingActivity({
       meetingId,
-      userId,
-      userName,
-      userEmail,
+      userId: resolvedUserId,
+      userName: resolvedUserName,
+      userEmail: resolvedUserEmail,
       type,
       details: details || '',
     });

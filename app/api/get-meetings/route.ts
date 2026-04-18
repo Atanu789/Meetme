@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
 import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth-options';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email;
 
-    if (!userId) {
+    if (!userEmail) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     await dbConnect();
 
-    const meetings = await Meeting.find({ hostId: userId })
+    const meetings = await Meeting.find({ hostEmail: userEmail })
       .sort({ createdAt: -1 })
       .limit(12);
 

@@ -1,8 +1,7 @@
 ﻿import type { Metadata } from 'next';
-import { ClerkProvider } from '@clerk/nextjs';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 import { Navbar } from '../components/Navbar';
-import { AuthProvider } from '../components/AuthProvider';
+import { Providers } from './providers';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({
@@ -27,20 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider
-      signInUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL}
-      signUpUrl={process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL}
-      afterSignInUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL}
-      afterSignUpUrl={process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL}
-    >
-      <html lang="en" className={`${sans.variable} ${display.variable}`}>
-        <head>
-          <meta charSet="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <meta name="color-scheme" content="light dark" />
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(() => {
+    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
   try {
     const stored = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -52,19 +45,18 @@ export default function RootLayout({
     }
   } catch (_) {}
 })();`,
-            }}
-          />
-        </head>
-        <body>
-          <AuthProvider>
-            <Navbar />
-            <main className="app-main pt-16">
-              {children}
-            </main>
-          </AuthProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+          }}
+        />
+      </head>
+      <body>
+        <Providers>
+          <Navbar />
+          <main className="app-main pt-16">
+            {children}
+          </main>
+        </Providers>
+      </body>
+    </html>
   );
 }
 

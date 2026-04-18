@@ -1,18 +1,60 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 
 export default function Home() {
-  const { user, isLoaded } = useUser();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleQuickCreateMeeting = async () => {
+    if (status !== 'authenticated') {
+      router.push('/sign-in');
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      const response = await fetch('/api/create-meeting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: 'Quick meeting',
+          description: 'Started from home page',
+          isPrivate: false,
+          chatEnabled: true,
+          recordingEnabled: false,
+        }),
+      });
+
+      if (response.status === 401) {
+        router.push('/sign-in');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to create meeting');
+      }
+
+      const data = await response.json();
+      router.push(`/room/${data.meetingId}`);
+    } catch (error) {
+      console.error('Quick create meeting failed:', error);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   if (!mounted) return null;
 
@@ -32,23 +74,23 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            {user ? (
+            {status === 'authenticated' ? (
               <>
                 <Link href="/dashboard" className="button-primary">
                   Open dashboard
                 </Link>
-                <button onClick={() => router.push('/dashboard')} className="button-secondary">
-                  Start a meeting
+                <button onClick={() => void handleQuickCreateMeeting()} className="button-secondary" disabled={isCreating}>
+                  {isCreating ? 'Creating...' : 'Create meeting'}
                 </button>
               </>
             ) : (
               <>
-                <Link href="/sign-up" className="button-primary">
-                  Create account
-                </Link>
                 <Link href="/sign-in" className="button-secondary">
                   Sign in
                 </Link>
+                <button onClick={() => router.push('/sign-in')} className="button-primary">
+                  Create meeting
+                </button>
               </>
             )}
           </div>

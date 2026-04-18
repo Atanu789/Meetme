@@ -9,7 +9,7 @@ import { JitsiMeetingContainer } from './components/JitsiMeetingContainer';
 import { useJitsiMeeting } from './hooks/useJitsiMeeting';
 import { CONFIG_PRESETS, TOOLBAR_PRESETS } from './lib/jitsi';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 
 /**
  * Example 1: Basic Meeting Room
@@ -33,16 +33,17 @@ export function BasicMeeting({ roomId }: { roomId: string }) {
  * Pulls user info from Clerk
  */
 export function AuthenticatedMeeting({ roomId }: { roomId: string }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
+  const email = session?.user?.email;
 
-  if (!user) return null;
+  if (!email) return null;
 
   return (
     <JitsiMeeting
       roomName={roomId}
-      displayName={user.firstName || user.emailAddresses[0]?.emailAddress || 'Guest'}
-      userEmail={user.emailAddresses[0]?.emailAddress}
+      displayName={email}
+      userEmail={email}
       height="100%"
       onReadyToClose={() => router.push('/dashboard')}
     />
@@ -60,10 +61,11 @@ export function ClassroomMeeting({
   roomId: string;
   isTeacher: boolean;
 }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
+  const email = session?.user?.email;
 
-  if (!user) return null;
+  if (!email) return null;
 
   const teacherButtons = TOOLBAR_PRESETS.host;
   const studentButtons = ['microphone', 'camera', 'chat', 'raisehand', 'hangup'];
@@ -71,7 +73,7 @@ export function ClassroomMeeting({
   return (
     <JitsiMeeting
       roomName={roomId}
-      displayName={user.firstName || 'Student'}
+      displayName={email}
       {...CONFIG_PRESETS.classroom}
       toolbarButtons={isTeacher ? teacherButtons : studentButtons}
       height="100%"
@@ -120,10 +122,11 @@ export function VideoCall({
   roomId: string;
   callPartnerName: string;
 }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
+  const email = session?.user?.email;
 
-  if (!user) return null;
+  if (!email) return null;
 
   return (
     <div className="w-full h-screen bg-slate-900">
@@ -133,7 +136,7 @@ export function VideoCall({
 
       <JitsiMeeting
         roomName={roomId}
-        displayName={user.firstName || 'You'}
+        displayName={email}
         toolbarButtons={['microphone', 'camera', 'hangup', 'videoquality']}
         height="100%"
         onReadyToClose={() => router.push('/dashboard')}
@@ -154,8 +157,9 @@ export function MeetingWithStateManagement({
   hostId: string;
   currentUserId: string;
 }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
+  const email = session?.user?.email;
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -165,14 +169,14 @@ export function MeetingWithStateManagement({
     return () => clearTimeout(timer);
   }, []);
 
-  if (!user) return null;
+  if (!email) return null;
 
   const isHost = currentUserId === hostId;
 
   return (
     <JitsiMeetingContainer
       roomName={roomId}
-      displayName={user.firstName || 'Guest'}
+      displayName={email}
       isLoading={isLoading}
       error={error}
       toolbarButtons={
@@ -236,15 +240,16 @@ export function MeetingWithCustomDomain({
   roomId: string;
   domain?: string;
 }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
+  const email = session?.user?.email;
 
-  if (!user) return null;
+  if (!email) return null;
 
   return (
     <JitsiMeeting
       roomName={roomId}
-      displayName={user.firstName || 'Guest'}
+      displayName={email}
       domain={domain}
       height="100%"
       onReadyToClose={() => router.push('/dashboard')}
@@ -264,9 +269,10 @@ export function MeetingModal({
   roomId: string;
   onClose: () => void;
 }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const email = session?.user?.email;
 
-  if (!isOpen || !user) return null;
+  if (!isOpen || !email) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
@@ -282,7 +288,7 @@ export function MeetingModal({
         {/* Meeting */}
         <JitsiMeeting
           roomName={roomId}
-          displayName={user.firstName || 'Guest'}
+          displayName={email}
           height="100%"
           onReadyToClose={onClose}
         />
@@ -351,8 +357,9 @@ export function MeetingsDashboard() {
  * Example 11: Meeting with Control Panel
  */
 export function MeetingWithControls({ roomId }: { roomId: string }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
   const router = useRouter();
+  const email = session?.user?.email;
   const jitsiRef = React.useRef<any>(null);
 
   const handleToggleAudio = () => {
@@ -365,7 +372,7 @@ export function MeetingWithControls({ roomId }: { roomId: string }) {
     console.log('Toggle video');
   };
 
-  if (!user) return null;
+  if (!email) return null;
 
   return (
     <div className="flex flex-col h-screen bg-slate-900">
@@ -373,7 +380,7 @@ export function MeetingWithControls({ roomId }: { roomId: string }) {
       <div className="flex-1">
         <JitsiMeeting
           roomName={roomId}
-          displayName={user.firstName || 'Guest'}
+          displayName={email}
           height="100%"
           onReadyToClose={() => router.push('/dashboard')}
         />

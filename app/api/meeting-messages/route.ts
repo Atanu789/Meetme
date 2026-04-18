@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-import { clerkClient } from '@clerk/nextjs/server';
 import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
 import MeetingMessage from '../../../models/MeetingMessage';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth-options';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const meetingId = req.nextUrl.searchParams.get('meetingId');
     if (!meetingId) {
       return NextResponse.json({ error: 'Meeting ID is required' }, { status: 400 });
@@ -39,16 +33,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await getServerSession(authOptions);
 
     await dbConnect();
 
     const body = await req.json();
-    const { meetingId, message } = body;
+    const { meetingId, message, senderName, senderEmail } = body;
 
     if (!meetingId || !message?.trim()) {
       return NextResponse.json({ error: 'Meeting ID and message are required' }, { status: 400 });
@@ -59,15 +49,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
     }
 
-    const clerkUser = await clerkClient.users.getUser(userId);
-    const senderName = clerkUser.firstName || clerkUser.emailAddresses[0]?.emailAddress || 'Guest';
-    const senderEmail = clerkUser.emailAddresses[0]?.emailAddress || '';
+    const fallbackEmail = session?.user?.email || '';
+    const resolvedSenderEmail = senderEmail || fallbackEmail;
+    const resolvedSenderName = senderName || resolvedSenderEmail || 'Guest';
+    const resolvedSenderId = resolvedSenderEmail || `guest:${resolvedSenderName}`;
 
     const chatMessage = new MeetingMessage({
       meetingId,
-      senderId: userId,
-      senderName,
-      senderEmail,
+      senderId: resolvedSenderId,
+      senderName: resolvedSenderName,
+      senderEmail: resolvedSenderEmail,
       message: message.trim(),
     });
 

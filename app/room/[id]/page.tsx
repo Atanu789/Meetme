@@ -1,10 +1,10 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
 import { useEffect, useRef, useState } from 'react';
 import { Loader } from '../../../components/Loader';
 import { JitsiMeeting } from '../../../components/JitsiMeeting';
+import { useSession } from 'next-auth/react';
 
 interface MeetingDetails {
   _id: string;
@@ -38,7 +38,9 @@ interface ActivityItem {
 export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, isLoaded } = useUser();
+  const { data: session, status } = useSession();
+  const [guestName, setGuestName] = useState('');
+  const [nameReady, setNameReady] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [meetingError, setMeetingError] = useState('');
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
@@ -53,17 +55,47 @@ export default function RoomPage() {
 
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
+  const userDisplayName = session?.user?.email || guestName || 'Guest';
+  const userEmail = session?.user?.email || undefined;
+  const fallbackRoute = session?.user?.email ? '/dashboard' : '/';
 
-  // Verify user is authenticated
   useEffect(() => {
-    if (isLoaded && !user) {
-      router.push('/sign-in');
+    if (status === 'loading') {
+      return;
     }
-  }, [user, isLoaded, router]);
+
+    if (session?.user?.email) {
+      setNameReady(true);
+      return;
+    }
+
+    let storedName = '';
+
+    try {
+      storedName = localStorage.getItem('username') || '';
+    } catch {
+      storedName = '';
+    }
+
+    if (!storedName.trim()) {
+      const promptedName = window.prompt('Enter your display name for this meeting') || '';
+      const fallbackName = promptedName.trim() || `Guest-${Math.floor(Math.random() * 1000)}`;
+      storedName = fallbackName;
+
+      try {
+        localStorage.setItem('username', fallbackName);
+      } catch {
+        // Ignore storage failures.
+      }
+    }
+
+    setGuestName(storedName);
+    setNameReady(true);
+  }, [session?.user?.email, status]);
 
   // Verify meeting exists on component mount
   useEffect(() => {
-    if (!isLoaded || !user) {
+    if (!nameReady) {
       return;
     }
 
@@ -82,7 +114,7 @@ export default function RoomPage() {
 
         if (!meetingResponse.ok) {
           setMeetingError('Meeting not found');
-          setTimeout(() => router.push('/dashboard'), 2000);
+          setTimeout(() => router.push(fallbackRoute), 2000);
           return;
         }
 
@@ -105,9 +137,7 @@ export default function RoomPage() {
         }
 
         if (meetingData.meeting?.isPrivate) {
-          const tokenResponse = await fetch(
-            `/api/meeting-token?meetingId=${encodeURIComponent(meetingId)}`
-          );
+          const tokenResponse = await fetch(`/api/meeting-token?meetingId=${encodeURIComponent(meetingId)}&name=${encodeURIComponent(userDisplayName)}`);
 
           if (tokenResponse.ok) {
             const tokenData = await tokenResponse.json();
@@ -118,13 +148,13 @@ export default function RoomPage() {
         console.error('Error verifying meeting:', err);
         if (err?.name !== 'AbortError') {
           setMeetingError('Failed to verify meeting');
-          setTimeout(() => router.push('/dashboard'), 2000);
+          setTimeout(() => router.push(fallbackRoute), 2000);
         }
       }
     };
 
     verifyMeeting();
-  }, [isLoaded, user, meetingId, router]);
+  }, [fallbackRoute, nameReady, meetingId, router, userDisplayName]);
 
   const recordActivity = async (type: string, details?: string) => {
     try {
@@ -133,7 +163,13 @@ export default function RoomPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ meetingId, type, details }),
+        body: JSON.stringify({
+          meetingId,
+          type,
+          details,
+          userName: userDisplayName,
+          userEmail,
+        }),
       });
     } catch (error) {
       console.error('Failed to record activity:', error);
@@ -155,7 +191,7 @@ export default function RoomPage() {
       const senderName = payload?.nick || payload?.from?.displayName || 'Participant';
       const senderEmail = payload?.from?.email || '';
 
-      if (!text || senderName === (user?.firstName || user?.emailAddresses[0]?.emailAddress)) {
+      if (!text || senderName === userDisplayName) {
         return;
       }
 
@@ -175,14 +211,19 @@ export default function RoomPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ meetingId, message: text }),
+        body: JSON.stringify({
+          meetingId,
+          message: text,
+          senderName: userDisplayName,
+          senderEmail: userEmail,
+        }),
       });
     });
   };
 
   const handleMeetingClose = async () => {
     await recordActivity('left', 'Left the meeting room');
-    router.push('/dashboard');
+    router.push(fallbackRoute);
   };
 
   const sendMessage = async () => {
@@ -200,8 +241,8 @@ export default function RoomPage() {
         ...current,
         {
           _id: `${Date.now()}-${Math.random()}`,
-          senderName: user?.firstName || user?.emailAddresses[0]?.emailAddress || 'Guest',
-          senderEmail: user?.emailAddresses[0]?.emailAddress,
+          senderName: userDisplayName,
+          senderEmail: userEmail,
           message: text,
           createdAt: new Date().toISOString(),
         },
@@ -212,7 +253,12 @@ export default function RoomPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ meetingId, message: text }),
+        body: JSON.stringify({
+          meetingId,
+          message: text,
+          senderName: userDisplayName,
+          senderEmail: userEmail,
+        }),
       });
 
       setMessageText('');
@@ -235,12 +281,8 @@ export default function RoomPage() {
     }
   };
 
-  if (!isLoaded) {
+  if (status === 'loading' || !nameReady) {
     return <Loader />;
-  }
-
-  if (!user) {
-    return null;
   }
 
   if (meetingError) {
@@ -252,18 +294,15 @@ export default function RoomPage() {
             Meeting ID: {meetingId}
           </p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push(fallbackRoute)}
             className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition"
           >
-            Back to Dashboard
+            Go Back
           </button>
         </div>
       </div>
     );
   }
-
-  const userDisplayName = user.firstName || user.emailAddresses[0]?.emailAddress || 'Guest';
-  const userEmail = user.emailAddresses[0]?.emailAddress;
 
   return (
     <div className="page-shell-wide text-slate-950">
@@ -302,7 +341,7 @@ export default function RoomPage() {
                   Copy invite link
                 </button>
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/')}
                   className="button-primary px-4 py-2 text-sm"
                 >
                   Leave
@@ -337,7 +376,7 @@ export default function RoomPage() {
                 </span>
               </div>
               <p className="mb-2 text-sm text-slate-500">Host</p>
-              <p className="truncate font-medium text-slate-950">{meeting?.hostEmail || userEmail}</p>
+              <p className="truncate font-medium text-slate-950">{meeting?.hostEmail || userDisplayName}</p>
               {meeting?.description && <p className="mt-3 text-sm leading-6 text-slate-500">{meeting.description}</p>}
               <div className="mt-4 flex gap-2">
                 <button

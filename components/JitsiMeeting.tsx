@@ -97,7 +97,6 @@ export function JitsiMeeting({
   const [error, setError] = useState<string | null>(null);
   const [scriptLoading, setScriptLoading] = useState(true);
   const scriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const hasRetriedRef = useRef(false);
   const onReadyRef = useRef(onReady);
   const onReadyToCloseRef = useRef(onReadyToClose);
 
@@ -110,47 +109,23 @@ export function JitsiMeeting({
   }, [onReadyToClose]);
 
   // Get domain from prop or environment variable
-  const { domain: cleanDomain, explicitProtocol, preferredProtocol } = (() => {
+  const cleanDomain = (() => {
     const domainInput =
       domain ||
       process.env.NEXT_PUBLIC_JITSI_DOMAIN ||
       'meet.jit.si';
 
     const normalized = domainInput.trim();
-
-    if (normalized.startsWith('http://')) {
-      return {
-        domain: normalized.replace('http://', '').trim(),
-        explicitProtocol: 'http' as const,
-        preferredProtocol: 'http' as const,
-      };
-    }
-
-    if (normalized.startsWith('https://')) {
-      return {
-        domain: normalized.replace('https://', '').trim(),
-        explicitProtocol: 'https' as const,
-        preferredProtocol: 'https' as const,
-      };
-    }
-
-    // No protocol in env/domain input: use HTTPS first for self-hosted domains.
-    return {
-      domain: normalized,
-      explicitProtocol: null,
-      preferredProtocol: 'https' as const,
-    };
+    return normalized.replace(/^https?:\/\//, '').trim();
   })();
 
-  const [activeProtocol, setActiveProtocol] = useState<'http' | 'https'>(preferredProtocol);
+  const activeProtocol = 'https';
 
   useEffect(() => {
-    setActiveProtocol(preferredProtocol);
-    hasRetriedRef.current = false;
     setScriptLoading(true);
     setLoading(true);
     setError(null);
-  }, [cleanDomain, preferredProtocol]);
+  }, [cleanDomain]);
 
   // Load Jitsi external API script
   useEffect(() => {
@@ -174,19 +149,9 @@ export function JitsiMeeting({
     scriptTimeoutRef.current = setTimeout(() => {
       console.error(`[Jitsi] Load timeout from ${activeProtocol}://${cleanDomain}/external_api.js`);
 
-      // If protocol was explicit in env, do not fallback automatically.
-      if (!explicitProtocol && !hasRetriedRef.current) {
-        hasRetriedRef.current = true;
-        const fallbackProtocol: 'http' | 'https' =
-          activeProtocol === 'https' ? 'http' : 'https';
-        console.log(`[Jitsi] Trying fallback: ${fallbackProtocol}://${cleanDomain}`);
-        setActiveProtocol(fallbackProtocol);
-        return;
-      }
-
       setScriptLoading(false);
       setError(
-        `Cannot load from ${activeProtocol}://${cleanDomain}. Domain may be unreachable or incorrect.`
+        `Cannot load from https://${cleanDomain}. Domain may be unreachable or incorrect.`
       );
     }, 15000);
 
@@ -200,18 +165,9 @@ export function JitsiMeeting({
       console.error(`[Jitsi] Load error from ${activeProtocol}://${cleanDomain}/external_api.js`);
       if (scriptTimeoutRef.current) clearTimeout(scriptTimeoutRef.current);
 
-      if (!explicitProtocol && !hasRetriedRef.current) {
-        hasRetriedRef.current = true;
-        const fallbackProtocol: 'http' | 'https' =
-          activeProtocol === 'https' ? 'http' : 'https';
-        console.log(`[Jitsi] Fallback attempt: ${fallbackProtocol}://${cleanDomain}`);
-        setActiveProtocol(fallbackProtocol);
-        return;
-      }
-
       setScriptLoading(false);
       setError(
-        `Cannot reach ${cleanDomain} on http or https. Verify domain and network connectivity.`
+        `Cannot reach https://${cleanDomain}. Verify domain and network connectivity.`
       );
     };
 
@@ -227,7 +183,7 @@ export function JitsiMeeting({
         document.head.removeChild(script);
       }
     };
-  }, [activeProtocol, cleanDomain, explicitProtocol]);
+  }, [activeProtocol, cleanDomain]);
 
   // Initialize Jitsi meeting
   useEffect(() => {
@@ -270,7 +226,7 @@ export function JitsiMeeting({
           prejoinPageEnabled: prejoinPageEnabled,
           // Explicit endpoints for self-hosted deployments behind reverse proxy.
           bosh: `${activeProtocol}://${cleanDomain}/http-bind`,
-          websocket: `${activeProtocol === 'https' ? 'wss' : 'ws'}://${cleanDomain}/xmpp-websocket`,
+          websocket: `wss://${cleanDomain}/xmpp-websocket`,
           openBridgeChannel: 'websocket',
           chromeExtensionBanner: null,
           disableAudioLevels: false,
@@ -365,9 +321,9 @@ export function JitsiMeeting({
           <details className="text-left text-xs text-gray-500 bg-slate-800 rounded p-3 inline-block">
             <summary className="cursor-pointer font-semibold mb-2">Technical Details</summary>
             <p className="mb-1"><span className="text-gray-400">Domain:</span> {cleanDomain}</p>
-            <p className="mb-1"><span className="text-gray-400">Protocol:</span> {activeProtocol}://</p>
+            <p className="mb-1"><span className="text-gray-400">Protocol:</span> https://</p>
             <p className="mb-1"><span className="text-gray-400">Room:</span> {roomName}</p>
-            <p className="mt-2 text-gray-600">Attempting: {activeProtocol}://{cleanDomain}/external_api.js</p>
+            <p className="mt-2 text-gray-600">Attempting: https://{cleanDomain}/external_api.js</p>
           </details>
         </div>
       </div>

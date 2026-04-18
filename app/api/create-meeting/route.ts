@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
-import { auth } from '@clerk/nextjs';
 import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth-options';
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth();
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email;
 
-    if (!userId) {
+    if (!userEmail) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -19,7 +21,6 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      hostEmail,
       title,
       description,
       isPrivate = false,
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
       recordingEnabled = false,
     } = body;
 
-    if (!hostEmail || !title) {
+    if (!title) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -38,8 +39,8 @@ export async function POST(req: NextRequest) {
 
     const meeting = new Meeting({
       meetingId,
-      hostId: userId,
-      hostEmail,
+      hostId: userEmail,
+      hostEmail: userEmail,
       title,
       description: description || '',
       isPrivate,

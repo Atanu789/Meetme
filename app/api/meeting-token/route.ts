@@ -1,20 +1,18 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-import { clerkClient } from '@clerk/nextjs/server';
 import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
 import { createJitsiJwt } from '../../../lib/jitsi-jwt';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth-options';
 
 export async function GET(req: NextRequest) {
   try {
-    const { userId } = await auth();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email || '';
 
     const searchParams = req.nextUrl.searchParams;
     const meetingId = searchParams.get('meetingId');
+    const guestName = searchParams.get('name') || 'Guest';
 
     if (!meetingId) {
       return NextResponse.json({ error: 'Meeting ID is required' }, { status: 400 });
@@ -42,19 +40,20 @@ export async function GET(req: NextRequest) {
 
     const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
     const issuer = process.env.JITSI_JWT_ISSUER || 'melanam';
-    const clerkUser = await clerkClient.users.getUser(userId);
+    const resolvedName = userEmail || guestName;
+    const resolvedId = userEmail || `guest:${resolvedName}`;
 
     const token = createJitsiJwt({
       roomName: meetingId,
       domain: domain.replace(/^https?:\/\//, ''),
       user: {
-        id: userId,
-        name: clerkUser.firstName || clerkUser.emailAddresses[0]?.emailAddress || 'Guest',
-        email: clerkUser.emailAddresses[0]?.emailAddress,
+        id: resolvedId,
+        name: resolvedName,
+        email: userEmail || undefined,
       },
       secret,
       issuer,
-      moderator: userId === meeting.hostId,
+      moderator: Boolean(userEmail) && (userEmail === meeting.hostEmail || userEmail === meeting.hostId),
     });
 
     return NextResponse.json(

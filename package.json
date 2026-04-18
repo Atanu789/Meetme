@@ -9,13 +9,16 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^4.29.0",
+    "@auth/mongodb-adapter": "^3.11.2",
     "@jitsi/react-sdk": "^1.4.4",
     "axios": "^1.6.2",
     "firebase": "^12.12.0",
+    "mongodb": "^6.21.0",
     "mongoose": "^8.0.3",
     "nanoid": "^4.0.2",
     "next": "^14.0.0",
+    "next-auth": "^4.24.14",
+    "nodemailer": "^7.0.13",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.3.3",

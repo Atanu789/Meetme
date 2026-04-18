@@ -1,6 +1,40 @@
-import { SignUp } from '@clerk/nextjs';
+"use client";
+
+import Link from 'next/link';
+import { signIn } from 'next-auth/react';
+import { useState } from 'react';
 
 export default function Page() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!email.trim()) {
+      setMessage('Please enter an email address.');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+
+    const result = await signIn('email', {
+      email,
+      callbackUrl: '/',
+      redirect: false,
+    });
+
+    if (result?.error) {
+      setMessage('Failed to send login link. Please try again.');
+    } else {
+      setMessage('Magic link sent. Check your email inbox.');
+    }
+
+    setLoading(false);
+  };
+
   return (
     <div className="page-shell flex min-h-[calc(100vh-4rem)] items-center justify-center">
       <div className="grid w-full gap-8 lg:grid-cols-[0.95fr_0.85fr] lg:items-center">
@@ -14,20 +48,32 @@ export default function Page() {
           </p>
         </div>
         <div className="surface-strong rounded-[2rem] p-4 sm:p-6">
-          <SignUp
-            routing="path"
-            path="/sign-up"
-            signInUrl="/sign-in"
-            appearance={{
-              variables: {
-                colorPrimary: '#0f172a',
-                colorText: '#0f172a',
-                colorBackground: '#ffffff',
-                colorInputBackground: '#f8fafc',
-                borderRadius: '16px',
-              },
-            }}
-          />
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+                Work email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="input-modern w-full"
+              />
+              <button type="submit" disabled={loading} className="button-primary w-full justify-center py-3">
+                {loading ? 'Sending...' : 'Send Login Link'}
+              </button>
+            </form>
+            {message && <p className="mt-3 text-sm text-slate-600">{message}</p>}
+            <p className="mt-4 text-sm text-slate-500">
+              Already have access? Go to{' '}
+              <Link href="/sign-in" className="font-medium text-slate-900 underline">
+                sign in
+              </Link>
+              .
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -2,12 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 
 export function Navbar() {
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -33,12 +32,13 @@ export function Navbar() {
   };
 
   const handleLogout = async () => {
-    await signOut();
+    await signOut({ redirect: false });
     router.push('/');
   };
 
-  const userEmail = user?.emailAddresses[0]?.emailAddress || '';
+  const userEmail = session?.user?.email || '';
   const userInitial = userEmail?.[0]?.toUpperCase() || 'U';
+  const isLoggedIn = status === 'authenticated';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/80 bg-white/78 backdrop-blur-xl">
@@ -62,7 +62,7 @@ export function Navbar() {
             >
               {isDark ? 'Light' : 'Dark'}
             </button>
-            {user ? (
+            {isLoggedIn ? (
               <div className="flex items-center gap-4">
                 <span className="hidden text-sm text-slate-500 sm:inline">
                   {userEmail}
@@ -102,10 +102,10 @@ export function Navbar() {
                   Sign In
                 </Link>
                 <Link
-                  href="/sign-up"
+                  href="/sign-in"
                   className="button-primary px-4 py-2 text-sm"
                 >
-                  Sign Up
+                  Get Started
                 </Link>
               </div>
             )}

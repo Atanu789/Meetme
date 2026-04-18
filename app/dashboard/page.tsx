@@ -1,11 +1,11 @@
 'use client';
 
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { MeetingCard } from '../../components/MeetingCard';
 import { JoinModal } from '../../components/JoinModal';
 import { Loader } from '../../components/Loader';
+import { useSession } from 'next-auth/react';
 
 interface Meeting {
   _id: string;
@@ -34,7 +34,7 @@ interface DashboardMeetingActivity {
 }
 
 export default function Dashboard() {
-  const { user, isLoaded } = useUser();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [activity, setActivity] = useState<DashboardMeetingActivity[]>([]);
@@ -52,16 +52,16 @@ export default function Dashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isLoaded && !user) {
+    if (status === 'unauthenticated') {
       router.push('/sign-in');
     }
-  }, [user, isLoaded, router]);
+  }, [status, router]);
 
   useEffect(() => {
-    if (user) {
+    if (status === 'authenticated') {
       fetchDashboardData();
     }
-  }, [user]);
+  }, [status]);
 
   const fetchDashboardData = async () => {
     try {
@@ -97,7 +97,7 @@ export default function Dashboard() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          hostEmail: user?.emailAddresses[0]?.emailAddress,
+          hostEmail: session?.user?.email,
           title: formData.title,
           description: formData.description,
           isPrivate: formData.isPrivate,
@@ -120,13 +120,15 @@ export default function Dashboard() {
     }
   };
 
-  if (!isLoaded) {
+  if (status === 'loading') {
     return <Loader />;
   }
 
-  if (!user) {
+  if (status !== 'authenticated') {
     return null;
   }
+
+  const userEmail = session?.user?.email || 'there';
 
   return (
     <div className="page-shell-wide">
@@ -137,7 +139,7 @@ export default function Dashboard() {
               <div>
                 <p className="section-kicker mb-2">Workspace</p>
                 <h1 className="section-title font-display text-4xl font-semibold text-slate-950 lg:text-5xl">
-                  Welcome back, {user.firstName || 'there'}.
+                  Welcome back, {userEmail.split('@')[0] || 'there'}.
                 </h1>
                 <p className="section-copy mt-3 max-w-2xl text-lg">
                   Create a room, lock it down with JWT access, and keep chat and activity in one place.
