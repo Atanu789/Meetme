@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Meeting from '@/models/Meeting';
+import dbConnect from '../../../lib/db';
+import Meeting from '../../../models/Meeting';
 
 export async function GET(req: NextRequest) {
   try {

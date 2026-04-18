@@ -1,9 +1,9 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { clerkClient } from '@clerk/nextjs/server';
-import dbConnect from '@/lib/db';
-import Meeting from '@/models/Meeting';
-import { createJitsiJwt } from '@/lib/jitsi-jwt';
+import dbConnect from '../../../lib/db';
+import Meeting from '../../../models/Meeting';
+import { createJitsiJwt } from '../../../lib/jitsi-jwt';
 
 export async function GET(req: NextRequest) {
   try {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs';
 import { clerkClient } from '@clerk/nextjs/server';
-import dbConnect from '@/lib/db';
-import Meeting from '@/models/Meeting';
-import MeetingActivity from '@/models/MeetingActivity';
+import dbConnect from '../../../lib/db';
+import Meeting from '../../../models/Meeting';
+import MeetingActivity from '../../../models/MeetingActivity';
 
 export async function GET(req: NextRequest) {
   try {

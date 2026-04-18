@@ -2,7 +2,7 @@
 
 import { useUser } from '@clerk/nextjs';
 import { useEffect } from 'react';
-import { useUserStore } from '@/store/useUserStore';
+import { useUserStore } from '../store/useUserStore';
 import { Loader } from './Loader';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

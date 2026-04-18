@@ -3,9 +3,9 @@
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { MeetingCard } from '@/components/MeetingCard';
-import { JoinModal } from '@/components/JoinModal';
-import { Loader } from '@/components/Loader';
+import { MeetingCard } from '../../components/MeetingCard';
+import { JoinModal } from '../../components/JoinModal';
+import { Loader } from '../../components/Loader';
 
 interface Meeting {
   _id: string;

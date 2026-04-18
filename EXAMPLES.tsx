@@ -4,10 +4,10 @@
  */
 
 import React from 'react';
-import { JitsiMeeting } from '@/components/JitsiMeeting';
-import { JitsiMeetingContainer } from '@/components/JitsiMeetingContainer';
-import { useJitsiMeeting } from '@/hooks/useJitsiMeeting';
-import { CONFIG_PRESETS, TOOLBAR_PRESETS } from '@/lib/jitsi';
+import { JitsiMeeting } from './components/JitsiMeeting';
+import { JitsiMeetingContainer } from './components/JitsiMeetingContainer';
+import { useJitsiMeeting } from './hooks/useJitsiMeeting';
+import { CONFIG_PRESETS, TOOLBAR_PRESETS } from './lib/jitsi';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 

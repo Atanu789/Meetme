@@ -3,8 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useEffect, useRef, useState } from 'react';
-import { Loader } from '@/components/Loader';
-import { JitsiMeeting } from '@/components/JitsiMeeting';
+import { Loader } from '../../../components/Loader';
+import { JitsiMeeting } from '../../../components/JitsiMeeting';
 
 interface MeetingDetails {
   _id: string;

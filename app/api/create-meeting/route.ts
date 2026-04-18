@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { auth } from '@clerk/nextjs';
-import dbConnect from '@/lib/db';
-import Meeting from '@/models/Meeting';
+import dbConnect from '../../../lib/db';
+import Meeting from '../../../models/Meeting';
 
 export async function POST(req: NextRequest) {
   try {

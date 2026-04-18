@@ -1,8 +1,8 @@
 ﻿import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
-import { Navbar } from '@/components/Navbar';
-import { AuthProvider } from '@/components/AuthProvider';
+import { Navbar } from '../components/Navbar';
+import { AuthProvider } from '../components/AuthProvider';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({
