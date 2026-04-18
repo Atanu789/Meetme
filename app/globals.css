@@ -355,3 +355,32 @@ a:focus-visible {
 .animate-soft-pop {
   animation: fadeInUp 0.4s ease-out;
 }
+
+@media (max-width: 640px) {
+  .page-shell {
+    padding: 1rem 0.75rem 3rem;
+  }
+
+  .page-shell-wide {
+    padding: 0.9rem 0.75rem 2rem;
+  }
+
+  .section-title {
+    line-height: 1.08;
+  }
+
+  .section-copy {
+    line-height: 1.7;
+  }
+
+  .surface,
+  .surface-strong,
+  .surface-dark {
+    border-radius: 1.5rem;
+  }
+
+  .pill {
+    font-size: 0.68rem;
+    padding: 0.3rem 0.6rem;
+  }
+}

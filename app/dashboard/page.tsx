@@ -132,20 +132,20 @@ export default function Dashboard() {
 
   return (
     <div className="page-shell-wide">
-      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
-          <div className="surface-strong rounded-[2rem] p-6 lg:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="space-y-5 sm:space-y-6">
+          <div className="surface-strong rounded-[2rem] p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="section-kicker mb-2">Workspace</p>
-                <h1 className="section-title font-display text-4xl font-semibold text-slate-950 lg:text-5xl">
+                <h1 className="section-title font-display text-3xl font-semibold text-slate-950 sm:text-4xl lg:text-5xl">
                   Welcome back, {userEmail.split('@')[0] || 'there'}.
                 </h1>
-                <p className="section-copy mt-3 max-w-2xl text-lg">
+                <p className="section-copy mt-3 max-w-2xl text-base sm:text-lg">
                   Create a room, lock it down with JWT access, and keep chat and activity in one place.
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-3 lg:min-w-[320px]">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[320px]">
                 {[
                   { value: meetings.length, label: 'Meetings' },
                   { value: activity.length, label: 'Events' },
@@ -160,10 +160,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="surface group rounded-[1.75rem] p-6 text-left hover:-translate-y-0.5"
+              className="surface group rounded-[1.75rem] p-4 text-left hover:-translate-y-0.5 sm:p-6"
             >
               <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Start</p>
               <h2 className="mt-2 font-display text-2xl font-semibold text-slate-950">Create meeting</h2>
@@ -171,7 +171,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => setIsJoinModalOpen(true)}
-              className="surface group rounded-[1.75rem] p-6 text-left hover:-translate-y-0.5"
+              className="surface group rounded-[1.75rem] p-4 text-left hover:-translate-y-0.5 sm:p-6"
             >
               <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Join</p>
               <h2 className="mt-2 font-display text-2xl font-semibold text-slate-950">Enter room code</h2>
@@ -180,10 +180,10 @@ export default function Dashboard() {
           </div>
 
           {showCreateForm && (
-            <div className="surface-strong rounded-[2rem] p-6 lg:p-8 animate-fade-in-up">
+            <div className="surface-strong rounded-[2rem] p-4 sm:p-6 lg:p-8 animate-fade-in-up">
               <div className="mb-6">
                 <p className="section-kicker mb-2">New room</p>
-                <h2 className="section-title font-display text-2xl font-semibold text-slate-950">Create meeting</h2>
+                <h2 className="section-title font-display text-xl font-semibold text-slate-950 sm:text-2xl">Create meeting</h2>
               </div>
               <form onSubmit={handleCreateMeeting} className="space-y-4">
                 <div>
@@ -208,7 +208,7 @@ export default function Dashboard() {
                   />
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-2 md:grid-cols-3 sm:gap-3">
                   <label className="surface flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-slate-700">
                     <input
                       type="checkbox"
@@ -265,10 +265,10 @@ export default function Dashboard() {
           )}
 
           <section>
-            <div className="mb-4 flex items-end justify-between">
+            <div className="mb-4 flex items-start justify-between gap-3 sm:items-end">
               <div>
                 <p className="section-kicker mb-2">Rooms</p>
-                <h2 className="section-title font-display text-2xl font-semibold text-slate-950">Recent meetings</h2>
+                <h2 className="section-title font-display text-xl font-semibold text-slate-950 sm:text-2xl">Recent meetings</h2>
               </div>
               <button onClick={fetchDashboardData} className="text-sm font-medium text-slate-500 hover:text-slate-950">
                 Refresh
@@ -279,7 +279,7 @@ export default function Dashboard() {
                 <Loader />
               </div>
             ) : meetings.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {meetings.map((meeting) => (
                   <MeetingCard
                     key={meeting._id}
@@ -295,7 +295,7 @@ export default function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="surface rounded-[2rem] p-10 text-center">
+              <div className="surface rounded-[2rem] p-6 text-center sm:p-10">
                 <p className="font-display text-xl font-semibold text-slate-950">No meetings yet</p>
                 <p className="mt-2 text-slate-500">Create your first room to see it here.</p>
               </div>
@@ -304,9 +304,9 @@ export default function Dashboard() {
         </div>
 
         <aside className="space-y-4">
-          <div className="surface-strong rounded-[2rem] p-6">
+          <div className="surface-strong rounded-[2rem] p-4 sm:p-6">
             <p className="section-kicker mb-2">Overview</p>
-            <h2 className="section-title font-display text-2xl font-semibold text-slate-950">Workspace summary</h2>
+            <h2 className="section-title font-display text-xl font-semibold text-slate-950 sm:text-2xl">Workspace summary</h2>
             <div className="mt-5 space-y-3 text-sm text-slate-600">
               <div className="flex items-start gap-3">
                 <div className="mt-1 h-2.5 w-2.5 rounded-full bg-cyan-500" />
@@ -323,11 +323,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="surface rounded-[2rem] p-6">
+          <div className="surface rounded-[2rem] p-4 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="section-kicker mb-2">Activity</p>
-                <h2 className="section-title font-display text-2xl font-semibold text-slate-950">Meeting history</h2>
+                <h2 className="section-title font-display text-xl font-semibold text-slate-950 sm:text-2xl">Meeting history</h2>
               </div>
               <span className="pill">{activity.length} items</span>
             </div>

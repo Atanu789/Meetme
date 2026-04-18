@@ -43,7 +43,7 @@ export function JitsiMeetingContainer({
   if (error) {
     return (
       <div className={`w-full flex items-center justify-center ${bgColor}`} style={{ height }}>
-        <div className="text-center px-6 py-8">
+        <div className="px-4 py-8 text-center sm:px-6">
           <div className="mb-4">
             <svg
               className="mx-auto h-12 w-12 text-red-400"
@@ -79,9 +79,9 @@ export function JitsiMeetingContainer({
   if (isLoading) {
     return (
       <div className={`w-full flex items-center justify-center ${bgColor}`} style={{ height }}>
-        <div className="text-center">
+        <div className="px-4 text-center">
           <Loader />
-          <p className="text-gray-300 mt-4">Setting up your meeting...</p>
+          <p className="mt-4 text-sm text-gray-300 sm:text-base">Setting up your meeting...</p>
         </div>
       </div>
     );

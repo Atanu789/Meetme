@@ -60,15 +60,15 @@ export default function Home() {
 
   return (
     <div className="page-shell">
-      <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-        <div className="animate-fade-in-up space-y-7">
+      <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <div className="animate-fade-in-up space-y-6 sm:space-y-7">
           <div className="space-y-4">
             <div className="pill w-fit">Video meetings, chat storage, private rooms</div>
-            <h1 className="section-title font-display text-5xl font-semibold leading-[1.05] text-slate-950 md:text-6xl">
+            <h1 className="section-title font-display text-3xl font-semibold leading-[1.05] text-slate-950 sm:text-5xl md:text-6xl">
               Meetings that feel simple,
               <span className="gradient-text block">secure, and organized.</span>
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-slate-600">
+            <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
               Melanam brings video calls, saved chat history, room activity, and optional private-room JWT access into a single workspace teams can actually use.
             </p>
           </div>
@@ -76,26 +76,26 @@ export default function Home() {
           <div className="flex flex-col gap-3 sm:flex-row">
             {status === 'authenticated' ? (
               <>
-                <Link href="/dashboard" className="button-primary">
+                <Link href="/dashboard" className="button-primary w-full sm:w-auto">
                   Open dashboard
                 </Link>
-                <button onClick={() => void handleQuickCreateMeeting()} className="button-secondary" disabled={isCreating}>
+                <button onClick={() => void handleQuickCreateMeeting()} className="button-secondary w-full sm:w-auto" disabled={isCreating}>
                   {isCreating ? 'Creating...' : 'Create meeting'}
                 </button>
               </>
             ) : (
               <>
-                <Link href="/sign-in" className="button-secondary">
+                <Link href="/sign-in" className="button-secondary w-full sm:w-auto">
                   Sign in
                 </Link>
-                <button onClick={() => router.push('/sign-in')} className="button-primary">
+                <button onClick={() => router.push('/sign-in')} className="button-primary w-full sm:w-auto">
                   Create meeting
                 </button>
               </>
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             {[
               { title: 'Private rooms', copy: 'JWT-protected sessions for controlled access.' },
               { title: 'Saved chat', copy: 'Persistent conversation history for each room.' },
@@ -110,11 +110,11 @@ export default function Home() {
         </div>
 
         <div className="animate-fade-in-up">
-          <div className="surface-strong rounded-[2rem] p-6 lg:p-8">
-            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-2xl">
+          <div className="surface-strong rounded-[2rem] p-4 sm:p-6 lg:p-8">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-slate-950 p-5 text-white shadow-2xl sm:p-6">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Overview</p>
-              <h2 className="mt-3 font-display text-2xl font-semibold">A clean meeting workspace</h2>
-              <div className="mt-6 space-y-4 text-sm text-slate-300">
+              <h2 className="mt-3 font-display text-xl font-semibold sm:text-2xl">A clean meeting workspace</h2>
+              <div className="mt-5 space-y-4 text-sm text-slate-300 sm:mt-6">
                 {[
                   'Create a room in seconds from the dashboard.',
                   'Invite participants with a simple share link.',
@@ -129,7 +129,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 sm:mt-6 sm:grid-cols-3">
               {[
                 { number: '01', label: 'Plan' },
                 { number: '02', label: 'Meet' },
@@ -145,7 +145,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mt-14 grid gap-4 md:grid-cols-3">
+      <section className="mt-10 grid gap-3 md:mt-14 md:grid-cols-3">
         {[
           { number: '99.9%', label: 'Meeting uptime target' },
           { number: 'Private', label: 'Room access with JWT' },

@@ -41,13 +41,13 @@ export function MeetingCard({
 
   return (
     <Link href={`/room/${meetingId}`}>
-      <div className="surface group cursor-pointer rounded-3xl p-5 transition hover:-translate-y-0.5 hover:shadow-xl">
+      <div className="surface group cursor-pointer rounded-3xl p-4 transition hover:-translate-y-0.5 hover:shadow-xl sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
-          <h3 className="truncate font-display text-base font-semibold text-slate-950 transition group-hover:text-blue-700">
+          <h3 className="truncate font-display text-sm font-semibold text-slate-950 transition group-hover:text-blue-700 sm:text-base">
             {title}
           </h3>
         </div>
-        <p className="mb-4 truncate text-sm text-slate-500">{hostEmail}</p>
+        <p className="mb-3 truncate text-xs text-slate-500 sm:mb-4 sm:text-sm">{hostEmail}</p>
         <div className="mb-4 flex flex-wrap gap-2 text-[11px]">
           <span className={`pill ${isPrivate ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}`}>
             {isPrivate ? 'Private' : 'Public'} room

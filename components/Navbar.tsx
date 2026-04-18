@@ -43,9 +43,9 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/80 bg-white/78 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex h-16 items-center justify-between gap-3 sm:gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-9 sm:w-9">
               <span className="font-display text-base font-semibold">M</span>
             </div>
             <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950">
@@ -53,30 +53,30 @@ export function Navbar() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={toggleTheme}
-              className="button-secondary px-3 py-2 text-xs"
+              className="button-secondary px-3 py-2 text-xs sm:px-3 sm:py-2"
               aria-label="Toggle dark mode"
               title="Toggle theme"
             >
               {isDark ? 'Light' : 'Dark'}
             </button>
             {isLoggedIn ? (
-              <div className="flex items-center gap-4">
-                <span className="hidden text-sm text-slate-500 sm:inline">
+              <div className="flex items-center gap-2 sm:gap-4">
+                <span className="hidden text-sm text-slate-500 md:inline">
                   {userEmail}
                 </span>
                 <div className="relative">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white shadow-sm"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white shadow-sm sm:h-10 sm:w-10"
                   >
                     {userInitial}
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-3 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div className="absolute right-0 mt-3 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-52">
                       <Link
                         href="/dashboard"
                         className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
@@ -95,16 +95,10 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link
-                  href="/sign-in"
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-950 transition"
-                >
+                <Link href="/sign-in" className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-950 transition sm:px-4 sm:text-sm">
                   Sign In
                 </Link>
-                <Link
-                  href="/sign-in"
-                  className="button-primary px-4 py-2 text-sm"
-                >
+                <Link href="/sign-in" className="button-primary px-3 py-2 text-xs sm:px-4 sm:py-2 sm:text-sm">
                   Get Started
                 </Link>
               </div>
