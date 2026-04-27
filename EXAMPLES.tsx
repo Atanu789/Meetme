@@ -13,7 +13,7 @@ import { useSession } from 'next-auth/react';
 
 /**
  * Example 1: Basic Meeting Room
- * Simplest possible usage
+ * Simplest possible  usage 
  */
 export function BasicMeeting({ roomId }: { roomId: string }) {
   const router = useRouter();
