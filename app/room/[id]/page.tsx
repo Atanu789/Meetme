@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { CaptionOverlay } from '../../../components/CaptionOverlay';
 import { Loader } from '../../../components/Loader';
 import { JitsiMeeting } from '../../../components/JitsiMeeting';
 import { useSession } from 'next-auth/react';
@@ -78,12 +79,11 @@ export default function RoomPage() {
     }
 
     if (!storedName.trim()) {
-      const promptedName = window.prompt('Enter your display name for this meeting') || '';
-      const fallbackName = promptedName.trim() || `Guest-${Math.floor(Math.random() * 1000)}`;
+      const fallbackName = `Guest-${Math.floor(Math.random() * 1000)}`;
       storedName = fallbackName;
 
       try {
-        localStorage.setItem('username', fallbackName);
+        localStorage.setItem('username', storedName);
       } catch {
         // Ignore storage failures.
       }
@@ -175,6 +175,48 @@ export default function RoomPage() {
       console.error('Failed to record activity:', error);
     }
   };
+
+  // Trigger bot to join meeting when room is loaded
+  useEffect(() => {
+    if (!meeting || !nameReady) {
+      return;
+    }
+
+    const triggerBot = async () => {
+      try {
+        // Construct the Jitsi meeting URL
+        const jitsiDomain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
+        const cleanDomain = jitsiDomain.replace(/^https?:\/\//, '').trim();
+        const meetingUrl = `https://${cleanDomain}/${meetingId}`;
+
+        console.log('[meeting] Triggering bot to join:', meetingUrl);
+
+        const response = await fetch('/api/start-bot', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            meetingId,
+            meetingUrl,
+            botName: 'Melanam Live Captions Bot',
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[meeting] Bot trigger response:', data);
+          recordActivity('bot_started', 'Live captions bot started');
+        } else {
+          console.error('[meeting] Failed to trigger bot:', response.status);
+        }
+      } catch (error) {
+        console.error('[meeting] Error triggering bot:', error);
+      }
+    };
+
+    triggerBot();
+  }, [meeting, nameReady, meetingId]);
 
   const handleApiReady = (api: any) => {
     apiRef.current = api;
@@ -360,6 +402,8 @@ export default function RoomPage() {
                 onReadyToClose={handleMeetingClose}
               />
             </div>
+            
+            <CaptionOverlay meetingId={meetingId} />
           </div>
 
           <aside className="w-full shrink-0 space-y-3 lg:w-[380px]">

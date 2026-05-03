@@ -266,11 +266,56 @@ export function JitsiMeeting({
       });
 
       jitsiRef.current.addEventListener('participantJoined', (participant: any) => {
-        console.log('Participant joined:', participant.getDisplayName());
+        try {
+          const name = participant.getDisplayName ? participant.getDisplayName() : participant.displayName || participant.name || '';
+          const id = participant.getId ? participant.getId() : participant.id || participant.participantId || participant.jid;
+          console.log('Participant joined:', name, id);
+
+          // Post participant mapping to meeting-ai service
+          try {
+            const configured = (process.env.NEXT_PUBLIC_MEETING_AI_WS_URL || '').trim();
+            let base = configured.replace(/\/$/, '');
+            if (base.endsWith('/ws')) base = base.slice(0, -3);
+            base = base.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:');
+
+            if (base) {
+              fetch(`${base}/api/rooms/${encodeURIComponent(roomName)}/participants`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participantId: id, displayName: name }),
+              }).catch((e) => console.warn('[Jitsi] participant mapping failed', e));
+            }
+          } catch (e) {
+            console.warn('[Jitsi] participant mapping error', e);
+          }
+        } catch (err) {
+          console.log('Participant joined event error', err);
+        }
       });
 
       jitsiRef.current.addEventListener('participantLeft', (participant: any) => {
-        console.log('Participant left:', participant.getDisplayName());
+        try {
+          const id = participant.getId ? participant.getId() : participant.id || participant.participantId || participant.jid;
+          console.log('Participant left:', id);
+          try {
+            const configured = (process.env.NEXT_PUBLIC_MEETING_AI_WS_URL || '').trim();
+            let base = configured.replace(/\/$/, '');
+            if (base.endsWith('/ws')) base = base.slice(0, -3);
+            base = base.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:');
+
+            if (base) {
+              fetch(`${base}/api/rooms/${encodeURIComponent(roomName)}/participants`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participantId: id, displayName: '' }),
+              }).catch(() => {});
+            }
+          } catch (e) {
+            // ignore
+          }
+        } catch (err) {
+          console.log('Participant left event error', err);
+        }
       });
 
       jitsiRef.current.addEventListener('conferenceError', (error: any) => {

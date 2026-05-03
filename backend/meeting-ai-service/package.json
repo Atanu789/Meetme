@@ -1,0 +1,18 @@
+{
+  "name": "meeting-ai-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WebSocket caption service for Melanam meetings",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "bot:dev": "node src/bot/devBot.js",
+    "bot:zoom": "node src/bot/zoomBotAssemblyRunner.js",
+    "bot:test:assembly": "node src/bot/testAssemblyPipeline.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "playwright": "^1.53.2",
+    "ws": "^8.18.0"
+  }
+}

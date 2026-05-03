@@ -6,7 +6,8 @@ export type MeetingActivityType =
   | 'left'
   | 'chat'
   | 'recording-started'
-  | 'recording-stopped';
+  | 'recording-stopped'
+  | 'bot_started';
 
 export interface IMeetingActivity extends Document {
   meetingId: string;
@@ -41,7 +42,7 @@ const MeetingActivitySchema = new Schema<IMeetingActivity>(
     type: {
       type: String,
       required: true,
-      enum: ['created', 'joined', 'left', 'chat', 'recording-started', 'recording-stopped'],
+      enum: ['created', 'joined', 'left', 'chat', 'recording-started', 'recording-stopped', 'bot_started'],
     },
     details: {
       type: String,

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "meeting-ai": "npm --prefix backend/meeting-ai-service run start"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.2",

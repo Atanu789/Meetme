@@ -2,6 +2,7 @@
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 import { Navbar } from '../components/Navbar';
 import { Providers } from './providers';
+import ThemeInitializer from '../components/ThemeInitializer';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({
@@ -31,25 +32,10 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(() => {
-  try {
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const useDark = stored ? stored === 'dark' : prefersDark;
-    if (useDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  } catch (_) {}
-})();`,
-          }}
-        />
       </head>
       <body>
         <Providers>
+          <ThemeInitializer />
           <Navbar />
           <main className="app-main pt-16">
             {children}

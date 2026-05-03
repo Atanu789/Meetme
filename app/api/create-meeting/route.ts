@@ -50,6 +50,25 @@ export async function POST(req: NextRequest) {
 
     await meeting.save();
 
+    // Start the caption bot immediately so the room is monitored as soon as it exists.
+    const jitsiDomain = (process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.melanam.com').replace(/^https?:\/\//, '').trim();
+    const meetingUrl = `https://${jitsiDomain}/${meetingId}`;
+
+    try {
+      const meetingAiUrl = (process.env.MEETING_AI_CONTROL_URL || 'http://localhost:4010').replace(/\/$/, '');
+      await fetch(`${meetingAiUrl}/api/start-bot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId,
+          meetingUrl,
+          botName: 'Melanam Live Captions Bot',
+        }),
+      });
+    } catch (error) {
+      console.error('Error scheduling caption bot:', error);
+    }
+
     return NextResponse.json(
       {
         success: true,
