@@ -1,29 +1,28 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * Caption data structure for rolling display
- * Supports partial updates + final locking with auto-expire
+ * Caption data model matching Google Meet / Zoom
  */
 type Caption = {
   id: string;
-  speaker: string;
+  speakerId: string;
+  speakerName: string;
   text: string;
+  isPartial: boolean;
   isFinal: boolean;
-  startTime: number;
+  createdAt: number;
   expiresAt?: number;
-  opacity: number;
+  opacity?: number;
 };
 
 type CaptionMessage = {
-  type?: 'caption' | 'connected' | 'cleared' | 'summary';
-  meetingId?: string;
+  type?: 'caption' | 'connected' | 'cleared';
   text?: string;
-  summary?: string;
-  actions?: Array<{ description: string; assignee?: string }>;
   speaker?: string;
+  speakerId?: string;
   final?: boolean;
   timestamp?: number;
 };
@@ -33,7 +32,10 @@ interface CaptionOverlayProps {
   className?: string;
 }
 
-function resolveCaptionSocketUrl(meetingId: string) {
+/**
+ * Resolve WebSocket URL for caption service
+ */
+function resolveCaptionSocketUrl(meetingId: string): string {
   const configuredUrl = process.env.NEXT_PUBLIC_MEETING_AI_WS_URL?.trim();
 
   if (configuredUrl) {
@@ -47,102 +49,161 @@ function resolveCaptionSocketUrl(meetingId: string) {
 
       return `${baseUrl.replace(/^http/i, 'ws')}/${encodeURIComponent(meetingId)}`;
     } catch {
-      // Fall through to default handling
+      // Fall through to default
     }
   }
 
-  if (typeof window === 'undefined') {
-    return '';
-  }
+  if (typeof window === 'undefined') return '';
 
-  // Determine protocol based on current page
   const isSecure = window.location.protocol === 'https:';
   const wsProtocol = isSecure ? 'wss:' : 'ws:';
-  
-  // Extract just the hostname without port
   const hostname = window.location.hostname;
   
-  // Try to connect to meeting-ai service on port 4010 on same host
   return `${wsProtocol}//${hostname}:4010/ws/${encodeURIComponent(meetingId)}`;
 }
 
 /**
- * Caption reducer: manages rolling queue with proper partial/final handling
- * Supports real-time streaming with partial updates and final lock
+ * Caption reducer: implements Google Meet/Zoom behavior exactly
+ * 
+ * Rules:
+ * - Max 2 captions visible (active + 1 previous final)
+ * - Partial updates REPLACE same speaker's active caption
+ * - New speaker creates new caption
+ * - Final captions lock in queue, eventually removed
  */
 function captionReducer(state: Caption[], action: any): Caption[] {
   const now = Date.now();
-  
-  // Clean up expired captions
+
+  // Remove expired captions
   let queue = state.filter(c => !c.expiresAt || c.expiresAt > now);
-  
+
   switch (action.type) {
-    case 'UPDATE_ACTIVE': {
-      // Update existing caption from current speaker (partial update)
-      // or create new one if speaker changed
-      const { speaker, text, isFinal } = action.payload;
+    case 'RECEIVE_CAPTION': {
+      const { speakerId, speakerName, text, isFinal, timestamp } = action.payload;
+
+      // Ignore empty or whitespace-only text
+      if (!text || !text.trim()) {
+        return queue;
+      }
+
       const lastCaption = queue.length > 0 ? queue[queue.length - 1] : null;
-      
-      if (lastCaption && lastCaption.speaker === speaker && !lastCaption.isFinal) {
-        // Same speaker, partial update - replace text in place (realtime update)
-        return queue.map((c, i) => 
-          i === queue.length - 1 ? { ...c, text } : c
+      const textHasRegressed = lastCaption?.speakerId === speakerId && 
+                               lastCaption?.text && 
+                               text.length < lastCaption.text.length &&
+                               !lastCaption.text.startsWith(text);
+
+      // Ignore text regression (unless it's a final update)
+      if (textHasRegressed && !isFinal) {
+        return queue;
+      }
+
+      // Same speaker, same partial: deduplicate
+      if (lastCaption && 
+          lastCaption.speakerId === speakerId && 
+          !lastCaption.isFinal &&
+          lastCaption.text === text) {
+        return queue;
+      }
+
+      if (lastCaption && lastCaption.speakerId === speakerId && !lastCaption.isFinal) {
+        // Same speaker updating partial → replace text
+        return queue.map((c, i) =>
+          i === queue.length - 1
+            ? {
+                ...c,
+                text,
+                isPartial: !isFinal,
+                isFinal: isFinal || c.isFinal,
+                expiresAt: isFinal ? now + 2500 : undefined, // 2500ms visibility
+              }
+            : c
         );
       } else {
-        // New speaker or speaker changed - enqueue new caption (keep max 2)
-        return [
-          ...queue.slice(-1),  // Keep previous caption for rolling display (max 1 old)
-          {
-            id: `${speaker}-${now}-${Math.random()}`,
-            speaker,
-            text,
-            isFinal,
-            startTime: now,
-            opacity: 1,
-          }
-        ];
+        // New speaker or first caption → enqueue new bubble
+        // If we already have 2 non-expired captions, remove oldest
+        let newQueue = queue.slice(-(2 - 1)); // Keep max 1 before adding new
+
+        const captionId = `${speakerId}-${timestamp || now}-${Math.random()}`;
+        newQueue.push({
+          id: captionId,
+          speakerId,
+          speakerName,
+          text,
+          isPartial: !isFinal,
+          isFinal: isFinal || false,
+          createdAt: now,
+          expiresAt: isFinal ? now + 2500 : undefined,
+          opacity: 1,
+        });
+
+        return newQueue;
       }
     }
-    
-    case 'FINALIZE': {
-      // Mark caption as final and set expiry (2.5 seconds for reading)
-      const { captionId } = action.payload;
-      return queue.map(c => 
-        c.id === captionId ? { ...c, isFinal: true, expiresAt: now + 2500 } : c
-      );
+
+    case 'FINALIZE_SPEAKER': {
+      // If a different speaker starts talking, finalize previous speaker's partial
+      const { speakerId } = action.payload;
+      const lastCaption = queue.length > 0 ? queue[queue.length - 1] : null;
+
+      if (lastCaption && lastCaption.speakerId !== speakerId && !lastCaption.isFinal) {
+        return queue.map((c, i) =>
+          i === queue.length - 1
+            ? {
+                ...c,
+                isFinal: true,
+                isPartial: false,
+                expiresAt: now + 2500,
+              }
+            : c
+        );
+      }
+
+      return queue;
     }
-    
-    case 'FADE': {
-      // Gradually reduce opacity for fade-out effect
-      const { captionId } = action.payload;
-      const opacity = action.payload.opacity ?? 0.5;
-      return queue.map(c => 
-        c.id === captionId ? { ...c, opacity } : c
-      );
+
+    case 'TICK': {
+      // Update fade opacity based on time until expiry
+      return queue
+        .filter(c => !c.expiresAt || c.expiresAt > now)
+        .map(c => {
+          if (!c.expiresAt) return { ...c, opacity: 1 };
+
+          const remaining = c.expiresAt - now;
+          let opacity = 1;
+
+          // 4-step fade curve over final 2000ms window
+          if (remaining <= 500) opacity = 0.15;
+          else if (remaining <= 900) opacity = 0.35;
+          else if (remaining <= 1400) opacity = 0.55;
+          else if (remaining <= 2000) opacity = 0.75;
+
+          return { ...c, opacity };
+        });
     }
-    
+
     case 'CLEAR':
       return [];
-    
+
     default:
       return queue;
   }
 }
 
-export function CaptionOverlay({ meetingId, className = '' }: CaptionOverlayProps) {
+export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
-  const [debugEnabled, setDebugEnabled] = useState(false);
-  const [rawLast, setRawLast] = useState<string | null>(null);
-  
+  const [captionsEnabled, setCaptionsEnabled] = useState(true);
+  const [lastSpeakerId, setLastSpeakerId] = useState<string | null>(null);
+
   const socketUrl = useMemo(() => resolveCaptionSocketUrl(meetingId), [meetingId]);
   const [retryTick, setRetryTick] = useState(0);
   const attemptRef = useRef(0);
   const portalElRef = useRef<HTMLElement | null>(null);
   const captionDispatchRef = useRef<{ dispatch: (action: any) => void } | null>(null);
-  const fadeTimerRef = useRef<{ [captionId: string]: NodeJS.Timeout }>({});
+  const lastProcessedIdRef = useRef<string | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
-  // Initialize caption queue and dispatcher
+  // Initialize caption dispatcher
   useEffect(() => {
     const dispatcher = {
       dispatch(action: any) {
@@ -152,144 +213,138 @@ export function CaptionOverlay({ meetingId, className = '' }: CaptionOverlayProp
     captionDispatchRef.current = dispatcher;
   }, []);
 
+  // WebSocket connection
   useEffect(() => {
-    if (!socketUrl) {
-      console.warn('[captions] No socket URL configured');
+    if (!socketUrl || !captionsEnabled) {
       return;
     }
 
     let disposed = false;
-    console.log('[captions] Connecting to WebSocket:', socketUrl, 'for meetingId:', meetingId);
+
     const socket = new WebSocket(socketUrl);
+    socketRef.current = socket;
 
     socket.addEventListener('open', () => {
-      console.log('[captions] ✅ WebSocket CONNECTED to:', socketUrl);
+      console.log('[captions] ✅ Connected to:', socketUrl);
       if (disposed) return;
 
       attemptRef.current = 0;
       setConnected(true);
       socket.send(JSON.stringify({ type: 'join', meetingId }));
-      console.log('[captions] Sent join message for:', meetingId);
+      console.log('[captions] 📤 Sent join message for:', meetingId);
     });
 
     socket.addEventListener('message', (event) => {
-      console.log('[captions] 📨 Raw message received:', event.data);
-      if (debugEnabled) setRawLast(String(event.data));
-      
       try {
         const payload = JSON.parse(event.data) as CaptionMessage;
-        console.log('[captions] ✅ Parsed message type:', payload.type);
+
+        if (payload.type === 'connected') {
+          console.log('[captions] ✅ Server confirmed connection for:', meetingId);
+          return;
+        }
 
         if (payload.type === 'cleared') {
-          console.log('[captions] Cleared captions');
+          console.log('[captions] 🗑️  Captions cleared');
           captionDispatchRef.current?.dispatch({ type: 'CLEAR' });
           return;
         }
 
-        // Ignore summary type entirely - should never appear in live overlay
-        if (payload.type === 'summary') {
-          console.log('[captions] Ignoring summary message during live meeting');
+        // Ignore all non-caption types
+        if (payload.type !== 'caption') {
+          console.log('[captions] 🔹 Received message type:', payload.type);
           return;
         }
 
-        if (payload.type === 'caption' && payload.text && payload.speaker) {
-          console.log('[captions] 🎤 CAPTION:', payload.text.slice(0, 80), 'speaker:', payload.speaker, 'final:', payload.final);
-          
-          // Update active caption (partial) or enqueue new one
-          captionDispatchRef.current?.dispatch({
-            type: 'UPDATE_ACTIVE',
-            payload: {
-              speaker: payload.speaker,
-              text: payload.text,
-              isFinal: payload.final || false,
-            }
-          });
-
-          // If final, schedule fade and expiry
-          if (payload.final) {
-            // Find the last caption (just updated) and mark as final
-            setCaptions(prev => {
-              if (prev.length > 0) {
-                const lastCaption = prev[prev.length - 1];
-                const captionId = lastCaption.id;
-                
-                // Finalize caption (set expiry time)
-                captionDispatchRef.current?.dispatch({
-                  type: 'FINALIZE',
-                  payload: { captionId }
-                });
-
-                // Start fade animation at 1.5 seconds
-                setTimeout(() => {
-                  captionDispatchRef.current?.dispatch({
-                    type: 'FADE',
-                    payload: { captionId, opacity: 0.6 }
-                  });
-                }, 1500);
-
-                // Fade more at 2 seconds
-                setTimeout(() => {
-                  captionDispatchRef.current?.dispatch({
-                    type: 'FADE',
-                    payload: { captionId, opacity: 0.3 }
-                  });
-                }, 2000);
-              }
-              return prev;
-            });
-          }
+        if (!payload.text || !payload.speaker) {
+          console.warn('[captions] ⚠️  Invalid caption (missing text or speaker):', payload);
+          return;
         }
+
+        // Deduplicate: create event ID and check if we've seen it
+        const speakerId = payload.speakerId || payload.speaker;
+        const eventId = `${speakerId}-${payload.timestamp || 0}-${payload.text}`;
+
+        if (lastProcessedIdRef.current === eventId) {
+          console.log('[captions] ℹ️  Ignoring duplicate caption');
+          return;
+        }
+
+        lastProcessedIdRef.current = eventId;
+
+        // If different speaker is now speaking, finalize previous
+        if (lastSpeakerId !== null && lastSpeakerId !== speakerId) {
+          captionDispatchRef.current?.dispatch({
+            type: 'FINALIZE_SPEAKER',
+            payload: { speakerId }
+          });
+        }
+
+        setLastSpeakerId(speakerId);
+
+        // Update caption
+        const label = payload.final ? '✅ FINAL' : '🔹 PARTIAL';
+        console.log(`[captions] ${label} caption: "${payload.text.slice(0, 60)}" from ${payload.speaker}`);
+
+        captionDispatchRef.current?.dispatch({
+          type: 'RECEIVE_CAPTION',
+          payload: {
+            speakerId,
+            speakerName: payload.speaker || 'Unknown participant',
+            text: payload.text,
+            isFinal: payload.final || false,
+            timestamp: payload.timestamp,
+          }
+        });
       } catch (err) {
-        console.error('[captions] Failed to parse message:', err);
+        console.error('[captions] Parse error:', err);
       }
     });
 
     socket.addEventListener('close', () => {
-      console.log('[captions] ❌ WebSocket closed');
+      console.log('[captions] ❌ Disconnected from server');
       if (!disposed) {
         setConnected(false);
         const attempt = ++attemptRef.current;
         const delay = Math.min(30000, 1000 * 2 ** (attempt - 1));
-        console.log(`[captions] Scheduling reconnect attempt ${attempt} in ${delay}ms`);
+        console.log(`[captions] Reconnect attempt ${attempt} in ${delay}ms`);
         setTimeout(() => setRetryTick(t => t + 1), delay);
       }
     });
 
     socket.addEventListener('error', (e) => {
-      console.error('[captions] ❌ WebSocket ERROR:', e);
+      console.error('[captions] ❌ WebSocket error:', e);
       if (!disposed) {
         setConnected(false);
         const attempt = ++attemptRef.current;
         const delay = Math.min(30000, 1000 * 2 ** (attempt - 1));
-        console.log(`[captions] Scheduling reconnect attempt ${attempt} in ${delay}ms due to error`);
         setTimeout(() => setRetryTick(t => t + 1), delay);
       }
     });
 
     return () => {
       disposed = true;
-      socket.close();
+      socketRef.current = null;
+      try { socket.close(); } catch (_) {}
     };
-  }, [meetingId, socketUrl, retryTick, debugEnabled]);
+  }, [meetingId, socketUrl, retryTick, captionsEnabled]);
 
-  // Auto-expire final captions
+  // Auto-fade timer
   useEffect(() => {
-    const checkExpiry = () => {
-      setCaptions(prev => {
-        const now = Date.now();
-        return prev.filter(c => !c.expiresAt || c.expiresAt > now);
-      });
-    };
+    if (!captionsEnabled) return;
 
-    const timer = setInterval(checkExpiry, 300);
+    const timer = setInterval(() => {
+      captionDispatchRef.current?.dispatch({ type: 'TICK' });
+    }, 300);
+
     return () => clearInterval(timer);
-  }, []);
+  }, [captionsEnabled]);
 
-  // Create and manage portal element
+  // Portal setup
   useEffect(() => {
     try {
       const id = `captions-portal-${meetingId}`;
       let el = document.getElementById(id) as HTMLElement | null;
+
       if (!el) {
         el = document.createElement('div');
         el.id = id;
@@ -302,10 +357,11 @@ export function CaptionOverlay({ meetingId, className = '' }: CaptionOverlayProp
         el.style.zIndex = String(2147483647);
         document.body.appendChild(el);
       }
+
       portalElRef.current = el;
 
       return () => {
-        if (el && el.parentElement) {
+        if (el?.parentElement) {
           try { el.parentElement.removeChild(el); } catch (_) {}
         }
         portalElRef.current = null;
@@ -315,64 +371,76 @@ export function CaptionOverlay({ meetingId, className = '' }: CaptionOverlayProp
     }
   }, [meetingId]);
 
-  // Initialize debug mode
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      setDebugEnabled(params.get('captions_debug') === '1');
-    } catch (_) {
-      setDebugEnabled(false);
-    }
-  }, []);
-
-  // Render caption queue
+  // Render overlay
   const overlay = (
-    <div className="fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 px-4 pb-8" style={{ pointerEvents: 'none' }}>
-      {/* Display max 2 captions in rolling queue */}
-      <div className="max-w-2xl w-full space-y-2">
+    <div 
+      className="fixed inset-0 z-40 pointer-events-none flex flex-col items-center justify-end"
+      style={{ 
+        paddingBottom: typeof window !== 'undefined' && window.innerWidth < 640 ? '72px' : '24px'
+      }}
+    >
+      {/* Caption queue: max 2 items */}
+      <div className="space-y-3 w-full flex flex-col items-center px-4">
         {captions.map((caption) => (
           <div
             key={caption.id}
-            className="rounded-2xl border border-white/20 bg-slate-950/85 px-4 py-3 shadow-2xl backdrop-blur transition-all duration-300"
+            className="w-full max-w-2xl"
             style={{
-              opacity: caption.opacity,
-              transform: caption.opacity < 1 ? 'translateY(8px)' : 'translateY(0)',
+              opacity: caption.opacity ?? 1,
+              transition: 'opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
-            {/* Speaker name badge */}
-            <div className="mb-2 flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
-              <span className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
-                {caption.speaker || 'Speaker'}
-              </span>
-              {caption.isFinal && (
-                <span className="text-[10px] text-slate-400">●</span>
-              )}
+            <div className="rounded-3xl bg-black/80 backdrop-blur-sm px-6 py-4 shadow-2xl border border-white/10">
+              {/* Speaker name */}
+              <div className="mb-1.5 text-sm font-semibold opacity-75 text-gray-300">
+                {caption.speakerName}
+              </div>
+
+              {/* Transcript text: max 2 lines */}
+              <p
+                className="text-base leading-relaxed text-white font-normal line-clamp-2"
+                style={{
+                  wordWrap: 'break-word',
+                  width: 'calc(70vw)',
+                  maxWidth: 'calc(100% - 24px)',
+                }}
+              >
+                {caption.text}
+              </p>
             </div>
-            
-            {/* Caption text */}
-            <p className="text-sm leading-relaxed text-white">
-              {caption.text}
-            </p>
           </div>
         ))}
       </div>
 
-      {/* Connection status when no captions */}
-      {captions.length === 0 && (
-        <div className="rounded-full border border-white/10 bg-slate-950/70 px-3 py-1 text-xs text-slate-300 backdrop-blur">
-          <span className="mr-2">Live captions</span>
-          <span className={`inline-block h-2 w-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-        </div>
-      )}
+      {/* CC Toggle Button - Bottom Right */}
+      <div className="fixed bottom-6 right-6 pointer-events-auto">
+        <button
+          onClick={() => setCaptionsEnabled(!captionsEnabled)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 ${
+            captionsEnabled
+              ? 'bg-white/90 text-black hover:bg-white'
+              : 'bg-white/20 text-white hover:bg-white/30'
+          }`}
+          title={captionsEnabled ? 'Captions on' : 'Captions off'}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V6c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v4z" />
+          </svg>
+          <span className="text-xs uppercase tracking-tight">
+            {captionsEnabled ? 'CC' : 'CC Off'}
+          </span>
+        </button>
+      </div>
 
-      {/* Debug panel */}
-      {debugEnabled && (
-        <div className="mt-2 max-w-2xl w-full rounded-md bg-black/70 px-3 py-2 text-xs text-amber-200">
-          <div className="font-medium text-amber-100 mb-1">WS Debug</div>
-          <div className="whitespace-pre-wrap break-all text-[10px]">
-            {rawLast ? rawLast.slice(0, 200) : 'waiting...'}
-          </div>
+      {/* Connection indicator (only when no captions & enabled) */}
+      {captions.length === 0 && captionsEnabled && (
+        <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-400' : 'bg-amber-400'}`}></span>
+          <span>{connected ? 'Live captions' : 'Connecting...'}</span>
         </div>
       )}
     </div>

@@ -317,25 +317,31 @@ async function clickJoin(page) {
 }
 
 async function waitUntilInsideMeeting(page) {
-  for (let i = 0; i < 30; i += 1) {
+  for (let i = 0; i < 60; i += 1) {
     const status = await page.evaluate(() => {
       const text = document.body ? document.body.innerText : '';
       const hasJoinControls = text.includes('Join meeting') || text.includes('Join without audio') || text.includes('Enter your name');
       const hasMeetingControls =
         text.includes('Leave the meeting') ||
+        text.includes('Leave meeting') ||
         text.includes('Invite people') ||
         text.includes('Open chat') ||
-        text.includes('Open participants panel');
+        text.includes('Open participants panel') ||
+        text.includes('Leave') ||
+        text.includes('Mute') ||
+        text.includes('Unmute');
       return { hasMeetingControls, hasJoinControls };
     });
 
     if (status.hasMeetingControls && !status.hasJoinControls) {
+      console.log('[bot] ✅ confirmed inside meeting after', i * 2, 'seconds');
       return true;
     }
 
     await page.waitForTimeout(2000);
   }
 
+  console.warn('[bot] ⚠️ could not confirm meeting state after 120 seconds, but continuing...');
   return false;
 }
 
@@ -368,6 +374,12 @@ async function joinZoomMeeting(page, meetingUrl, botName) {
 
   // Jitsi often needs a short beat after the join click before audio can be captured.
   await page.waitForTimeout(7000);
+
+  // Wait to confirm we're actually in the meeting
+  const confirmed = await waitUntilInsideMeeting(page);
+  if (!confirmed) {
+    console.warn('[bot] ⚠️ Meeting join not confirmed, but continuing with audio capture...');
+  }
 
   return true;
 }
@@ -402,243 +414,125 @@ function ensureFfmpegCaptureSupport(ffmpegBin, platform) {
   }
 }
 
-function getBrowserCaptureResampleRate() {
-  return Number(process.env.ASSEMBLYAI_SAMPLE_RATE || 16000);
-}
-
 function bufferToBase64(buffer) {
   return Buffer.from(buffer).toString('base64');
 }
 
-function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
-  if (!chunk || aaiWebSocket.readyState !== WebSocketModule.OPEN) {
-    return;
+function calculateRmsFromBuffer(buffer) {
+  // buffer should be s16le (2 bytes per sample, little-endian)
+  if (buffer.length < 2) return 0;
+  
+  let sum = 0;
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const samples = buffer.length / 2;
+  
+  for (let i = 0; i < samples; i++) {
+    const sample = view.getInt16(i * 2, true) / 32768; // normalize to -1..1
+    sum += sample * sample;
   }
-
-  if (AAI_AUDIO_SEND_MODE === 'binary') {
-    aaiWebSocket.send(chunk);
-    return;
-  }
-
-  aaiWebSocket.send(JSON.stringify({
-    type: 'audio',
-    audio_data: bufferToBase64(chunk),
-  }));
+  
+  return Math.sqrt(sum / samples);
 }
 
-async function startBrowserAudioStream(page, aaiWebSocket) {
-  const targetSampleRate = getBrowserCaptureResampleRate();
-  let chunkCount = 0;
-  let rmsAccumulator = 0;
+function isAudioSilent(rms) {
+  // RMS < 0.001 is near-silence; > 0.01 is likely speech
+  return rms < 0.001;
+}
 
-  await page.exposeFunction('__botOnBrowserAudioChunk__', (payload) => {
-    if (!payload || !payload.pcmBase64) {
-      return;
-    }
+async function validateAudioFile(filePath) {
+  const stats = fs.statSync(filePath);
+  const fileSize = stats.size;
+  
+  // Read entire file as buffer
+  const buffer = fs.readFileSync(filePath);
+  
+  // PCM s16le: 16kHz, 1 channel, 16-bit = 32000 bytes per second
+  // For 10 seconds: ~320KB (some WAV header overhead, ~44 bytes)
+  const expectedMinSize = 16000 * 2 * 10 - 100; // conservative minimum
+  const expectedMaxSize = 16000 * 2 * 10 + 500; // with WAV header + margin
+  
+  const rms = calculateRmsFromBuffer(buffer.slice(-Math.min(160000, buffer.length))); // last 5 seconds of audio data
+  const isSilent = isAudioSilent(rms);
+  
+  // Estimate duration (rough, doesn't account for WAV header perfectly)
+  // WAV header is typically 44 bytes for simple mono PCM
+  const audioDataSize = Math.max(0, buffer.length - 100);
+  const estimatedDurationSeconds = audioDataSize / (16000 * 2);
+  
+  return {
+    fileSize,
+    rms,
+    isSilent,
+    estimatedDurationSeconds,
+    isValid: !isSilent && estimatedDurationSeconds >= 9, // at least 9 seconds of actual audio
+  };
+}
 
-    if (aaiWebSocket.readyState !== WebSocketModule.OPEN) {
-      return;
-    }
+function recordAudioToFile(filePath, recordDurationSeconds = 10) {
+  const platform = os.platform();
+  const format = resolveFfmpegFormat(platform);
+  let device = resolveFfmpegAudioDevice(platform);
 
-    try {
-      chunkCount += 1;
-      rmsAccumulator += Number(payload.rms || 0);
-      if (chunkCount % 200 === 0) {
-        const avgRms = rmsAccumulator / 200;
-        const rmsStatus = avgRms > 0.005 ? 'voice-like' : 'near-silence';
-        console.log(`[audio-stream] browser chunks sent: ${chunkCount} avg_rms=${avgRms.toFixed(5)} (${rmsStatus})`);
-        rmsAccumulator = 0;
-      }
-      const chunk = Buffer.from(payload.pcmBase64, 'base64');
-      sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
-    } catch (error) {
-      console.error('[audio-stream] Failed to send browser audio to AssemblyAI:', error.message);
-    }
-  });
+  if (format === 'dshow') {
+    device = `audio="${device}"`;
+  }
 
-  const started = await page.evaluate(async (targetRate) => {
-    if (window.__botBrowserAudioCaptureStarted) {
-      return true;
-    }
+  const ffmpegBin = resolveFfmpegBinary();
+  ensureFfmpegCaptureSupport(ffmpegBin, platform);
+  
+  // FFmpeg arguments to record 10 seconds, output as WAV file (includes header)
+  const args = [
+    '-hide_banner',
+    '-loglevel', 'error',
+    '-f', format,
+    '-i', device,
+    '-ac', '1',             // mono
+    '-ar', '16000',         // 16kHz
+    '-t', String(recordDurationSeconds),  // duration
+    '-y',                   // overwrite
+    filePath,
+  ];
 
-    const toBase64 = (bytes) => {
-      let binary = '';
-      const chunkSize = 0x8000;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-      }
-      return btoa(binary);
-    };
+  console.log(`[audio-record] starting ffmpeg (${platform}) format=${format}`);
+  console.log(`[audio-record] recording to: ${filePath}`);
+  console.log(`[audio-record] duration: ${recordDurationSeconds} seconds`);
 
-    const resample = (input, inputRate, outputRate) => {
-      if (inputRate === outputRate) {
-        return input;
-      }
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn(ffmpegBin, args, { 
+      stdio: ['pipe', 'pipe', 'pipe'] 
+    });
 
-      const ratio = inputRate / outputRate;
-      const outputLength = Math.max(1, Math.floor(input.length / ratio));
-      const output = new Float32Array(outputLength);
+    let errorOutput = '';
+    
+    ffmpeg.stderr.on('data', (chunk) => {
+      errorOutput += chunk.toString();
+    });
 
-      for (let i = 0; i < outputLength; i += 1) {
-        const position = i * ratio;
-        const left = Math.floor(position);
-        const right = Math.min(left + 1, input.length - 1);
-        const fraction = position - left;
-        output[i] = input[left] + (input[right] - input[left]) * fraction;
-      }
-
-      return output;
-    };
-
-    const floatToPcm16 = (input) => {
-      const bytes = new Uint8Array(input.length * 2);
-      const view = new DataView(bytes.buffer);
-
-      for (let i = 0; i < input.length; i += 1) {
-        const sample = Math.max(-1, Math.min(1, input[i]));
-        view.setInt16(i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-      }
-
-      return bytes;
-    };
-
-    const calculateRms = (input) => {
-      if (!input.length) return 0;
-      let sum = 0;
-      for (let i = 0; i < input.length; i += 1) {
-        sum += input[i] * input[i];
-      }
-      return Math.sqrt(sum / input.length);
-    };
-
-    const seen = new WeakSet();
-
-    const attachToElement = (element) => {
-      if (!element || seen.has(element)) {
-        return false;
-      }
-
-      const capture = element.captureStream || element.mozCaptureStream;
-      if (typeof capture !== 'function') {
-        return false;
-      }
-
-      const stream = capture.call(element);
-      if (!stream || stream.getAudioTracks().length === 0) {
-        return false;
-      }
-
-      const context = new AudioContext();
-      const source = context.createMediaStreamSource(stream);
-      const processor = context.createScriptProcessor(4096, 1, 1);
-      const sink = context.createGain();
-
-      sink.gain.value = 0;
-      source.connect(processor);
-      processor.connect(sink);
-      sink.connect(context.destination);
-
-      processor.onaudioprocess = (event) => {
-        const input = event.inputBuffer.getChannelData(0);
-        const rms = calculateRms(input);
-        const downsampled = resample(input, context.sampleRate, targetRate);
-        const pcmBytes = floatToPcm16(downsampled);
-
-        if (typeof window.__botOnBrowserAudioChunk__ === 'function') {
-          window.__botOnBrowserAudioChunk__({
-            pcmBase64: toBase64(pcmBytes),
-            sampleRate: targetRate,
-            rms,
-          });
+    ffmpeg.on('exit', (code) => {
+      if (code === 0 || code === null) { // 0 = success, null = killed by timeout
+        console.log(`[audio-record] ✅ ffmpeg exited (code=${code})`);
+        resolve();
+      } else {
+        console.log(`[audio-record] ❌ ffmpeg exited with code ${code}`);
+        if (errorOutput) {
+          console.error(`[audio-record] stderr: ${errorOutput.slice(0, 500)}`);
         }
-      };
-
-      element.__botBrowserAudioCapture = { context, source, processor, sink, stream };
-      seen.add(element);
-      return true;
-    };
-
-    const scanForAudio = () => {
-      const candidates = Array.from(document.querySelectorAll('audio,video'));
-      for (const element of candidates) {
-        if (attachToElement(element)) {
-          return true;
-        }
-      }
-
-      return false;
-    };
-
-    const observer = new MutationObserver(() => {
-      if (!window.__botBrowserAudioCaptureAttached) {
-        window.__botBrowserAudioCaptureAttached = scanForAudio();
+        reject(new Error(`ffmpeg exited with code ${code}`));
       }
     });
 
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
+    ffmpeg.on('error', (err) => {
+      reject(err);
+    });
 
-    const intervalId = setInterval(() => {
-      if (!window.__botBrowserAudioCaptureAttached) {
-        window.__botBrowserAudioCaptureAttached = scanForAudio();
+    // Force kill after 15 seconds (in case ffmpeg hangs)
+    setTimeout(() => {
+      if (!ffmpeg.killed) {
+        console.log('[audio-record] timeout, killing ffmpeg');
+        ffmpeg.kill('SIGKILL');
       }
-    }, 2000);
-
-    window.__botBrowserAudioCaptureStarted = true;
-    window.__botBrowserAudioCaptureObserver = observer;
-    window.__botBrowserAudioCaptureIntervalId = intervalId;
-    window.__botBrowserAudioCaptureAttached = scanForAudio();
-    return true;
-  }, targetSampleRate);
-
-  if (!started) {
-    throw new Error('BROWSER_AUDIO_CAPTURE_FAILED');
-  }
-
-  console.log(`[audio-stream] browser audio capture armed at ${targetSampleRate} Hz`);
-
-  return {
-    async stop() {
-      try {
-        await page.evaluate(() => {
-          if (window.__botBrowserAudioCaptureObserver) {
-            window.__botBrowserAudioCaptureObserver.disconnect();
-            window.__botBrowserAudioCaptureObserver = null;
-          }
-
-          if (window.__botBrowserAudioCaptureIntervalId) {
-            clearInterval(window.__botBrowserAudioCaptureIntervalId);
-            window.__botBrowserAudioCaptureIntervalId = null;
-          }
-
-          const tracked = Array.from(document.querySelectorAll('audio,video'));
-          for (const element of tracked) {
-            const captureState = element.__botBrowserAudioCapture;
-            if (!captureState) {
-              continue;
-            }
-
-            try {
-              captureState.processor.disconnect();
-              captureState.source.disconnect();
-              captureState.sink.disconnect();
-              captureState.context.close();
-            } catch {
-              // ignore
-            }
-
-            element.__botBrowserAudioCapture = null;
-          }
-
-          window.__botBrowserAudioCaptureStarted = false;
-          window.__botBrowserAudioCaptureAttached = false;
-        });
-      } catch {
-        // ignore
-      }
-    },
-  };
+    }, recordDurationSeconds * 1000 + 5000);
+  });
 }
 
 function startRealtimeAudioStream(aaiWebSocket) {
@@ -716,71 +610,103 @@ function startRealtimeAudioStream(aaiWebSocket) {
   return ffmpeg;
 }
 
-async function postCaption(meetingId, text, speaker = 'Meeting Bot', final = true) {
-  const payload = {
-    text,
-    speaker,
-    final: final,
-    timestamp: Date.now(),
-  };
+function startRealtimeAudioStream(aaiWebSocket) {
+  const platform = os.platform();
+  const format = resolveFfmpegFormat(platform);
+  let device = resolveFfmpegAudioDevice(platform);
 
-  const response = await fetch(`${CAPTION_BACKEND_URL}/api/rooms/${encodeURIComponent(meetingId)}/captions`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
+  // Format device string based on input format
+  if (format === 'dshow') {
+    // dshow requires: audio="DeviceName" format
+    device = `audio="${device}"`;
+  } else if (format === 'avfoundation') {
+    // avfoundation may need special formatting for device selection
+    // ':0' is default, or pass device UID if needed
+  }
+
+  let args;
+
+  // FFmpeg outputs raw PCM (s16le) at 16kHz mono
+  if (format === 'pulse' || format === 'dshow' || format === 'avfoundation') {
+    args = [
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-f', format,
+      '-i', device,
+      '-ac', '1',
+      '-ar', '16000',
+      '-f', 's16le',
+      '-',  // stdout
+    ];
+  } else {
+    args = [
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-f', 'pulse',
+      '-i', 'default',
+      '-ac', '1',
+      '-ar', '16000',
+      '-f', 's16le',
+      '-',  // stdout
+    ];
+  }
+
+  const ffmpegBin = resolveFfmpegBinary();
+  ensureFfmpegCaptureSupport(ffmpegBin, platform);
+  console.log(`[audio-stream] starting ffmpeg (${platform}) format=${format} device=${device}`);
+  console.log(`[audio-stream] using ${ffmpegBin}`);
+  
+  const ffmpeg = spawn(ffmpegBin, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+  ffmpeg.stderr.on('data', (chunk) => {
+    const line = chunk.toString().trim();
+    if (line) {
+      console.error(`[ffmpeg] ${line}`);
+    }
   });
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Caption publish failed: ${response.status} ${body}`);
-  }
-}
+  ffmpeg.on('exit', (code) => {
+    console.log(`[audio-stream] ffmpeg exited with code ${code}`);
+  });
 
-function createRealtimeTranscriptHandler(meetingId) {
-  let speakerMap = {};
-  
-  return {
-    handleTranscript(transcript) {
-      const messageType = transcript.message_type || transcript.type || '';
-      const text = transcript.text || transcript.transcript || transcript.message || '';
-      const userId = transcript.user_id || transcript.speaker || transcript.speaker_id || 'Unknown Speaker';
-      
-      if (!text) return;
-      
-      const speaker = speakerMap[userId] || userId || 'Unknown Speaker';
-      const isFinal = /final/i.test(String(messageType));
-      
-      // Update speaker tracking
-      if (!speakerMap[userId]) {
-        speakerMap[userId] = speaker;
+  // Stream stdout PCM to AssemblyAI WebSocket
+  if (ffmpeg.stdout) {
+    ffmpeg.stdout.on('data', (chunk) => {
+      if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
+        try {
+          sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
+        } catch (err) {
+          console.error('[audio-stream] Failed to send audio to AssemblyAI:', err.message);
+        }
       }
-      
-      console.log(`[aai] ${isFinal ? 'FINAL' : 'PARTIAL'}: ${speaker}: ${text.slice(0, 80)}`);
-      
-      // Publish caption
-      postCaption(meetingId, String(text), speaker, isFinal).catch(err => {
-        console.error('[aai] Failed to publish caption:', err.message);
-      });
-    }
-  };
+    });
+  }
+
+  return ffmpeg;
 }
 
+function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
+  if (!chunk || aaiWebSocket.readyState !== WebSocketModule.OPEN) {
+    return;
+  }
+
+  // AssemblyAI v3 realtime expects raw binary PCM data, NOT JSON frames
+  // Send audio chunk as raw bytes directly
+  aaiWebSocket.send(chunk);
+}
 
 (async () => {
   const config = parseArgs();
 
-  console.log('[bot] starting meeting + realtime transcription pipeline');
+  console.log('[bot] PHASE 1: AUDIO CAPTURE VALIDATION');
   console.log(`[bot] meetingId=${config.meetingId}`);
-  console.log(`[bot] captionBackend=${CAPTION_BACKEND_URL}`);
 
   let browser;
   let recorder;
-  let browserCapture;
   let page;
   let monitorInterval;
+  let heartbeatInterval;
   let shuttingDown = false;
-  let aaiWebSocket;
-  let transcriptHandler;
 
   const shutdown = async (reason) => {
     if (shuttingDown) {
@@ -795,13 +721,9 @@ function createRealtimeTranscriptHandler(meetingId) {
       monitorInterval = null;
     }
 
-    if (aaiWebSocket) {
-      try {
-        aaiWebSocket.close();
-      } catch {
-        // ignore
-      }
-      aaiWebSocket = null;
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
     }
 
     if (recorder && !recorder.killed) {
@@ -814,15 +736,6 @@ function createRealtimeTranscriptHandler(meetingId) {
       if (!recorder.killed) {
         recorder.kill('SIGKILL');
       }
-    }
-
-    if (browserCapture) {
-      try {
-        await browserCapture.stop();
-      } catch {
-        // ignore
-      }
-      browserCapture = null;
     }
 
     if (browser) {
@@ -844,75 +757,8 @@ function createRealtimeTranscriptHandler(meetingId) {
   });
 
   try {
-    // Connect to AssemblyAI realtime WebSocket
-    const assemblyAiUrl = buildAssemblyAiWsUrl();
-    console.log(`[bot] connecting to AssemblyAI at ${assemblyAiUrl.replace(/token=[^&]+/, 'token=***')}`);
-    aaiWebSocket = new WebSocketModule(assemblyAiUrl);
-    transcriptHandler = createRealtimeTranscriptHandler(config.meetingId);
-
-    aaiWebSocket.addEventListener('open', () => {
-      console.log('[aai] ✅ Connected to AssemblyAI realtime WebSocket');
-    });
-
-    aaiWebSocket.addEventListener('message', (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        const messageType = message.message_type || message.type || '';
-        
-        if (/session.?begins?/i.test(String(messageType)) || /^begin$/i.test(String(messageType))) {
-          console.log('[aai] Session started');
-          console.log(`[aai] session begin payload keys: ${Object.keys(message).join(', ')}`);
-          return;
-        }
-
-        if (/session.?terminated?/i.test(String(messageType))) {
-          console.log('[aai] Session terminated');
-          return;
-        }
-
-        if (/transcript/i.test(String(messageType)) || message.text || message.transcript) {
-          transcriptHandler.handleTranscript(message);
-          return;
-        }
-
-        if (message.error) {
-          console.error('[aai] Error:', message.error);
-          return;
-        }
-
-        if (messageType) {
-          console.log(`[aai] message type: ${messageType}`);
-        }
-      } catch (err) {
-        console.error('[aai] Failed to parse message:', err.message);
-      }
-    });
-
-    aaiWebSocket.addEventListener('error', (err) => {
-      console.error('[aai] WebSocket error:', err);
-    });
-
-    aaiWebSocket.addEventListener('close', () => {
-      console.log('[aai] WebSocket closed');
-      if (!shuttingDown) {
-        console.log('[aai] AssemblyAI WebSocket unexpectedly closed, shutting down');
-        shutdown('aai-websocket-closed');
-      }
-    });
-
-    // Wait for AAI connection
-    await new Promise((resolve) => {
-      const checkConnection = setInterval(() => {
-        if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
-          clearInterval(checkConnection);
-          resolve();
-        }
-      }, 100);
-      setTimeout(() => {
-        clearInterval(checkConnection);
-        resolve();
-      }, 5000);
-    });
+    console.log('[bot] PHASE 1: AUDIO CAPTURE VALIDATION (NO TRANSCRIPTION)');
+    console.log('[bot] mode: record to disk, validate, then exit');
 
     browser = await chromium.launch({
       headless: config.headless,
@@ -929,40 +775,128 @@ function createRealtimeTranscriptHandler(meetingId) {
 
     const joined = await joinZoomMeeting(page, config.meetingUrl, config.botName);
     if (joined) {
-      console.log('[bot] joined meeting successfully');
+      console.log('[bot] ✅ joined meeting successfully');
     } else {
-      console.warn('[bot] join state not confirmed, continuing to monitor audio');
+      console.warn('[bot] ⚠️ join state not confirmed, attempting audio capture anyway');
     }
 
-    // Prefer browser-captured meeting audio on Windows because loopback devices are often unavailable.
-    if (os.platform() === 'win32') {
-      try {
-        console.log('[bot] starting browser audio capture to AssemblyAI');
-        browserCapture = await startBrowserAudioStream(page, aaiWebSocket);
-      } catch (error) {
-        console.warn(`[bot] browser audio capture failed, falling back to ffmpeg: ${error.message}`);
-        console.log('[bot] starting audio streaming to AssemblyAI');
-        recorder = startRealtimeAudioStream(aaiWebSocket);
-      }
-    } else {
-      console.log('[bot] starting audio streaming to AssemblyAI');
-      recorder = startRealtimeAudioStream(aaiWebSocket);
+    // Record audio to test file
+    const recordDir = path.join(process.cwd(), 'data', 'audio', config.meetingId);
+    if (!fs.existsSync(recordDir)) {
+      fs.mkdirSync(recordDir, { recursive: true });
+    }
+    
+    const testWavPath = path.join(recordDir, 'test.wav');
+    console.log(`[bot] ✅ recording started, will save to: ${testWavPath}`);
+
+    try {
+      await recordAudioToFile(testWavPath, 10);
+      console.log('[bot] ✅ recording completed');
+    } catch (recordError) {
+      console.error('[bot] ❌ recording failed:', recordError.message);
+      await shutdown('audio-record-failed');
+      return;
     }
 
-    monitorInterval = setInterval(async () => {
-      try {
-        if (page.isClosed()) {
-          console.log('[bot] page closed, stopping bot');
-          await shutdown('page-closed');
-        }
-      } catch {
-        await shutdown('page-unavailable');
-      }
-    }, 15000);
+    // Validate the recorded audio
+    console.log('[bot] validating audio file...');
+    let validation;
+    try {
+      validation = await validateAudioFile(testWavPath);
+    } catch (valError) {
+      console.error('[bot] ❌ validation error:', valError.message);
+      await shutdown('audio-validation-error');
+      return;
+    }
 
-    await new Promise(() => {});
+    console.log(`
+[audio-validation] RESULTS
+==========================
+📁 file size:              ${(validation.fileSize / 1024).toFixed(2)} KB
+⏱️  estimated duration:     ${validation.estimatedDurationSeconds.toFixed(2)} seconds
+📊 RMS (root mean square): ${validation.rms.toFixed(6)}
+🔇 silence detected:       ${validation.isSilent ? '❌ YES (FAILED)' : '✅ NO (PASSED)'}
+✅ overall valid:          ${validation.isValid ? '✅ PASSED' : '❌ FAILED'}
+==========================
+    `);
+
+    if (!validation.isValid) {
+      console.error('[bot] ❌ AUDIO VALIDATION FAILED');
+      
+      if (validation.isSilent) {
+        console.error('[bot] ❌ REASON: Audio is silent (RMS < 0.001)');
+        console.error('[bot] ❌ This likely means:');
+        console.error('[bot]    - No audio source available on device');
+        console.error('[bot]    - Meeting has no active speakers');
+        console.error('[bot]    - OS-level loopback capture not configured');
+        console.error('[bot]    - Audio output not routed to loopback device');
+      }
+      
+      if (validation.estimatedDurationSeconds < 9) {
+        console.error(`[bot] ❌ REASON: Recording too short (${validation.estimatedDurationSeconds.toFixed(2)}s < 9s)`);
+        console.error('[bot]    - ffmpeg may have failed to start');
+        console.error('[bot]    - Device not recognized');
+      }
+
+      await shutdown('audio-validation-failed');
+      return;
+    }
+
+    console.log('[bot] ✅ AUDIO VALIDATION PASSED');
+    
+    // Print absolute path and file info clearly
+    const absolutePath = path.resolve(testWavPath);
+    const stats = fs.statSync(testWavPath);
+    const fileSizeKB = (stats.size / 1024).toFixed(2);
+    
+    console.log(`
+╔════════════════════════════════════════════════════════════════╗
+║                    AUDIO FILE SAVED                           ║
+╚════════════════════════════════════════════════════════════════╝
+
+📁 Absolute Path:
+   ${absolutePath}
+
+📊 File Size:
+   ${fileSizeKB} KB (${stats.size} bytes)
+
+⏱️  Duration:
+   ${validation.estimatedDurationSeconds.toFixed(2)} seconds
+
+🔊 Audio Energy (RMS):
+   ${validation.rms.toFixed(6)} (speech-like)
+
+════════════════════════════════════════════════════════════════
+🎧 NEXT: Open test.wav with any media player to listen
+════════════════════════════════════════════════════════════════
+    `);
+
+    // Auto-open folder based on platform
+    try {
+      const folderPath = path.dirname(absolutePath);
+      if (os.platform() === 'win32') {
+        const { exec } = require('child_process');
+        exec(`explorer "${folderPath}"`);
+        console.log(`[bot] 📂 Opening folder in Explorer...`);
+      } else if (os.platform() === 'darwin') {
+        const { exec } = require('child_process');
+        exec(`open "${folderPath}"`);
+        console.log(`[bot] 📂 Opening folder in Finder...`);
+      } else if (os.platform() === 'linux') {
+        const { exec } = require('child_process');
+        exec(`xdg-open "${folderPath}"`);
+        console.log(`[bot] 📂 Opening folder...`);
+      }
+    } catch (err) {
+      console.warn(`[bot] ⚠️ Could not auto-open folder: ${err.message}`);
+    }
+
+    console.log('[bot] 🎯 Ready for manual audio inspection');
+    
+    await shutdown('audio-validation-complete');
   } catch (error) {
     console.error('[bot] fatal error:', error.message);
+    console.error(error.stack);
     await shutdown('fatal-error');
   }
 })();

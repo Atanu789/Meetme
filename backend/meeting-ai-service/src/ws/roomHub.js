@@ -35,19 +35,40 @@ function broadcast(meetingId, payload) {
   const room = rooms.get(meetingId);
 
   if (!room) {
-    console.log(`[ws] broadcast: no active room for ${meetingId}`);
+    console.log(`[ws] ⚠️  BROADCAST FAILED: no active WebSocket room for ${meetingId} — frontend not connected yet`);
     return;
   }
 
   const message = JSON.stringify(payload);
+  const socketCount = room.size;
+  
   try {
-    console.log(`[ws] broadcasting to ${room.size} sockets for ${meetingId} — type=${payload.type || 'message'}`);
+    const logText = payload.type === 'caption' 
+      ? `caption: "${payload.text?.slice(0, 50) || ''}" from ${payload.speaker || 'unknown'}`
+      : `type=${payload.type || 'message'}`;
+    console.log(`[ws] 📤 BROADCAST TO ${socketCount} socket(s) | ${logText}`);
   } catch {
     // ignore logging errors
   }
 
+  let sent = 0;
   for (const socket of room) {
     if (socket.readyState === WebSocket.OPEN) {
+      try {
+        socket.send(message);
+        sent++;
+      } catch (err) {
+        console.error(`[ws] ❌ Failed to send to socket: ${err.message}`);
+      }
+    }
+  }
+  
+  if (sent > 0) {
+    console.log(`[ws] ✅ DELIVERED to ${sent}/${socketCount} sockets`);
+  } else {
+    console.log(`[ws] ⚠️  NO OPEN SOCKETS - ${socketCount} sockets in room but all closed`);
+  }
+}
       socket.send(message);
     }
   }

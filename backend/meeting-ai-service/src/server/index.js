@@ -187,6 +187,7 @@ function createServer() {
             meetingId,
             text: String(body.text || '').trim(),
             speaker: body.speaker ? String(body.speaker).trim() : undefined,
+            speakerId: body.speakerId ? String(body.speakerId).trim() : undefined,
             final: Boolean(body.final),
             timestamp: typeof body.timestamp === 'number' ? body.timestamp : Date.now(),
           };
@@ -197,7 +198,7 @@ function createServer() {
             return;
           }
 
-          console.log(`[server] /api/rooms/${meetingId}/captions received: ${payload.text.slice(0,80)} (speaker=${payload.speaker || 'unknown'})`);
+          console.log(`[server] 📥 CAPTION RECEIVED: "${payload.text.slice(0, 60)}" | speaker=${payload.speaker || 'unknown'} | final=${payload.final}`);
 
           // Try to resolve a friendly speaker name if mapping exists
           try {
@@ -207,6 +208,7 @@ function createServer() {
             // ignore mapping errors
           }
 
+          console.log(`[server] 📡 Broadcasting caption to meeting ${meetingId}`);
           broadcast(meetingId, payload);
 
           // Add caption to summarizer buffer (non-blocking)
@@ -259,9 +261,11 @@ function createServer() {
   });
 
   wss.on('connection', (socket, request, meetingId) => {
+    console.log(`[ws] ✅ CLIENT CONNECTED to meeting ${meetingId}`);
     joinRoom(meetingId, socket);
 
     socket.send(JSON.stringify({ type: 'connected', meetingId }));
+    console.log(`[ws] 📤 Sent 'connected' message to client`);
 
     socket.on('message', (raw) => {
       try {
