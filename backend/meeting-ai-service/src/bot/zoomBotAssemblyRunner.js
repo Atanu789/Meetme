@@ -6,17 +6,97 @@ const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { chromium } = require('playwright');
 const dotenv = require('dotenv');
+const WebSocketModule = require('ws');
 
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const CHUNK_SECONDS = Number(process.env.BOT_CHUNK_SECONDS || 4);
-const CHUNK_SCAN_MS = Number(process.env.BOT_CHUNK_SCAN_MS || 2000);
 const CAPTION_BACKEND_URL = (process.env.CAPTION_BACKEND_URL || `http://localhost:${process.env.MEETING_AI_PORT || 4010}`).replace(/\/$/, '');
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY || process.env.AAI_API_KEY || '';
+const ASSEMBLYAI_WS_URL = process.env.ASSEMBLYAI_WS_BASE_URL || 'wss://streaming.assemblyai.com/v3/ws';
+const ASSEMBLYAI_SPEECH_MODEL = process.env.ASSEMBLYAI_SPEECH_MODEL || 'u3-rt-pro';
 const ASSEMBLYAI_TRANSCRIBE_LANGUAGE = process.env.ASSEMBLYAI_TRANSCRIBE_LANGUAGE || process.env.AAI_TRANSCRIBE_LANGUAGE || '';
 const BOT_NAME = process.env.BOT_DISPLAY_NAME || 'Melanam Note Bot';
-const DATA_DIR = path.join(process.cwd(), 'data', 'audio');
+const AAI_AUDIO_SEND_MODE = (process.env.AAI_AUDIO_SEND_MODE || 'json').toLowerCase(); // json | binary
+
+function buildAssemblyAiWsUrl() {
+  const url = new URL(ASSEMBLYAI_WS_URL);
+  url.searchParams.set('token', ASSEMBLYAI_API_KEY);
+  url.searchParams.set('sample_rate', String(Number(process.env.ASSEMBLYAI_SAMPLE_RATE || 16000)));
+  return url.toString();
+}
+
+function listDshowAudioDevices(ffmpegBin) {
+  try {
+    execFileSync(ffmpegBin, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return [];
+  } catch (error) {
+    const output = `${error.stdout || ''}\n${error.stderr || ''}`;
+    const lines = output.split('\n');
+    const audioDevices = [];
+
+    for (const line of lines) {
+      if (line.includes('(audio)')) {
+        const match = line.match(/"(.+?)"\s+\(audio\)/);
+        if (match) {
+          audioDevices.push(match[1]);
+        }
+      }
+    }
+
+    if (audioDevices.length > 0) {
+      return audioDevices;
+    }
+
+    console.log('[audio-stream] Could not enumerate dshow devices:', error.message);
+    return [];
+  }
+}
+
+function resolveFfmpegAudioDevice(platform) {
+  if (platform === 'linux') {
+    return process.env.BOT_PULSE_SOURCE || 'default';
+  }
+
+  if (platform === 'win32') {
+    if (process.env.BOT_AUDIO_DEVICE) {
+      return process.env.BOT_AUDIO_DEVICE;
+    }
+
+    const ffmpegBin = resolveFfmpegBinary();
+    const devices = listDshowAudioDevices(ffmpegBin);
+    
+    if (devices.length > 0) {
+      console.log('[audio-stream] Found dshow audio devices:', devices);
+      return devices[0];
+    }
+
+    console.log('[audio-stream] Using default record device');
+    return 'Microphone (FIIO JD10)';
+  }
+
+  if (platform === 'darwin') {
+    return ':0';
+  }
+
+  return 'default';
+}
+
+function resolveFfmpegFormat(platform) {
+  if (platform === 'linux') {
+    return 'pulse';
+  }
+  if (platform === 'win32') {
+    return 'dshow';
+  }
+  if (platform === 'darwin') {
+    return 'avfoundation';
+  }
+  return 'pulse';  // fallback
+}
 
 function resolveFfmpegBinary() {
   if (process.env.BOT_FFMPEG_PATH) {
@@ -261,6 +341,7 @@ async function waitUntilInsideMeeting(page) {
 
 async function joinZoomMeeting(page, meetingUrl, botName) {
   const webClientUrl = resolveJoinUrl(meetingUrl);
+  const joinWithoutAudio = process.env.BOT_JOIN_WITHOUT_AUDIO === '1';
   console.log(`[bot] opening ${webClientUrl}`);
 
   await page.goto(webClientUrl, { waitUntil: 'domcontentloaded' });
@@ -275,8 +356,12 @@ async function joinZoomMeeting(page, meetingUrl, botName) {
 
   await fillName(page, botName);
   console.log('[bot] filled bot display name');
-  await clickJoinWithoutAudio(page);
-  console.log('[bot] selected join without audio if available');
+  if (joinWithoutAudio) {
+    await clickJoinWithoutAudio(page);
+    console.log('[bot] selected join without audio if available');
+  } else {
+    console.log('[bot] joining with audio path enabled (BOT_JOIN_WITHOUT_AUDIO!=1)');
+  }
   await page.waitForTimeout(1000);
   await clickJoin(page);
   console.log('[bot] clicked join button');
@@ -317,95 +402,292 @@ function ensureFfmpegCaptureSupport(ffmpegBin, platform) {
   }
 }
 
-function startSegmentRecorder(recordingDir) {
-  fs.mkdirSync(recordingDir, { recursive: true });
-  const outputPattern = path.join(recordingDir, 'chunk_%03d.mp3');
+function getBrowserCaptureResampleRate() {
+  return Number(process.env.ASSEMBLYAI_SAMPLE_RATE || 16000);
+}
+
+function bufferToBase64(buffer) {
+  return Buffer.from(buffer).toString('base64');
+}
+
+function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
+  if (!chunk || aaiWebSocket.readyState !== WebSocketModule.OPEN) {
+    return;
+  }
+
+  if (AAI_AUDIO_SEND_MODE === 'binary') {
+    aaiWebSocket.send(chunk);
+    return;
+  }
+
+  aaiWebSocket.send(JSON.stringify({
+    type: 'audio',
+    audio_data: bufferToBase64(chunk),
+  }));
+}
+
+async function startBrowserAudioStream(page, aaiWebSocket) {
+  const targetSampleRate = getBrowserCaptureResampleRate();
+  let chunkCount = 0;
+  let rmsAccumulator = 0;
+
+  await page.exposeFunction('__botOnBrowserAudioChunk__', (payload) => {
+    if (!payload || !payload.pcmBase64) {
+      return;
+    }
+
+    if (aaiWebSocket.readyState !== WebSocketModule.OPEN) {
+      return;
+    }
+
+    try {
+      chunkCount += 1;
+      rmsAccumulator += Number(payload.rms || 0);
+      if (chunkCount % 200 === 0) {
+        const avgRms = rmsAccumulator / 200;
+        const rmsStatus = avgRms > 0.005 ? 'voice-like' : 'near-silence';
+        console.log(`[audio-stream] browser chunks sent: ${chunkCount} avg_rms=${avgRms.toFixed(5)} (${rmsStatus})`);
+        rmsAccumulator = 0;
+      }
+      const chunk = Buffer.from(payload.pcmBase64, 'base64');
+      sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
+    } catch (error) {
+      console.error('[audio-stream] Failed to send browser audio to AssemblyAI:', error.message);
+    }
+  });
+
+  const started = await page.evaluate(async (targetRate) => {
+    if (window.__botBrowserAudioCaptureStarted) {
+      return true;
+    }
+
+    const toBase64 = (bytes) => {
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    };
+
+    const resample = (input, inputRate, outputRate) => {
+      if (inputRate === outputRate) {
+        return input;
+      }
+
+      const ratio = inputRate / outputRate;
+      const outputLength = Math.max(1, Math.floor(input.length / ratio));
+      const output = new Float32Array(outputLength);
+
+      for (let i = 0; i < outputLength; i += 1) {
+        const position = i * ratio;
+        const left = Math.floor(position);
+        const right = Math.min(left + 1, input.length - 1);
+        const fraction = position - left;
+        output[i] = input[left] + (input[right] - input[left]) * fraction;
+      }
+
+      return output;
+    };
+
+    const floatToPcm16 = (input) => {
+      const bytes = new Uint8Array(input.length * 2);
+      const view = new DataView(bytes.buffer);
+
+      for (let i = 0; i < input.length; i += 1) {
+        const sample = Math.max(-1, Math.min(1, input[i]));
+        view.setInt16(i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      }
+
+      return bytes;
+    };
+
+    const calculateRms = (input) => {
+      if (!input.length) return 0;
+      let sum = 0;
+      for (let i = 0; i < input.length; i += 1) {
+        sum += input[i] * input[i];
+      }
+      return Math.sqrt(sum / input.length);
+    };
+
+    const seen = new WeakSet();
+
+    const attachToElement = (element) => {
+      if (!element || seen.has(element)) {
+        return false;
+      }
+
+      const capture = element.captureStream || element.mozCaptureStream;
+      if (typeof capture !== 'function') {
+        return false;
+      }
+
+      const stream = capture.call(element);
+      if (!stream || stream.getAudioTracks().length === 0) {
+        return false;
+      }
+
+      const context = new AudioContext();
+      const source = context.createMediaStreamSource(stream);
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      const sink = context.createGain();
+
+      sink.gain.value = 0;
+      source.connect(processor);
+      processor.connect(sink);
+      sink.connect(context.destination);
+
+      processor.onaudioprocess = (event) => {
+        const input = event.inputBuffer.getChannelData(0);
+        const rms = calculateRms(input);
+        const downsampled = resample(input, context.sampleRate, targetRate);
+        const pcmBytes = floatToPcm16(downsampled);
+
+        if (typeof window.__botOnBrowserAudioChunk__ === 'function') {
+          window.__botOnBrowserAudioChunk__({
+            pcmBase64: toBase64(pcmBytes),
+            sampleRate: targetRate,
+            rms,
+          });
+        }
+      };
+
+      element.__botBrowserAudioCapture = { context, source, processor, sink, stream };
+      seen.add(element);
+      return true;
+    };
+
+    const scanForAudio = () => {
+      const candidates = Array.from(document.querySelectorAll('audio,video'));
+      for (const element of candidates) {
+        if (attachToElement(element)) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    const observer = new MutationObserver(() => {
+      if (!window.__botBrowserAudioCaptureAttached) {
+        window.__botBrowserAudioCaptureAttached = scanForAudio();
+      }
+    });
+
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    const intervalId = setInterval(() => {
+      if (!window.__botBrowserAudioCaptureAttached) {
+        window.__botBrowserAudioCaptureAttached = scanForAudio();
+      }
+    }, 2000);
+
+    window.__botBrowserAudioCaptureStarted = true;
+    window.__botBrowserAudioCaptureObserver = observer;
+    window.__botBrowserAudioCaptureIntervalId = intervalId;
+    window.__botBrowserAudioCaptureAttached = scanForAudio();
+    return true;
+  }, targetSampleRate);
+
+  if (!started) {
+    throw new Error('BROWSER_AUDIO_CAPTURE_FAILED');
+  }
+
+  console.log(`[audio-stream] browser audio capture armed at ${targetSampleRate} Hz`);
+
+  return {
+    async stop() {
+      try {
+        await page.evaluate(() => {
+          if (window.__botBrowserAudioCaptureObserver) {
+            window.__botBrowserAudioCaptureObserver.disconnect();
+            window.__botBrowserAudioCaptureObserver = null;
+          }
+
+          if (window.__botBrowserAudioCaptureIntervalId) {
+            clearInterval(window.__botBrowserAudioCaptureIntervalId);
+            window.__botBrowserAudioCaptureIntervalId = null;
+          }
+
+          const tracked = Array.from(document.querySelectorAll('audio,video'));
+          for (const element of tracked) {
+            const captureState = element.__botBrowserAudioCapture;
+            if (!captureState) {
+              continue;
+            }
+
+            try {
+              captureState.processor.disconnect();
+              captureState.source.disconnect();
+              captureState.sink.disconnect();
+              captureState.context.close();
+            } catch {
+              // ignore
+            }
+
+            element.__botBrowserAudioCapture = null;
+          }
+
+          window.__botBrowserAudioCaptureStarted = false;
+          window.__botBrowserAudioCaptureAttached = false;
+        });
+      } catch {
+        // ignore
+      }
+    },
+  };
+}
+
+function startRealtimeAudioStream(aaiWebSocket) {
+  const platform = os.platform();
+  const format = resolveFfmpegFormat(platform);
+  let device = resolveFfmpegAudioDevice(platform);
+
+  // Format device string based on input format
+  if (format === 'dshow') {
+    // dshow requires: audio="DeviceName" format
+    device = `audio="${device}"`;
+  } else if (format === 'avfoundation') {
+    // avfoundation may need special formatting for device selection
+    // ':0' is default, or pass device UID if needed
+  }
 
   let args;
-  const platform = os.platform();
 
-  if (platform === 'linux') {
-    const pulseSource = process.env.BOT_PULSE_SOURCE || 'default';
+  // FFmpeg outputs raw PCM (s16le) at 16kHz mono
+  if (format === 'pulse' || format === 'dshow' || format === 'avfoundation') {
     args = [
       '-hide_banner',
-      '-loglevel',
-      'error',
-      '-f',
-      'pulse',
-      '-i',
-      pulseSource,
-      '-ac',
-      '1',
-      '-ar',
-      '16000',
-      '-c:a',
-      'libmp3lame',
-      '-b:a',
-      '64k',
-      '-f',
-      'segment',
-      '-segment_time',
-      String(CHUNK_SECONDS),
-      '-reset_timestamps',
-      '1',
-      outputPattern,
-    ];
-  } else if (platform === 'win32') {
-    args = [
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-f',
-      'wasapi',
-      '-i',
-      'default',
-      '-ac',
-      '1',
-      '-ar',
-      '16000',
-      '-c:a',
-      'libmp3lame',
-      '-b:a',
-      '64k',
-      '-f',
-      'segment',
-      '-segment_time',
-      String(CHUNK_SECONDS),
-      '-reset_timestamps',
-      '1',
-      outputPattern,
+      '-loglevel', 'error',
+      '-f', format,
+      '-i', device,
+      '-ac', '1',
+      '-ar', '16000',
+      '-f', 's16le',
+      '-',  // stdout
     ];
   } else {
     args = [
       '-hide_banner',
-      '-loglevel',
-      'error',
-      '-f',
-      'avfoundation',
-      '-i',
-      ':0',
-      '-ac',
-      '1',
-      '-ar',
-      '16000',
-      '-c:a',
-      'libmp3lame',
-      '-b:a',
-      '64k',
-      '-f',
-      'segment',
-      '-segment_time',
-      String(CHUNK_SECONDS),
-      '-reset_timestamps',
-      '1',
-      outputPattern,
+      '-loglevel', 'error',
+      '-f', 'pulse',
+      '-i', 'default',
+      '-ac', '1',
+      '-ar', '16000',
+      '-f', 's16le',
+      '-',  // stdout
     ];
   }
 
   const ffmpegBin = resolveFfmpegBinary();
   ensureFfmpegCaptureSupport(ffmpegBin, platform);
-  console.log(`[bot] starting ffmpeg (${platform}) using ${ffmpegBin}`);
-  const ffmpeg = spawn(ffmpegBin, args, { stdio: ['pipe', 'ignore', 'pipe'] });
+  console.log(`[audio-stream] starting ffmpeg (${platform}) format=${format} device=${device}`);
+  console.log(`[audio-stream] using ${ffmpegBin}`);
+  
+  const ffmpeg = spawn(ffmpegBin, args, { stdio: ['pipe', 'pipe', 'pipe'] });
 
   ffmpeg.stderr.on('data', (chunk) => {
     const line = chunk.toString().trim();
@@ -415,272 +697,23 @@ function startSegmentRecorder(recordingDir) {
   });
 
   ffmpeg.on('exit', (code) => {
-    console.log(`[bot] ffmpeg exited with code ${code}`);
+    console.log(`[audio-stream] ffmpeg exited with code ${code}`);
   });
+
+  // Stream stdout PCM to AssemblyAI WebSocket
+  if (ffmpeg.stdout) {
+    ffmpeg.stdout.on('data', (chunk) => {
+      if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
+        try {
+          sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
+        } catch (err) {
+          console.error('[audio-stream] Failed to send audio to AssemblyAI:', err.message);
+        }
+      }
+    });
+  }
 
   return ffmpeg;
-}
-
-async function uploadToAssemblyAI(filePath) {
-  const stream = fs.createReadStream(filePath);
-
-  const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
-    method: 'POST',
-    headers: {
-      authorization: ASSEMBLYAI_API_KEY,
-      'content-type': 'application/octet-stream',
-    },
-    body: stream,
-  });
-
-  if (!uploadResponse.ok) {
-    const text = await uploadResponse.text();
-    throw new Error(`AssemblyAI upload failed: ${uploadResponse.status} ${text}`);
-  }
-
-  const uploadJson = await uploadResponse.json();
-  return uploadJson.upload_url;
-}
-
-async function uploadBufferToAssemblyAI(buffer) {
-  const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
-    method: 'POST',
-    headers: {
-      authorization: ASSEMBLYAI_API_KEY,
-      'content-type': 'application/octet-stream',
-    },
-    body: buffer,
-  });
-
-  if (!uploadResponse.ok) {
-    const text = await uploadResponse.text();
-    throw new Error(`AssemblyAI upload failed: ${uploadResponse.status} ${text}`);
-  }
-
-  const uploadJson = await uploadResponse.json();
-  return uploadJson.upload_url;
-}
-
-async function transcribeAudioBuffer(buffer) {
-  const audioUrl = await uploadBufferToAssemblyAI(buffer);
-
-  const createResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-    method: 'POST',
-    headers: {
-      authorization: ASSEMBLYAI_API_KEY,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      audio_url: audioUrl,
-      speech_models: ['universal-3-pro', 'universal-2'],
-      // If a specific language is configured, disable auto language detection
-      // and force the language code (e.g. 'en' or 'en_us'). Otherwise keep
-      // language_detection enabled to autodetect language.
-      ...(ASSEMBLYAI_TRANSCRIBE_LANGUAGE
-        ? { language_detection: false, language_code: ASSEMBLYAI_TRANSCRIBE_LANGUAGE }
-        : { language_detection: true }),
-      speaker_labels: true,
-      punctuate: true,
-      format_text: true,
-    }),
-  });
-
-  if (!createResponse.ok) {
-    const text = await createResponse.text();
-    throw new Error(`AssemblyAI transcript create failed: ${createResponse.status} ${text}`);
-  }
-
-  const created = await createResponse.json();
-  const transcriptId = created.id;
-
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < 180000) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const pollResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
-      headers: { authorization: ASSEMBLYAI_API_KEY },
-    });
-
-    if (!pollResponse.ok) {
-      const text = await pollResponse.text();
-      throw new Error(`AssemblyAI poll failed: ${pollResponse.status} ${text}`);
-    }
-
-    const status = await pollResponse.json();
-    if (status.status === 'completed') {
-      return status;
-    }
-
-    if (status.status === 'error') {
-      throw new Error(`AssemblyAI transcription failed: ${status.error || 'unknown error'}`);
-    }
-  }
-
-  throw new Error('AssemblyAI transcription timed out');
-}
-
-async function transcribeChunk(filePath) {
-  const buffer = fs.readFileSync(filePath);
-  return transcribeAudioBuffer(buffer);
-}
-
-function normalizeSpeakerLabel(speaker) {
-  if (speaker === null || speaker === undefined || speaker === '') {
-    return 'Meeting Bot';
-  }
-
-  return `Speaker ${String(speaker)}`;
-}
-
-function extractCaptionSegments(transcript) {
-  const utterances = Array.isArray(transcript?.utterances) ? transcript.utterances : [];
-
-  if (utterances.length > 0) {
-    return utterances
-      .map((utterance) => ({
-        text: String(utterance?.text || '').trim(),
-        speaker: normalizeSpeakerLabel(utterance?.speaker),
-      }))
-      .filter((segment) => segment.text.length > 0);
-  }
-
-  const text = String(transcript?.text || '').trim();
-  if (!text) {
-    return [];
-  }
-
-  return [{ text, speaker: 'Meeting Bot' }];
-}
-
-async function publishTranscript(meetingId, transcript) {
-  const segments = extractCaptionSegments(transcript);
-
-  // Publish each segment as a separate caption update for real-time streaming
-  for (const segment of segments) {
-    // Mark as final=true since AssemblyAI gave us the completed transcript
-    await postCaption(meetingId, segment.text, segment.speaker, true);
-    console.log(`[bot] caption published (${segment.speaker}): ${segment.text.slice(0, 80)}`);
-  }
-}
-
-async function startBrowserAudioCapture(page, meetingId) {
-  const queue = [];
-  let running = false;
-
-  const processChunk = async (base64Audio) => {
-    if (!base64Audio) {
-      return;
-    }
-
-    queue.push(base64Audio);
-
-    if (running) {
-      return;
-    }
-
-    running = true;
-
-    try {
-      while (queue.length > 0) {
-        const chunk = queue.shift();
-        if (!chunk) {
-          continue;
-        }
-
-        const buffer = Buffer.from(chunk, 'base64');
-        if (buffer.length < 1000) {
-          continue;
-        }
-
-        console.log(`[bot] transcribing browser audio chunk (${buffer.length} bytes)`);
-        const transcript = await transcribeAudioBuffer(buffer);
-        await publishTranscript(meetingId, transcript);
-      }
-    } finally {
-      running = false;
-    }
-  };
-
-  await page.exposeFunction('__botAudioChunk__', processChunk);
-
-  const started = await page.evaluate(async () => {
-    if (window.__botRecorderStarted) {
-      return true;
-    }
-
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const elements = Array.from(document.querySelectorAll('audio, video'));
-      const stream = new MediaStream();
-
-      for (const element of elements) {
-        if (typeof element.captureStream !== 'function') {
-          continue;
-        }
-
-        try {
-          const captured = element.captureStream();
-          for (const track of captured.getAudioTracks()) {
-            stream.addTrack(track);
-          }
-        } catch {
-          // Ignore elements that cannot be captured.
-        }
-      }
-
-      if (stream.getAudioTracks().length > 0) {
-        const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-        recorder.addEventListener('dataavailable', (event) => {
-          if (!event.data || event.data.size === 0) {
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = String(reader.result || '');
-            const base64 = result.includes(',') ? result.split(',')[1] : '';
-            if (base64 && typeof window.__botAudioChunk__ === 'function') {
-              window.__botAudioChunk__(base64);
-            }
-          };
-          reader.readAsDataURL(event.data);
-        });
-
-        // 2-second chunks for more real-time captions (like Zoom/Meet)
-        recorder.start(2000);
-        window.__botRecorder = recorder;
-        window.__botRecorderStarted = true;
-        return true;
-      }
-
-      await sleep(2000);
-    }
-
-    return false;
-  });
-
-  if (!started) {
-    throw new Error('BROWSER_AUDIO_CAPTURE_FAILED');
-  }
-
-  console.log('[bot] browser audio capture started');
-
-  return {
-    async stop() {
-      try {
-        await page.evaluate(() => {
-          if (window.__botRecorder && window.__botRecorder.state !== 'inactive') {
-            window.__botRecorder.stop();
-          }
-          window.__botRecorder = null;
-          window.__botRecorderStarted = false;
-        });
-      } catch {
-        // ignore
-      }
-    },
-  };
 }
 
 async function postCaption(meetingId, text, speaker = 'Meeting Bot', final = true) {
@@ -703,89 +736,51 @@ async function postCaption(meetingId, text, speaker = 'Meeting Bot', final = tru
   }
 }
 
-function createChunkWatcher(recordingDir, meetingId) {
-  const processed = new Set();
-  let running = false;
-
-  const run = async () => {
-    if (running) {
-      return;
-    }
-
-    running = true;
-
-    try {
-      if (!fs.existsSync(recordingDir)) {
-        return;
-      }
-
-      const files = fs
-        .readdirSync(recordingDir)
-        .filter((name) => /^chunk_\d+\.mp3$/i.test(name))
-        .map((name) => ({
-          name,
-          fullPath: path.join(recordingDir, name),
-          mtimeMs: fs.statSync(path.join(recordingDir, name)).mtimeMs,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      for (const file of files) {
-        if (processed.has(file.name)) {
-          continue;
-        }
-
-        if (Date.now() - file.mtimeMs < 8000) {
-          continue;
-        }
-
-        processed.add(file.name);
-        console.log(`[pipeline] transcribing ${file.name}`);
-
-        try {
-          const transcript = await transcribeChunk(file.fullPath);
-          const segments = extractCaptionSegments(transcript);
-          if (segments.length > 0) {
-            for (const segment of segments) {
-              await postCaption(meetingId, segment.text, segment.speaker);
-              console.log(`[pipeline] caption published from ${file.name} (${segment.speaker})`);
-            }
-          } else {
-            console.log(`[pipeline] empty transcript for ${file.name}`);
-          }
-        } catch (error) {
-          console.error(`[pipeline] failed for ${file.name}:`, error.message);
-        }
-      }
-    } finally {
-      running = false;
-    }
-  };
-
-  const interval = setInterval(run, CHUNK_SCAN_MS);
+function createRealtimeTranscriptHandler(meetingId) {
+  let speakerMap = {};
+  
   return {
-    stop() {
-      clearInterval(interval);
-    },
+    handleTranscript(transcript) {
+      const messageType = transcript.message_type || transcript.type || '';
+      const text = transcript.text || transcript.transcript || transcript.message || '';
+      const userId = transcript.user_id || transcript.speaker || transcript.speaker_id || 'Unknown Speaker';
+      
+      if (!text) return;
+      
+      const speaker = speakerMap[userId] || userId || 'Unknown Speaker';
+      const isFinal = /final/i.test(String(messageType));
+      
+      // Update speaker tracking
+      if (!speakerMap[userId]) {
+        speakerMap[userId] = speaker;
+      }
+      
+      console.log(`[aai] ${isFinal ? 'FINAL' : 'PARTIAL'}: ${speaker}: ${text.slice(0, 80)}`);
+      
+      // Publish caption
+      postCaption(meetingId, String(text), speaker, isFinal).catch(err => {
+        console.error('[aai] Failed to publish caption:', err.message);
+      });
+    }
   };
 }
 
 
 (async () => {
   const config = parseArgs();
-  const recordingDir = path.join(DATA_DIR, sanitizeForPath(config.meetingId));
 
-  console.log('[bot] starting meeting + assembly pipeline');
+  console.log('[bot] starting meeting + realtime transcription pipeline');
   console.log(`[bot] meetingId=${config.meetingId}`);
-  console.log(`[bot] recordingDir=${recordingDir}`);
   console.log(`[bot] captionBackend=${CAPTION_BACKEND_URL}`);
 
   let browser;
   let recorder;
-  let watcher;
+  let browserCapture;
   let page;
   let monitorInterval;
-  let browserCapture;
   let shuttingDown = false;
+  let aaiWebSocket;
+  let transcriptHandler;
 
   const shutdown = async (reason) => {
     if (shuttingDown) {
@@ -800,18 +795,13 @@ function createChunkWatcher(recordingDir, meetingId) {
       monitorInterval = null;
     }
 
-    if (watcher) {
-      watcher.stop();
-      watcher = null;
-    }
-
-    if (browserCapture) {
+    if (aaiWebSocket) {
       try {
-        await browserCapture.stop();
+        aaiWebSocket.close();
       } catch {
         // ignore
       }
-      browserCapture = null;
+      aaiWebSocket = null;
     }
 
     if (recorder && !recorder.killed) {
@@ -824,6 +814,15 @@ function createChunkWatcher(recordingDir, meetingId) {
       if (!recorder.killed) {
         recorder.kill('SIGKILL');
       }
+    }
+
+    if (browserCapture) {
+      try {
+        await browserCapture.stop();
+      } catch {
+        // ignore
+      }
+      browserCapture = null;
     }
 
     if (browser) {
@@ -845,6 +844,76 @@ function createChunkWatcher(recordingDir, meetingId) {
   });
 
   try {
+    // Connect to AssemblyAI realtime WebSocket
+    const assemblyAiUrl = buildAssemblyAiWsUrl();
+    console.log(`[bot] connecting to AssemblyAI at ${assemblyAiUrl.replace(/token=[^&]+/, 'token=***')}`);
+    aaiWebSocket = new WebSocketModule(assemblyAiUrl);
+    transcriptHandler = createRealtimeTranscriptHandler(config.meetingId);
+
+    aaiWebSocket.addEventListener('open', () => {
+      console.log('[aai] ✅ Connected to AssemblyAI realtime WebSocket');
+    });
+
+    aaiWebSocket.addEventListener('message', (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        const messageType = message.message_type || message.type || '';
+        
+        if (/session.?begins?/i.test(String(messageType)) || /^begin$/i.test(String(messageType))) {
+          console.log('[aai] Session started');
+          console.log(`[aai] session begin payload keys: ${Object.keys(message).join(', ')}`);
+          return;
+        }
+
+        if (/session.?terminated?/i.test(String(messageType))) {
+          console.log('[aai] Session terminated');
+          return;
+        }
+
+        if (/transcript/i.test(String(messageType)) || message.text || message.transcript) {
+          transcriptHandler.handleTranscript(message);
+          return;
+        }
+
+        if (message.error) {
+          console.error('[aai] Error:', message.error);
+          return;
+        }
+
+        if (messageType) {
+          console.log(`[aai] message type: ${messageType}`);
+        }
+      } catch (err) {
+        console.error('[aai] Failed to parse message:', err.message);
+      }
+    });
+
+    aaiWebSocket.addEventListener('error', (err) => {
+      console.error('[aai] WebSocket error:', err);
+    });
+
+    aaiWebSocket.addEventListener('close', () => {
+      console.log('[aai] WebSocket closed');
+      if (!shuttingDown) {
+        console.log('[aai] AssemblyAI WebSocket unexpectedly closed, shutting down');
+        shutdown('aai-websocket-closed');
+      }
+    });
+
+    // Wait for AAI connection
+    await new Promise((resolve) => {
+      const checkConnection = setInterval(() => {
+        if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
+          clearInterval(checkConnection);
+          resolve();
+        }
+      }, 100);
+      setTimeout(() => {
+        clearInterval(checkConnection);
+        resolve();
+      }, 5000);
+    });
+
     browser = await chromium.launch({
       headless: config.headless,
       args: [
@@ -855,7 +924,7 @@ function createChunkWatcher(recordingDir, meetingId) {
       ],
     });
 
-    const context = await browser.newContext({ permissions: [] });
+    const context = await browser.newContext({ permissions: ['microphone', 'camera'] });
     page = await context.newPage();
 
     const joined = await joinZoomMeeting(page, config.meetingUrl, config.botName);
@@ -865,12 +934,19 @@ function createChunkWatcher(recordingDir, meetingId) {
       console.warn('[bot] join state not confirmed, continuing to monitor audio');
     }
 
-    try {
-      browserCapture = await startBrowserAudioCapture(page, config.meetingId);
-    } catch (error) {
-      console.error('[bot] browser audio capture failed, falling back to ffmpeg:', error.message);
-      recorder = startSegmentRecorder(recordingDir);
-      watcher = createChunkWatcher(recordingDir, config.meetingId);
+    // Prefer browser-captured meeting audio on Windows because loopback devices are often unavailable.
+    if (os.platform() === 'win32') {
+      try {
+        console.log('[bot] starting browser audio capture to AssemblyAI');
+        browserCapture = await startBrowserAudioStream(page, aaiWebSocket);
+      } catch (error) {
+        console.warn(`[bot] browser audio capture failed, falling back to ffmpeg: ${error.message}`);
+        console.log('[bot] starting audio streaming to AssemblyAI');
+        recorder = startRealtimeAudioStream(aaiWebSocket);
+      }
+    } else {
+      console.log('[bot] starting audio streaming to AssemblyAI');
+      recorder = startRealtimeAudioStream(aaiWebSocket);
     }
 
     monitorInterval = setInterval(async () => {

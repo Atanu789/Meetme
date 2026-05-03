@@ -68,6 +68,7 @@ function resolveCaptionSocketUrl(meetingId: string) {
 
 /**
  * Caption reducer: manages rolling queue with proper partial/final handling
+ * Supports real-time streaming with partial updates and final lock
  */
 function captionReducer(state: Caption[], action: any): Caption[] {
   const now = Date.now();
@@ -83,14 +84,14 @@ function captionReducer(state: Caption[], action: any): Caption[] {
       const lastCaption = queue.length > 0 ? queue[queue.length - 1] : null;
       
       if (lastCaption && lastCaption.speaker === speaker && !lastCaption.isFinal) {
-        // Same speaker, partial update - replace text in place
+        // Same speaker, partial update - replace text in place (realtime update)
         return queue.map((c, i) => 
           i === queue.length - 1 ? { ...c, text } : c
         );
       } else {
-        // New speaker or speaker changed - enqueue new caption
+        // New speaker or speaker changed - enqueue new caption (keep max 2)
         return [
-          ...queue.slice(-1), // Keep only last caption
+          ...queue.slice(-1),  // Keep previous caption for rolling display (max 1 old)
           {
             id: `${speaker}-${now}-${Math.random()}`,
             speaker,
@@ -104,7 +105,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
     }
     
     case 'FINALIZE': {
-      // Mark caption as final and set expiry (2-3 seconds)
+      // Mark caption as final and set expiry (2.5 seconds for reading)
       const { captionId } = action.payload;
       return queue.map(c => 
         c.id === captionId ? { ...c, isFinal: true, expiresAt: now + 2500 } : c
@@ -112,7 +113,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
     }
     
     case 'FADE': {
-      // Gradually reduce opacity
+      // Gradually reduce opacity for fade-out effect
       const { captionId } = action.payload;
       const opacity = action.payload.opacity ?? 0.5;
       return queue.map(c => 
@@ -192,7 +193,7 @@ export function CaptionOverlay({ meetingId, className = '' }: CaptionOverlayProp
         }
 
         if (payload.type === 'caption' && payload.text && payload.speaker) {
-          console.log('[captions] 🎤 CAPTION:', payload.text, 'speaker:', payload.speaker, 'final:', payload.final);
+          console.log('[captions] 🎤 CAPTION:', payload.text.slice(0, 80), 'speaker:', payload.speaker, 'final:', payload.final);
           
           // Update active caption (partial) or enqueue new one
           captionDispatchRef.current?.dispatch({
@@ -204,16 +205,35 @@ export function CaptionOverlay({ meetingId, className = '' }: CaptionOverlayProp
             }
           });
 
-          // If final, schedule expiry fade
+          // If final, schedule fade and expiry
           if (payload.final) {
             // Find the last caption (just updated) and mark as final
             setCaptions(prev => {
               if (prev.length > 0) {
                 const lastCaption = prev[prev.length - 1];
+                const captionId = lastCaption.id;
+                
+                // Finalize caption (set expiry time)
                 captionDispatchRef.current?.dispatch({
                   type: 'FINALIZE',
-                  payload: { captionId: lastCaption.id }
+                  payload: { captionId }
                 });
+
+                // Start fade animation at 1.5 seconds
+                setTimeout(() => {
+                  captionDispatchRef.current?.dispatch({
+                    type: 'FADE',
+                    payload: { captionId, opacity: 0.6 }
+                  });
+                }, 1500);
+
+                // Fade more at 2 seconds
+                setTimeout(() => {
+                  captionDispatchRef.current?.dispatch({
+                    type: 'FADE',
+                    payload: { captionId, opacity: 0.3 }
+                  });
+                }, 2000);
               }
               return prev;
             });
