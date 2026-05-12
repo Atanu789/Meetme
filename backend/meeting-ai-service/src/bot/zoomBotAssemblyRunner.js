@@ -35,15 +35,22 @@ function listDshowAudioDevices(ffmpegBin) {
     return [];
   } catch (error) {
     const output = `${error.stdout || ''}\n${error.stderr || ''}`;
-    const lines = output.split('\n');
     const audioDevices = [];
+    const seen = new Set();
 
-    for (const line of lines) {
-      if (line.includes('(audio)')) {
-        const match = line.match(/"(.+?)"\s+\(audio\)/);
-        if (match) {
-          audioDevices.push(match[1]);
-        }
+    for (const match of output.matchAll(/"([^"]+)"\s+\(audio\)/g)) {
+      const device = match[1];
+      if (!seen.has(device)) {
+        seen.add(device);
+        audioDevices.push(device);
+      }
+    }
+
+    for (const match of output.matchAll(/Alternative name "([^"]+)"/g)) {
+      const device = match[1];
+      if (!seen.has(device)) {
+        seen.add(device);
+        audioDevices.push(device);
       }
     }
 
@@ -54,6 +61,40 @@ function listDshowAudioDevices(ffmpegBin) {
     console.log('[audio-stream] Could not enumerate dshow devices:', error.message);
     return [];
   }
+}
+
+function normalizeDeviceName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function getWindowsDshowCandidates(ffmpegBin, preferredDevice) {
+  const discovered = listDshowAudioDevices(ffmpegBin);
+  const preferred = String(preferredDevice || '').trim();
+  const candidates = [];
+
+  if (preferred) {
+    candidates.push(preferred);
+  }
+
+  const preferredNorm = normalizeDeviceName(preferred);
+  if (preferredNorm && discovered.length > 0) {
+    const match = discovered.find((device) => {
+      const normalized = normalizeDeviceName(device);
+      return normalized.includes(preferredNorm) || preferredNorm.includes(normalized);
+    });
+
+    if (match && !candidates.includes(match)) {
+      candidates.push(match);
+    }
+  }
+
+  for (const device of discovered) {
+    if (!candidates.includes(device)) {
+      candidates.push(device);
+    }
+  }
+
+  return candidates;
 }
 
 function resolveFfmpegAudioDevice(platform) {
@@ -90,7 +131,8 @@ function resolveFfmpegFormat(platform) {
     return 'pulse';
   }
   if (platform === 'win32') {
-    return 'dshow';
+    // Try WASAPI first (more reliable), fall back to dshow
+    return process.env.BOT_USE_DSHOW === '1' ? 'dshow' : 'wasapi';
   }
   if (platform === 'darwin') {
     return 'avfoundation';
@@ -470,69 +512,190 @@ async function validateAudioFile(filePath) {
 
 function recordAudioToFile(filePath, recordDurationSeconds = 10) {
   const platform = os.platform();
-  const format = resolveFfmpegFormat(platform);
-  let device = resolveFfmpegAudioDevice(platform);
+  const customDevice = process.env.BOT_AUDIO_DEVICE;
 
-  if (format === 'dshow') {
-    device = `audio="${device}"`;
+  if (platform === 'win32') {
+    const ffmpegBin = resolveFfmpegBinary();
+    const candidates = getWindowsDshowCandidates(ffmpegBin, customDevice || 'Stereo Mix');
+
+    if (candidates.length === 0) {
+      throw new Error('No Windows dshow audio devices found. Set BOT_AUDIO_DEVICE or enable a recording device.');
+    }
+
+    console.log('[audio-record] Windows dshow candidate list:', candidates);
+    return recordAudioWithWindowsDshow(ffmpegBin, filePath, recordDurationSeconds, candidates);
+  } else if (platform === 'linux') {
+    // Linux: PulseAudio - capture loopback (monitor)
+    const pulseDevice = customDevice || 'alsa_output.pci-0000_00_1f.3.analog-stereo.monitor';
+    ffmpegCmd = [
+      '-hide_banner',
+      '-loglevel', 'warning',
+      '-f', 'pulse',
+      '-i', pulseDevice,
+      '-ac', '1',
+      '-ar', '16000',
+      '-t', String(recordDurationSeconds),
+      '-y',
+      filePath,
+    ];
+    console.log(`[audio-record] Linux PulseAudio: using device "${pulseDevice}"`);
+  } else if (platform === 'darwin') {
+    // macOS: AVFoundation - :1 is typically Soundflower or loopback
+    const avfDevice = customDevice || ':1';
+    ffmpegCmd = [
+      '-hide_banner',
+      '-loglevel', 'warning',
+      '-f', 'avfoundation',
+      '-i', avfDevice,
+      '-ac', '1',
+      '-ar', '16000',
+      '-t', String(recordDurationSeconds),
+      '-y',
+      filePath,
+    ];
+    console.log(`[audio-record] macOS AVFoundation: using device "${avfDevice}"`);
   }
 
   const ffmpegBin = resolveFfmpegBinary();
-  ensureFfmpegCaptureSupport(ffmpegBin, platform);
   
-  // FFmpeg arguments to record 10 seconds, output as WAV file (includes header)
-  const args = [
-    '-hide_banner',
-    '-loglevel', 'error',
-    '-f', format,
-    '-i', device,
-    '-ac', '1',             // mono
-    '-ar', '16000',         // 16kHz
-    '-t', String(recordDurationSeconds),  // duration
-    '-y',                   // overwrite
-    filePath,
-  ];
-
-  console.log(`[audio-record] starting ffmpeg (${platform}) format=${format}`);
+  console.log(`[audio-record] starting ffmpeg`);
   console.log(`[audio-record] recording to: ${filePath}`);
   console.log(`[audio-record] duration: ${recordDurationSeconds} seconds`);
+  console.log(`[audio-record] ffmpeg binary: ${ffmpegBin}`);
 
   return new Promise((resolve, reject) => {
-    const ffmpeg = spawn(ffmpegBin, args, { 
-      stdio: ['pipe', 'pipe', 'pipe'] 
+    const ffmpeg = spawn(ffmpegBin, ffmpegCmd, { 
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false
     });
 
     let errorOutput = '';
+    let outputData = '';
     
     ffmpeg.stderr.on('data', (chunk) => {
-      errorOutput += chunk.toString();
+      const line = chunk.toString();
+      errorOutput += line;
+      // Log ffmpeg progress
+      if (line.includes('frame=') || line.includes('Duration')) {
+        console.log(`[ffmpeg] ${line.trim()}`);
+      }
     });
 
-    ffmpeg.on('exit', (code) => {
-      if (code === 0 || code === null) { // 0 = success, null = killed by timeout
-        console.log(`[audio-record] ✅ ffmpeg exited (code=${code})`);
+    ffmpeg.stdout.on('data', (chunk) => {
+      outputData += chunk.toString();
+    });
+
+    ffmpeg.on('exit', (code, signal) => {
+      console.log(`[audio-record] ffmpeg exited: code=${code}, signal=${signal}`);
+      
+      // Check if file was created
+      if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        const sizeKB = (stats.size / 1024).toFixed(2);
+        console.log(`[audio-record] ✅ File created: ${sizeKB} KB`);
         resolve();
       } else {
-        console.log(`[audio-record] ❌ ffmpeg exited with code ${code}`);
-        if (errorOutput) {
-          console.error(`[audio-record] stderr: ${errorOutput.slice(0, 500)}`);
+        console.log(`[audio-record] ❌ No file created at ${filePath}`);
+        
+        // On Windows, if Stereo Mix failed, suggest checking settings
+        if (os.platform() === 'win32' && errorOutput.includes('Stereo Mix')) {
+          console.error(`[audio-record] ⚠️  Stereo Mix not found or disabled`);
+          console.error(`[audio-record] To enable audio capture on Windows:`);
+          console.error(`[audio-record]   1. Right-click volume icon → Sound settings`);
+          console.error(`[audio-record]   2. Advanced → App volume and device preferences`);
+          console.error(`[audio-record]   3. Find ffmpeg → Choose output → Stereo Mix`);
+          console.error(`[audio-record] OR`);
+          console.error(`[audio-record]   Set env var: BOT_AUDIO_DEVICE="Microphone"`);
         }
-        reject(new Error(`ffmpeg exited with code ${code}`));
+        
+        if (code !== 0) {
+          console.error(`[audio-record] ffmpeg error:\n${errorOutput.slice(0, 500)}`);
+          reject(new Error(`ffmpeg failed with code ${code}`));
+        } else {
+          reject(new Error('ffmpeg exited but did not create output file'));
+        }
       }
     });
 
     ffmpeg.on('error', (err) => {
+      console.error(`[audio-record] ❌ ffmpeg error: ${err.message}`);
       reject(err);
     });
 
-    // Force kill after 15 seconds (in case ffmpeg hangs)
-    setTimeout(() => {
+    // Force kill after timeout
+    const killTimeout = setTimeout(() => {
       if (!ffmpeg.killed) {
-        console.log('[audio-record] timeout, killing ffmpeg');
-        ffmpeg.kill('SIGKILL');
+        console.log(`[audio-record] timeout reached, terminating ffmpeg`);
+        ffmpeg.kill('SIGTERM');
+        setTimeout(() => {
+          if (!ffmpeg.killed) {
+            ffmpeg.kill('SIGKILL');
+          }
+        }, 2000);
       }
-    }, recordDurationSeconds * 1000 + 5000);
+    }, (recordDurationSeconds + 5) * 1000);
+
+    ffmpeg.on('exit', () => {
+      clearTimeout(killTimeout);
+    });
   });
+}
+
+function recordAudioWithWindowsDshow(ffmpegBin, filePath, recordDurationSeconds, candidates) {
+  const tryCandidate = (deviceName) => new Promise((resolve, reject) => {
+    const ffmpegCmd = [
+      '-hide_banner',
+      '-loglevel', 'warning',
+      '-f', 'dshow',
+      '-i', `audio="${deviceName}"`,
+      '-ac', '1',
+      '-ar', '16000',
+      '-t', String(recordDurationSeconds),
+      '-y',
+      filePath,
+    ];
+
+    console.log(`[audio-record] trying Windows dshow device "${deviceName}"`);
+    const ffmpeg = spawn(ffmpegBin, ffmpegCmd, { stdio: ['pipe', 'pipe', 'pipe'], shell: false });
+    let errorOutput = '';
+
+    ffmpeg.stderr.on('data', (chunk) => {
+      errorOutput += chunk.toString();
+    });
+
+    ffmpeg.on('exit', (code, signal) => {
+      if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        console.log(`[audio-record] ✅ File created with "${deviceName}": ${(stats.size / 1024).toFixed(2)} KB`);
+        resolve({ deviceName, code, signal });
+        return;
+      }
+
+      const cleanError = errorOutput.trim();
+      console.log(`[audio-record] device "${deviceName}" failed: code=${code}, signal=${signal}`);
+      if (cleanError) {
+        console.log(`[audio-record] ffmpeg stderr for "${deviceName}":\n${cleanError.slice(0, 500)}`);
+      }
+      reject(new Error(cleanError || `ffmpeg failed for device ${deviceName} with code ${code}`));
+    });
+
+    ffmpeg.on('error', reject);
+  });
+
+  return candidates.reduce((chain, deviceName, index) => chain.then(async () => {
+    if (index > 0 && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    try {
+      await tryCandidate(deviceName);
+      return;
+    } catch {
+      if (index === candidates.length - 1) {
+        throw new Error(`All Windows dshow audio devices failed: ${candidates.join(', ')}`);
+      }
+    }
+  }), Promise.resolve());
 }
 
 function startRealtimeAudioStream(aaiWebSocket) {

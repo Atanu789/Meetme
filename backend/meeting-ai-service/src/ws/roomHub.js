@@ -69,10 +69,6 @@ function broadcast(meetingId, payload) {
     console.log(`[ws] ⚠️  NO OPEN SOCKETS - ${socketCount} sockets in room but all closed`);
   }
 }
-      socket.send(message);
-    }
-  }
-}
 
 function clearRoom(meetingId) {
   rooms.delete(meetingId);
