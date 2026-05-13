@@ -4,6 +4,8 @@ import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
+import { createJitsiBotToken } from '../../../lib/jitsi-bot-token';
+import { normalizeJitsiRoomName } from '../../../lib/jitsi-room';
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const meetingId = nanoid(12);
+    const meetingId = nanoid(12).toLowerCase();
 
     const meeting = new Meeting({
       meetingId,
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     // Start the caption bot immediately so the room is monitored as soon as it exists.
     const jitsiDomain = (process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.melanam.com').replace(/^https?:\/\//, '').trim();
-    const meetingUrl = `https://${jitsiDomain}/${meetingId}`;
+    const meetingUrl = `https://${jitsiDomain}/${normalizeJitsiRoomName(meetingId)}`;
 
     try {
       const meetingAiUrl = (process.env.MEETING_AI_CONTROL_URL || 'http://localhost:4010').replace(/\/$/, '');
@@ -63,6 +65,8 @@ export async function POST(req: NextRequest) {
           meetingId,
           meetingUrl,
           botName: 'Melanam Live Captions Bot',
+          jwt: createJitsiBotToken(meetingId, 'Melanam Live Captions Bot'),
+          platform: 'jitsi',
         }),
       });
     } catch (error) {

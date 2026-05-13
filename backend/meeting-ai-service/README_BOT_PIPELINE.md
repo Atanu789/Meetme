@@ -1,11 +1,11 @@
 # Meeting AI Bot + AssemblyAI Pipeline
 
-This module reuses the Zoom bot approach from your provided `Meeting_bot-main` codebase and extends it with a live caption pipeline:
+This module reuses the Zoom bot approach from your provided `Meeting_bot-main` codebase and extends it with a realtime live caption pipeline:
 
 1. Zoom bot joins a meeting via web client.
-2. FFmpeg records segmented audio chunks.
-3. Each chunk is transcribed by AssemblyAI.
-4. Final text is posted to the caption endpoint:
+2. FFmpeg streams raw PCM audio to AssemblyAI realtime WebSocket.
+3. AssemblyAI partial/final transcripts are published immediately.
+4. Captions are posted to the caption endpoint:
    - `POST /api/rooms/:meetingId/captions`
 
 ## Files
@@ -44,6 +44,8 @@ npm run bot:zoom -- caption-test-moihjc81 "https://us05web.zoom.us/j/123456789?p
 ## Notes
 
 - On Linux, set `BOT_PULSE_SOURCE` for precise sink capture.
-- On Windows, recorder uses WASAPI `default` device loopback.
+- On Windows, the bot joins without audio by default and captures system audio via WASAPI loopback unless overridden.
+- Set `BOT_JOIN_WITHOUT_AUDIO=0` only if you explicitly want the bot to join with audio enabled.
+- Set `BOT_AUDIO_DEVICE` or `BOT_WASAPI_DEVICE` to override the capture source when needed.
 - If ffmpeg is not on PATH, set `BOT_FFMPEG_PATH` (or rely on Playwright's bundled ffmpeg, auto-detected on Windows).
-- This runner exits when it detects bot has left the meeting page.
+- This runner stays alive while the meeting is active and streams captions continuously.

@@ -6,6 +6,7 @@ import { CaptionOverlay } from '../../../components/CaptionOverlay';
 import { Loader } from '../../../components/Loader';
 import { JitsiMeeting } from '../../../components/JitsiMeeting';
 import { useSession } from 'next-auth/react';
+import { normalizeJitsiRoomName } from '../../../lib/jitsi-room';
 
 interface MeetingDetails {
   _id: string;
@@ -56,6 +57,7 @@ export default function RoomPage() {
 
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
+  const jitsiRoomName = normalizeJitsiRoomName(meetingId);
   const userDisplayName = session?.user?.email || guestName || 'Guest';
   const userEmail = session?.user?.email || undefined;
   const fallbackRoute = session?.user?.email ? '/dashboard' : '/';
@@ -187,7 +189,7 @@ export default function RoomPage() {
         // Construct the Jitsi meeting URL
         const jitsiDomain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
         const cleanDomain = jitsiDomain.replace(/^https?:\/\//, '').trim();
-        const meetingUrl = `https://${cleanDomain}/${meetingId}`;
+        const meetingUrl = `https://${cleanDomain}/${jitsiRoomName}`;
 
         console.log('[meeting] Triggering bot to join:', meetingUrl);
 
@@ -200,6 +202,8 @@ export default function RoomPage() {
             meetingId,
             meetingUrl,
             botName: 'Melanam Live Captions Bot',
+            jwt,
+            platform: 'jitsi',
           }),
         });
 
@@ -216,7 +220,7 @@ export default function RoomPage() {
     };
 
     triggerBot();
-  }, [meeting, nameReady, meetingId]);
+  }, [jwt, jitsiRoomName, meeting, nameReady, meetingId]);
 
   const handleApiReady = (api: any) => {
     apiRef.current = api;
@@ -393,7 +397,7 @@ export default function RoomPage() {
 
             <div className="relative h-[68vh] sm:h-[calc(100vh-11rem)]">
               <JitsiMeeting
-                roomName={meetingId}
+                roomName={jitsiRoomName}
                 displayName={userDisplayName}
                 userEmail={userEmail}
                 jwt={jwt || undefined}

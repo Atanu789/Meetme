@@ -2,6 +2,7 @@
 import dbConnect from '../../../lib/db';
 import Meeting from '../../../models/Meeting';
 import { createJitsiJwt } from '../../../lib/jitsi-jwt';
+import { normalizeJitsiRoomName } from '../../../lib/jitsi-room';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
 
@@ -42,9 +43,10 @@ export async function GET(req: NextRequest) {
     const issuer = process.env.JITSI_JWT_ISSUER || 'melanam';
     const resolvedName = userEmail || guestName;
     const resolvedId = userEmail || `guest:${resolvedName}`;
+    const roomName = normalizeJitsiRoomName(meetingId);
 
     const token = createJitsiJwt({
-      roomName: meetingId,
+      roomName,
       domain: domain.replace(/^https?:\/\//, ''),
       user: {
         id: resolvedId,

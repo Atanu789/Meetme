@@ -3,10 +3,12 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const vm = require('vm');
 const { spawn, execFileSync } = require('child_process');
 const { chromium } = require('playwright');
 const dotenv = require('dotenv');
 const WebSocketModule = require('ws');
+const { createJitsiBotToken } = require('./jitsiJwt');
 
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -17,7 +19,13 @@ const ASSEMBLYAI_WS_URL = process.env.ASSEMBLYAI_WS_BASE_URL || 'wss://streaming
 const ASSEMBLYAI_SPEECH_MODEL = process.env.ASSEMBLYAI_SPEECH_MODEL || 'u3-rt-pro';
 const ASSEMBLYAI_TRANSCRIBE_LANGUAGE = process.env.ASSEMBLYAI_TRANSCRIBE_LANGUAGE || process.env.AAI_TRANSCRIBE_LANGUAGE || '';
 const BOT_NAME = process.env.BOT_DISPLAY_NAME || 'Melanam Note Bot';
-const AAI_AUDIO_SEND_MODE = (process.env.AAI_AUDIO_SEND_MODE || 'json').toLowerCase(); // json | binary
+const BOT_JOIN_WITHOUT_AUDIO = process.env.BOT_JOIN_WITHOUT_AUDIO !== '0';
+const BOT_CAPTURE_LOOPBACK = process.env.BOT_CAPTURE_LOOPBACK !== '0';
+const AAI_AUDIO_SEND_MODE = (process.env.AAI_AUDIO_SEND_MODE || 'binary').toLowerCase();
+const BOT_AUDIO_CAPTURE_MODE = (process.env.BOT_AUDIO_CAPTURE_MODE || '').toLowerCase();
+const BOT_MEETING_PLATFORM = (process.env.BOT_MEETING_PLATFORM || '').toLowerCase();
+const BOT_JITSI_TOKEN = process.env.BOT_JITSI_TOKEN || '';
+const JITSI_CONFIG_CACHE = new Map();
 
 function buildAssemblyAiWsUrl() {
   const url = new URL(ASSEMBLYAI_WS_URL);
@@ -97,7 +105,7 @@ function getWindowsDshowCandidates(ffmpegBin, preferredDevice) {
   return candidates;
 }
 
-function resolveFfmpegAudioDevice(platform) {
+function resolveFfmpegAudioDevice(platform, format) {
   if (platform === 'linux') {
     return process.env.BOT_PULSE_SOURCE || 'default';
   }
@@ -107,16 +115,24 @@ function resolveFfmpegAudioDevice(platform) {
       return process.env.BOT_AUDIO_DEVICE;
     }
 
-    const ffmpegBin = resolveFfmpegBinary();
-    const devices = listDshowAudioDevices(ffmpegBin);
-    
-    if (devices.length > 0) {
-      console.log('[audio-stream] Found dshow audio devices:', devices);
-      return devices[0];
+    if (format === 'dshow' && BOT_CAPTURE_LOOPBACK) {
+      return 'Stereo Mix';
     }
 
-    console.log('[audio-stream] Using default record device');
-    return 'Microphone (FIIO JD10)';
+    if (format === 'wasapi') {
+      return process.env.BOT_WASAPI_DEVICE || 'default';
+    }
+
+    const ffmpegBin = resolveFfmpegBinary();
+    const devices = listDshowAudioDevices(ffmpegBin);
+
+    if (devices.length > 0) {
+      const preferred = devices.find((device) => !/stereo mix/i.test(device)) || devices[0];
+      console.log('[audio-stream] Found dshow audio devices:', devices);
+      return preferred;
+    }
+
+    return 'default';
   }
 
   if (platform === 'darwin') {
@@ -131,13 +147,299 @@ function resolveFfmpegFormat(platform) {
     return 'pulse';
   }
   if (platform === 'win32') {
-    // Try WASAPI first (more reliable), fall back to dshow
     return process.env.BOT_USE_DSHOW === '1' ? 'dshow' : 'wasapi';
   }
   if (platform === 'darwin') {
     return 'avfoundation';
   }
-  return 'pulse';  // fallback
+  return 'pulse';
+}
+
+function getWindowsRealtimeDshowCandidates(ffmpegBin) {
+  const discovered = listDshowAudioDevices(ffmpegBin);
+  const loopbackPattern = /(stereo mix|what u hear|what-u-hear|wave out mix|waveout mix|loopback|cable output|vb-audio|virtual audio|monitor)/i;
+  const fallbackCandidates = [
+    'Stereo Mix (Realtek(R) Audio)',
+    'Stereo Mix',
+    'Microphone Array (Realtek(R) Audio)',
+    'Microphone Array',
+    'default',
+  ];
+  const envCandidates = String(process.env.BOT_DSHOW_AUDIO_DEVICES || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (process.env.BOT_AUDIO_DEVICE) {
+    return [process.env.BOT_AUDIO_DEVICE];
+  }
+
+  if (envCandidates.length > 0) {
+    return envCandidates;
+  }
+
+  if (BOT_CAPTURE_LOOPBACK) {
+    const loopbackCandidates = discovered.filter((device) => loopbackPattern.test(device));
+    if (loopbackCandidates.length > 0) {
+      return [...loopbackCandidates, ...fallbackCandidates.filter((device) => !loopbackCandidates.includes(device))];
+    }
+
+    if (discovered.length > 0) {
+      console.warn(
+        '[audio-stream] No loopback-style DirectShow device found; trying available audio devices. Set BOT_AUDIO_DEVICE to override.'
+      );
+    }
+  }
+
+  return [...new Set([...discovered, ...fallbackCandidates])].filter(Boolean);
+}
+
+function supportsWindowsWasapi(ffmpegBin) {
+  try {
+    const devices = execFileSync(ffmpegBin, ['-hide_banner', '-devices'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    return /\bwasapi\b/i.test(devices);
+  } catch (error) {
+    console.warn('[audio-stream] Could not inspect ffmpeg devices for WASAPI support:', error.message);
+    return false;
+  }
+}
+
+function buildAssemblyAiWsUrl() {
+  const url = new URL(ASSEMBLYAI_WS_URL);
+  url.searchParams.set('speech_model', ASSEMBLYAI_SPEECH_MODEL);
+  url.searchParams.set('sample_rate', String(Number(process.env.ASSEMBLYAI_SAMPLE_RATE || 16000)));
+
+  if (ASSEMBLYAI_TRANSCRIBE_LANGUAGE) {
+    url.searchParams.set('language_code', ASSEMBLYAI_TRANSCRIBE_LANGUAGE);
+  }
+
+  return url.toString();
+}
+
+function normalizeTranscriptText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function getRealtimeSpeakerLabel(message) {
+  const speakerId = String(message?.speaker || message?.speaker_id || message?.user_id || message?.speakerId || 'assemblyai');
+  const speakerName = String(message?.speaker_name || message?.speakerName || (speakerId === 'assemblyai' ? 'AssemblyAI' : `Speaker ${speakerId}`));
+
+  return { speakerId, speakerName };
+}
+
+async function publishCaption(meetingId, payload) {
+  const response = await fetch(`${CAPTION_BACKEND_URL}/api/rooms/${encodeURIComponent(meetingId)}/captions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Caption publish failed: ${response.status} ${body}`);
+  }
+}
+
+function createAssemblyAiTranscriptHandler(meetingId) {
+  const lastBySpeaker = new Map();
+
+  return async (rawMessage) => {
+    let message;
+
+    try {
+      message = JSON.parse(rawMessage.toString());
+    } catch {
+      return;
+    }
+
+    if (message?.error) {
+      const errorMessage = typeof message.error === 'string' ? message.error : JSON.stringify(message.error);
+      throw new Error(`AssemblyAI error: ${errorMessage}`);
+    }
+
+    const messageType = String(message?.type || message?.message_type || '').trim();
+    const normalizedType = messageType.toLowerCase();
+
+    if (normalizedType === 'begin') {
+      console.log('[aai] session began:', message?.id || message?.session_id || 'unknown');
+      return;
+    }
+
+    if (normalizedType === 'termination') {
+      console.log(
+        '[aai] session terminated:',
+        `audio=${message?.audio_duration_seconds ?? 'unknown'}s`,
+        `session=${message?.session_duration_seconds ?? 'unknown'}s`
+      );
+      return;
+    }
+
+    const text = normalizeTranscriptText(message?.transcript || message?.text || message?.utterance || '');
+    if (!text) {
+      return;
+    }
+
+    const isFinal = Boolean(
+      message?.final ||
+      message?.is_final ||
+      normalizedType === 'turn' && Boolean(message?.end_of_turn) ||
+      normalizedType === 'finaltranscript' ||
+      normalizedType === 'final'
+    );
+    const isPartial = !isFinal;
+    const { speakerId, speakerName } = getRealtimeSpeakerLabel(message);
+    const lastText = lastBySpeaker.get(speakerId);
+
+    if (!isFinal && lastText === text) {
+      return;
+    }
+
+    if (isFinal || lastText !== text) {
+      lastBySpeaker.set(speakerId, text);
+      await publishCaption(meetingId, {
+        text,
+        speaker: speakerName,
+        speakerId,
+        final: isFinal,
+        partial: isPartial,
+        timestamp: typeof message?.timestamp === 'number' ? message.timestamp : Date.now(),
+      });
+    }
+  };
+}
+
+function buildAudioCaptureArgs(platform) {
+  const ffmpegBin = resolveFfmpegBinary();
+  let format = resolveFfmpegFormat(platform);
+
+  if (platform === 'win32' && format === 'wasapi' && !supportsWindowsWasapi(ffmpegBin)) {
+    console.warn('[audio-stream] WASAPI is not available in this ffmpeg build; falling back to DirectShow');
+    format = 'dshow';
+  }
+
+  const device = resolveFfmpegAudioDevice(platform, format);
+  const args = ['-hide_banner', '-loglevel', 'error'];
+
+  if (format === 'wasapi') {
+    args.push('-f', 'wasapi', '-i', device);
+  } else if (format === 'dshow') {
+    args.push('-f', 'dshow', '-i', `audio=${device}`);
+  } else {
+    args.push('-f', format, '-i', device);
+  }
+
+  args.push('-ac', '1', '-ar', '16000', '-f', 's16le', '-');
+
+  return { args, device, format, ffmpegBin };
+}
+
+async function startWindowsRealtimeDshowStream(aaiWebSocket, ffmpegBin) {
+  const candidates = getWindowsRealtimeDshowCandidates(ffmpegBin);
+
+  if (candidates.length === 0) {
+    throw new Error('No Windows dshow audio devices found for realtime capture. Set BOT_AUDIO_DEVICE or BOT_DSHOW_AUDIO_DEVICES to an available device.');
+  }
+
+  console.log(`[audio-stream] Windows dshow candidates: ${candidates.join(', ')}`);
+
+  for (const deviceName of candidates) {
+    const ffmpegCmd = [
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-f', 'dshow',
+      '-i', `audio=${deviceName}`,
+      '-ac', '1',
+      '-ar', '16000',
+      '-f', 's16le',
+      '-',
+    ];
+
+    console.log(`[audio-stream] trying Windows dshow device "${deviceName}"`);
+    const ffmpeg = spawn(ffmpegBin, ffmpegCmd, { stdio: ['pipe', 'pipe', 'pipe'], shell: false });
+    let receivedAudio = false;
+    let settled = false;
+
+    const fail = (error) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+
+      if (!ffmpeg.killed) {
+        try {
+          ffmpeg.kill('SIGKILL');
+        } catch {
+          // ignore
+        }
+      }
+
+      throw error;
+    };
+
+    ffmpeg.stderr.on('data', (chunk) => {
+      const line = chunk.toString().trim();
+      if (line) {
+        console.error(`[ffmpeg] ${line}`);
+      }
+    });
+
+    const readyPromise = new Promise((resolve, reject) => {
+      ffmpeg.stdout.on('data', (chunk) => {
+        receivedAudio = true;
+
+        if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
+          try {
+            sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
+          } catch (error) {
+            console.error('[audio-stream] Failed to send audio to AssemblyAI:', error.message);
+          }
+        }
+
+        if (!settled) {
+          settled = true;
+          resolve(ffmpeg);
+        }
+      });
+
+      ffmpeg.on('exit', (code) => {
+        console.log(`[audio-stream] ffmpeg exited with code ${code}`);
+
+        if (!receivedAudio && !settled) {
+          settled = true;
+          reject(new Error(`Windows dshow device "${deviceName}" could not start (code ${code})`));
+        }
+      });
+
+      ffmpeg.on('error', (error) => {
+        if (!settled) {
+          settled = true;
+          reject(error);
+        }
+      });
+
+      setTimeout(() => {
+        if (!settled && !receivedAudio) {
+          reject(new Error(`Windows dshow device "${deviceName}" produced no audio data`));
+        }
+      }, Number(process.env.BOT_AUDIO_STARTUP_TIMEOUT_MS || 8000));
+    });
+
+    try {
+      return await readyPromise;
+    } catch (error) {
+      console.error(`[audio-stream] device "${deviceName}" failed: ${error.message}`);
+      if (candidates[candidates.length - 1] === deviceName) {
+        throw new Error(`All Windows dshow audio devices failed: ${candidates.join(', ')}`);
+      }
+    }
+  }
+
+  throw new Error(`All Windows dshow audio devices failed: ${candidates.join(', ')}`);
 }
 
 function resolveFfmpegBinary() {
@@ -215,7 +517,9 @@ function parseArgs() {
     meetingId,
     meetingUrl,
     botName: botNameArg || BOT_NAME,
-    headless: process.env.HEADLESS === '1' || process.env.CI === 'true',
+    headless: (process.env.BOT_HEADLESS ?? process.env.HEADLESS ?? '1') !== '0',
+    platform: BOT_MEETING_PLATFORM,
+    jitsiToken: BOT_JITSI_TOKEN,
   };
 }
 
@@ -358,22 +662,71 @@ async function clickJoin(page) {
   }
 }
 
+async function hasVisibleSelector(page, selectors) {
+  for (const selector of selectors) {
+    try {
+      const locator = page.locator(selector).first();
+      if (await locator.isVisible({ timeout: 1000 })) {
+        return true;
+      }
+    } catch {
+      // ignore and continue
+    }
+  }
+
+  return false;
+}
+
+async function getZoomPageStatus(page) {
+  const joinSelectors = [
+    'button:has-text("Join meeting")',
+    'button:has-text("Join now")',
+    'button:has-text("Join")',
+    'button:has-text("Join without audio")',
+    'button:has-text("Ask to Join")',
+    'button:has-text("Ask to join")',
+    'input[placeholder*="name"]',
+    'input[placeholder*="Name"]',
+    'input[placeholder*="Enter your name"]',
+    'input[placeholder*="Your name"]',
+    'input[aria-label*="name"]',
+    'input[aria-label*="Name"]',
+    'input[name="displayName"]',
+    'input[name*="displayName"]',
+    'input[type="text"]',
+    'input[name*="name"]',
+    'input[data-testid*="name"]',
+    'input[data-testid*="display-name"]',
+    '#input-for-name',
+  ];
+
+  const meetingSelectors = [
+    'button:has-text("Leave the meeting")',
+    'button:has-text("Leave meeting")',
+    'button:has-text("Invite people")',
+    'button:has-text("Open chat")',
+    'button:has-text("Open participants panel")',
+    'button:has-text("Mute")',
+    'button:has-text("Unmute")',
+    'button[aria-label*="Leave meeting"]',
+    'button[aria-label*="Leave"]',
+    'button[aria-label*="Mute"]',
+    'button[aria-label*="Unmute"]',
+    'button[aria-label*="Chat"]',
+    'button[aria-label*="Participants"]',
+  ];
+
+  const [hasJoinControls, hasMeetingControls] = await Promise.all([
+    hasVisibleSelector(page, joinSelectors),
+    hasVisibleSelector(page, meetingSelectors),
+  ]);
+
+  return { hasJoinControls, hasMeetingControls };
+}
+
 async function waitUntilInsideMeeting(page) {
   for (let i = 0; i < 60; i += 1) {
-    const status = await page.evaluate(() => {
-      const text = document.body ? document.body.innerText : '';
-      const hasJoinControls = text.includes('Join meeting') || text.includes('Join without audio') || text.includes('Enter your name');
-      const hasMeetingControls =
-        text.includes('Leave the meeting') ||
-        text.includes('Leave meeting') ||
-        text.includes('Invite people') ||
-        text.includes('Open chat') ||
-        text.includes('Open participants panel') ||
-        text.includes('Leave') ||
-        text.includes('Mute') ||
-        text.includes('Unmute');
-      return { hasMeetingControls, hasJoinControls };
-    });
+    const status = await getZoomPageStatus(page);
 
     if (status.hasMeetingControls && !status.hasJoinControls) {
       console.log('[bot] ✅ confirmed inside meeting after', i * 2, 'seconds');
@@ -389,7 +742,7 @@ async function waitUntilInsideMeeting(page) {
 
 async function joinZoomMeeting(page, meetingUrl, botName) {
   const webClientUrl = resolveJoinUrl(meetingUrl);
-  const joinWithoutAudio = process.env.BOT_JOIN_WITHOUT_AUDIO === '1';
+  const joinWithoutAudio = BOT_JOIN_WITHOUT_AUDIO;
   console.log(`[bot] opening ${webClientUrl}`);
 
   await page.goto(webClientUrl, { waitUntil: 'domcontentloaded' });
@@ -647,7 +1000,7 @@ function recordAudioWithWindowsDshow(ffmpegBin, filePath, recordDurationSeconds,
       '-hide_banner',
       '-loglevel', 'warning',
       '-f', 'dshow',
-      '-i', `audio="${deviceName}"`,
+      '-i', `audio=${deviceName}`,
       '-ac', '1',
       '-ar', '16000',
       '-t', String(recordDurationSeconds),
@@ -698,127 +1051,76 @@ function recordAudioWithWindowsDshow(ffmpegBin, filePath, recordDurationSeconds,
   }), Promise.resolve());
 }
 
-function startRealtimeAudioStream(aaiWebSocket) {
-  const platform = os.platform();
-  const format = resolveFfmpegFormat(platform);
-  let device = resolveFfmpegAudioDevice(platform);
+function connectAssemblyAiRealtime(meetingId) {
+  return new Promise((resolve, reject) => {
+    const aaiWebSocket = new WebSocketModule(buildAssemblyAiWsUrl(), {
+      headers: {
+        Authorization: ASSEMBLYAI_API_KEY,
+      },
+    });
+    const handleTranscript = createAssemblyAiTranscriptHandler(meetingId);
 
-  // Format device string based on input format
-  if (format === 'dshow') {
-    // dshow requires: audio="DeviceName" format
-    device = `audio="${device}"`;
-  } else if (format === 'avfoundation') {
-    // avfoundation may need special formatting for device selection
-    // ':0' is default, or pass device UID if needed
-  }
+    aaiWebSocket.on('open', () => {
+      console.log('[aai] ✅ Connected to AssemblyAI realtime WebSocket');
+      resolve(aaiWebSocket);
+    });
 
-  let args;
-
-  // FFmpeg outputs raw PCM (s16le) at 16kHz mono
-  if (format === 'pulse' || format === 'dshow' || format === 'avfoundation') {
-    args = [
-      '-hide_banner',
-      '-loglevel', 'error',
-      '-f', format,
-      '-i', device,
-      '-ac', '1',
-      '-ar', '16000',
-      '-f', 's16le',
-      '-',  // stdout
-    ];
-  } else {
-    args = [
-      '-hide_banner',
-      '-loglevel', 'error',
-      '-f', 'pulse',
-      '-i', 'default',
-      '-ac', '1',
-      '-ar', '16000',
-      '-f', 's16le',
-      '-',  // stdout
-    ];
-  }
-
-  const ffmpegBin = resolveFfmpegBinary();
-  ensureFfmpegCaptureSupport(ffmpegBin, platform);
-  console.log(`[audio-stream] starting ffmpeg (${platform}) format=${format} device=${device}`);
-  console.log(`[audio-stream] using ${ffmpegBin}`);
-  
-  const ffmpeg = spawn(ffmpegBin, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-
-  ffmpeg.stderr.on('data', (chunk) => {
-    const line = chunk.toString().trim();
-    if (line) {
-      console.error(`[ffmpeg] ${line}`);
-    }
-  });
-
-  ffmpeg.on('exit', (code) => {
-    console.log(`[audio-stream] ffmpeg exited with code ${code}`);
-  });
-
-  // Stream stdout PCM to AssemblyAI WebSocket
-  if (ffmpeg.stdout) {
-    ffmpeg.stdout.on('data', (chunk) => {
-      if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
-        try {
-          sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
-        } catch (err) {
-          console.error('[audio-stream] Failed to send audio to AssemblyAI:', err.message);
-        }
+    aaiWebSocket.on('message', async (raw) => {
+      try {
+        await handleTranscript(raw);
+      } catch (error) {
+        console.error('[aai] transcript handling error:', error.message);
       }
     });
-  }
 
-  return ffmpeg;
+    aaiWebSocket.on('error', (error) => {
+      reject(error);
+    });
+
+    aaiWebSocket.on('close', (code, reason) => {
+      const reasonText = reason ? reason.toString() : '';
+      console.log(`[aai] realtime socket closed: code=${code}${reasonText ? ` reason=${reasonText}` : ''}`);
+    });
+  });
 }
 
-function startRealtimeAudioStream(aaiWebSocket) {
-  const platform = os.platform();
-  const format = resolveFfmpegFormat(platform);
-  let device = resolveFfmpegAudioDevice(platform);
-
-  // Format device string based on input format
-  if (format === 'dshow') {
-    // dshow requires: audio="DeviceName" format
-    device = `audio="${device}"`;
-  } else if (format === 'avfoundation') {
-    // avfoundation may need special formatting for device selection
-    // ':0' is default, or pass device UID if needed
+async function startRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, meetingId, botName, platform }) {
+  if (shouldUseJitsiAudioCapture(meetingUrl, platform)) {
+    console.log('[audio-stream] using Jitsi conference audio capture');
+    return startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, meetingId, botName });
   }
 
-  let args;
+  const osPlatform = os.platform();
+  const { args, device, format, ffmpegBin } = buildAudioCaptureArgs(osPlatform);
 
-  // FFmpeg outputs raw PCM (s16le) at 16kHz mono
-  if (format === 'pulse' || format === 'dshow' || format === 'avfoundation') {
-    args = [
-      '-hide_banner',
-      '-loglevel', 'error',
-      '-f', format,
-      '-i', device,
-      '-ac', '1',
-      '-ar', '16000',
-      '-f', 's16le',
-      '-',  // stdout
-    ];
-  } else {
-    args = [
-      '-hide_banner',
-      '-loglevel', 'error',
-      '-f', 'pulse',
-      '-i', 'default',
-      '-ac', '1',
-      '-ar', '16000',
-      '-f', 's16le',
-      '-',  // stdout
-    ];
+  if (osPlatform === 'win32' && format === 'dshow') {
+    const ffmpeg = await startWindowsRealtimeDshowStream(aaiWebSocket, ffmpegBin);
+
+    ffmpeg.stop = async () => {
+      if (!ffmpeg.killed) {
+        try {
+          if (ffmpeg.stdin) {
+            ffmpeg.stdin.write('q\n');
+          }
+        } catch {
+          // ignore
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        if (!ffmpeg.killed) {
+          ffmpeg.kill('SIGKILL');
+        }
+      }
+    };
+
+    return ffmpeg;
   }
 
-  const ffmpegBin = resolveFfmpegBinary();
-  ensureFfmpegCaptureSupport(ffmpegBin, platform);
-  console.log(`[audio-stream] starting ffmpeg (${platform}) format=${format} device=${device}`);
+  ensureFfmpegCaptureSupport(ffmpegBin, osPlatform);
+  console.log(`[audio-stream] starting ffmpeg (${osPlatform}) format=${format} device=${device}`);
   console.log(`[audio-stream] using ${ffmpegBin}`);
-  
+
   const ffmpeg = spawn(ffmpegBin, args, { stdio: ['pipe', 'pipe', 'pipe'] });
 
   ffmpeg.stderr.on('data', (chunk) => {
@@ -832,18 +1134,35 @@ function startRealtimeAudioStream(aaiWebSocket) {
     console.log(`[audio-stream] ffmpeg exited with code ${code}`);
   });
 
-  // Stream stdout PCM to AssemblyAI WebSocket
   if (ffmpeg.stdout) {
     ffmpeg.stdout.on('data', (chunk) => {
       if (aaiWebSocket.readyState === WebSocketModule.OPEN) {
         try {
           sendAudioChunkToAssemblyAI(aaiWebSocket, chunk);
-        } catch (err) {
-          console.error('[audio-stream] Failed to send audio to AssemblyAI:', err.message);
+        } catch (error) {
+          console.error('[audio-stream] Failed to send audio to AssemblyAI:', error.message);
         }
       }
     });
   }
+
+  ffmpeg.stop = async () => {
+    if (!ffmpeg.killed) {
+      try {
+        if (ffmpeg.stdin) {
+          ffmpeg.stdin.write('q\n');
+        }
+      } catch {
+        // ignore
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      if (!ffmpeg.killed) {
+        ffmpeg.kill('SIGKILL');
+      }
+    }
+  };
 
   return ffmpeg;
 }
@@ -853,22 +1172,727 @@ function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
     return;
   }
 
-  // AssemblyAI v3 realtime expects raw binary PCM data, NOT JSON frames
-  // Send audio chunk as raw bytes directly
+  if (AAI_AUDIO_SEND_MODE !== 'binary' && !aaiWebSocket.__warnedAudioSendMode) {
+    aaiWebSocket.__warnedAudioSendMode = true;
+    console.warn(`[aai] AAI_AUDIO_SEND_MODE=${AAI_AUDIO_SEND_MODE} is deprecated for realtime; sending raw binary PCM`);
+  }
+
   aaiWebSocket.send(chunk);
+}
+
+function shouldUseJitsiAudioCapture(meetingUrl, platform = '') {
+  if (BOT_AUDIO_CAPTURE_MODE === 'jitsi' || platform === 'jitsi') {
+    return true;
+  }
+
+  try {
+    const parsedUrl = new URL(meetingUrl);
+    return /(^|\.)jitsi\.|meet\.jit\.si$/i.test(parsedUrl.hostname) || /jitsi/i.test(parsedUrl.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function buildJitsiBotToken(meetingUrl, meetingId, botName) {
+  if (BOT_JITSI_TOKEN) {
+    return BOT_JITSI_TOKEN;
+  }
+
+  const secret = process.env.JITSI_JWT_SECRET;
+  if (!secret) {
+    return '';
+  }
+
+  try {
+    const parsedUrl = new URL(meetingUrl);
+    return createJitsiBotToken({
+      meetingId,
+      botName,
+      domain: parsedUrl.hostname,
+      secret,
+      issuer: process.env.JITSI_JWT_ISSUER || 'melanam',
+    });
+  } catch {
+    return '';
+  }
+}
+
+async function loadJitsiDeploymentConfig(meetingUrl) {
+  const parsedUrl = new URL(meetingUrl);
+  const cacheKey = parsedUrl.origin;
+
+  if (JITSI_CONFIG_CACHE.has(cacheKey)) {
+    return JITSI_CONFIG_CACHE.get(cacheKey);
+  }
+
+  const configUrl = `${parsedUrl.origin}/config.js`;
+  const response = await fetch(configUrl);
+
+  if (!response.ok) {
+    throw new Error(`Failed to load Jitsi config: ${response.status} ${response.statusText}`);
+  }
+
+  const script = await response.text();
+  const context = {
+    config: {},
+    interfaceConfig: {},
+    console: {
+      log() {},
+      warn() {},
+      error() {},
+    },
+  };
+
+  vm.runInNewContext(script, context, {
+    filename: configUrl,
+    timeout: 2000,
+  });
+
+  const deploymentConfig = context.config || {};
+  JITSI_CONFIG_CACHE.set(cacheKey, deploymentConfig);
+  return deploymentConfig;
+}
+
+async function resolveJitsiJoinConfig(meetingUrl, meetingId, botName) {
+  const parsedUrl = new URL(meetingUrl);
+  const protocol = parsedUrl.protocol === 'http:' ? 'http:' : 'https:';
+  const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
+  const pathSegments = parsedUrl.pathname.split('/').map((segment) => segment.trim()).filter(Boolean);
+  const rawRoomName = pathSegments.length > 0
+    ? decodeURIComponent(pathSegments[pathSegments.length - 1])
+    : (parsedUrl.hash ? decodeURIComponent(parsedUrl.hash.replace(/^#/, '').trim()) : meetingId || 'meeting');
+  const roomName = String(rawRoomName || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, '');
+  let deploymentConfig = {};
+
+  try {
+    deploymentConfig = await loadJitsiDeploymentConfig(meetingUrl);
+  } catch (error) {
+    console.warn('[jitsi-audio] failed to load deployment config, using URL-derived defaults:', error.message);
+  }
+
+  const hosts = deploymentConfig.hosts || {};
+  const domain = hosts.domain || parsedUrl.hostname;
+  const muc = hosts.muc || process.env.BOT_JITSI_MUC_DOMAIN || `conference.${domain}`;
+  const anonymousdomain = hosts.anonymousdomain || process.env.BOT_JITSI_ANONYMOUS_DOMAIN || '';
+  const focus = hosts.focus || process.env.BOT_JITSI_FOCUS_DOMAIN || `focus.${domain}`;
+  const bosh = deploymentConfig.bosh || process.env.BOT_JITSI_BOSH_URL || `${protocol}//${parsedUrl.hostname}/http-bind`;
+  const websocket = deploymentConfig.websocket || process.env.BOT_JITSI_WEBSOCKET_URL || `${wsProtocol}//${parsedUrl.hostname}/xmpp-websocket`;
+  const serviceUrl = process.env.BOT_JITSI_SERVICE_URL || websocket || bosh;
+  const serviceUrls = [...new Set([serviceUrl, websocket, bosh].filter(Boolean))];
+
+  return {
+    roomName,
+    token: buildJitsiBotToken(meetingUrl, roomName || meetingId, botName),
+    connectionOptions: {
+      hosts: {
+        domain,
+        muc,
+        focus,
+        ...(anonymousdomain ? { anonymousdomain } : {}),
+      },
+      bosh,
+      websocket,
+      serviceUrl,
+      clientNode: 'https://melanam.com/meeting-ai-bot',
+    },
+    serviceUrls,
+  };
+}
+
+async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, meetingId, botName }) {
+  const jitsiBundlePath = require.resolve('@joinera/lib-jitsi-meet/dist/umd/lib-jitsi-meet.min.js');
+  const jitsiJoinConfig = await resolveJitsiJoinConfig(meetingUrl, meetingId, botName);
+  const browserConsoleHandler = (msg) => {
+    try {
+      const text = msg.text();
+      if (text && (/\[jitsi-audio\]/.test(text) || msg.type() === 'error' || msg.type() === 'warning')) {
+        console.log(text);
+      }
+    } catch {
+      // ignore
+    }
+  };
+  const pageErrorHandler = (error) => {
+    console.error('[jitsi-audio] page error:', error?.message || error);
+  };
+
+  page.on('console', browserConsoleHandler);
+  page.on('pageerror', pageErrorHandler);
+  let deliveredAudioBytes = 0;
+  let deliveredAudioChunks = 0;
+  let lastAudioStatsAt = Date.now();
+
+  await page.exposeFunction('__botDeliverAudioChunk', async (base64Chunk) => {
+    if (aaiWebSocket.readyState !== WebSocketModule.OPEN) {
+      return;
+    }
+
+    const chunkBuffer = Buffer.from(String(base64Chunk || ''), 'base64');
+    deliveredAudioBytes += chunkBuffer.length;
+    deliveredAudioChunks += 1;
+
+    const now = Date.now();
+    if (now - lastAudioStatsAt >= 5000) {
+      console.log(`[jitsi-audio] forwarded pcm chunks=${deliveredAudioChunks} bytes=${deliveredAudioBytes}`);
+      lastAudioStatsAt = now;
+    }
+
+    sendAudioChunkToAssemblyAI(aaiWebSocket, chunkBuffer);
+  });
+
+  await page.addScriptTag({ path: jitsiBundlePath });
+
+  await page.evaluate(async ({ targetMeetingUrl, botDisplayName, joinConfig }) => {
+    const JitsiMeetJS = window.JitsiMeetJS;
+    if (!JitsiMeetJS) {
+      throw new Error('JitsiMeetJS bundle did not load');
+    }
+
+    const parsedUrl = new URL(targetMeetingUrl);
+    const roomName = joinConfig.roomName;
+
+    JitsiMeetJS.init({});
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const ensureAudioContextRunning = async () => {
+      if (audioContext.state === 'suspended') {
+        try {
+          await audioContext.resume();
+        } catch (error) {
+          console.warn('[jitsi-audio] audio context resume failed', error);
+        }
+      }
+
+      console.log(`[jitsi-audio] audio context state=${audioContext.state}`);
+    };
+    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    const zeroGain = audioContext.createGain();
+    zeroGain.gain.value = 0;
+    const sourceNodes = new Map();
+    const audioElements = new Map();
+    let connection = null;
+    let conference = null;
+    let cleaningUp = false;
+    let currentAttempt = null;
+    let processedChunkCount = 0;
+    let lastMeterLogAt = 0;
+
+    const downsampleBuffer = (buffer, inputSampleRate, outputSampleRate) => {
+      if (outputSampleRate === inputSampleRate) {
+        return buffer;
+      }
+
+      if (outputSampleRate > inputSampleRate) {
+        return buffer;
+      }
+
+      const sampleRateRatio = inputSampleRate / outputSampleRate;
+      const newLength = Math.round(buffer.length / sampleRateRatio);
+      const result = new Float32Array(newLength);
+      let offsetResult = 0;
+      let offsetBuffer = 0;
+
+      while (offsetResult < result.length) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+        let accum = 0;
+        let count = 0;
+
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i += 1) {
+          accum += buffer[i];
+          count += 1;
+        }
+
+        result[offsetResult] = count > 0 ? accum / count : 0;
+        offsetResult += 1;
+        offsetBuffer = nextOffsetBuffer;
+      }
+
+      return result;
+    };
+
+    const floatTo16BitPCM = (floatBuffer) => {
+      const output = new Int16Array(floatBuffer.length);
+
+      for (let i = 0; i < floatBuffer.length; i += 1) {
+        const sample = Math.max(-1, Math.min(1, floatBuffer[i]));
+        output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+      }
+
+      return new Uint8Array(output.buffer);
+    };
+
+    const bytesToBase64 = (uint8Array) => {
+      let binary = '';
+
+      for (let i = 0; i < uint8Array.length; i += 0x8000) {
+        binary += String.fromCharCode(...uint8Array.subarray(i, i + 0x8000));
+      }
+
+      return btoa(binary);
+    };
+
+    const sendBuffer = async (inputBuffer) => {
+      if (!inputBuffer || inputBuffer.length === 0) {
+        return;
+      }
+
+      const downsampled = downsampleBuffer(inputBuffer, audioContext.sampleRate, 16000);
+      const pcmBytes = floatTo16BitPCM(downsampled);
+
+      if (pcmBytes.length > 0 && typeof window.__botDeliverAudioChunk === 'function') {
+        await window.__botDeliverAudioChunk(bytesToBase64(pcmBytes));
+      }
+    };
+
+    processor.onaudioprocess = (event) => {
+      const input = event.inputBuffer.getChannelData(0).slice();
+      processedChunkCount += 1;
+
+      if (processedChunkCount % 25 === 0) {
+        let peak = 0;
+        let sum = 0;
+
+        for (let i = 0; i < input.length; i += 1) {
+          const value = Math.abs(input[i]);
+          peak = Math.max(peak, value);
+          sum += value * value;
+        }
+
+        const rms = Math.sqrt(sum / (input.length || 1));
+        const now = Date.now();
+        if (now - lastMeterLogAt >= 4000) {
+          console.log(`[jitsi-audio] pcm meter chunks=${processedChunkCount} rms=${rms.toFixed(6)} peak=${peak.toFixed(6)}`);
+          lastMeterLogAt = now;
+        }
+      }
+
+      sendBuffer(input).catch((error) => {
+        console.error('[jitsi-audio] failed to forward audio chunk', error);
+      });
+    };
+
+    processor.connect(zeroGain);
+    zeroGain.connect(audioContext.destination);
+    await ensureAudioContextRunning();
+
+    const trackMuteHandlers = new Map();
+    const trackAudioLevelHandlers = new Map();
+    let lastTrackAudioLevelLogAt = 0;
+
+    const onTrackMuteChanged = (track) => {
+      const trackKey = (track && typeof track.getTrackId === 'function' && track.getTrackId())
+        || (track && typeof track.getTrack === 'function' && track.getTrack()?.id)
+        || 'unknown';
+      const muted = track && typeof track.isMuted === 'function' ? track.isMuted() : 'unknown';
+      console.log(`[jitsi-audio] track mute changed: ${trackKey} muted=${muted}`);
+      if (muted === false) {
+        ensureAudioContextRunning().catch(() => {});
+      }
+    };
+
+    const attachTrack = (track) => {
+      if (!track || (typeof track.isLocal === 'function' && track.isLocal()) || (typeof track.isAudioTrack === 'function' && !track.isAudioTrack())) {
+        return;
+      }
+
+      const mediaTrack = typeof track.getTrack === 'function' ? track.getTrack() : null;
+      if (!mediaTrack) {
+        return;
+      }
+
+      const trackKey = (typeof track.getTrackId === 'function' && track.getTrackId()) || mediaTrack.id || `${track.getParticipantId?.() || 'remote'}-${Date.now()}`;
+
+      if (sourceNodes.has(trackKey)) {
+        return;
+      }
+
+      const audioElement = document.createElement('audio');
+      audioElement.autoplay = true;
+      audioElement.playsInline = true;
+      audioElement.controls = false;
+      audioElement.muted = true;
+      document.body.appendChild(audioElement);
+
+      try {
+        if (typeof track.attach === 'function') {
+          track.attach(audioElement);
+        } else {
+          audioElement.srcObject = new MediaStream([mediaTrack]);
+        }
+      } catch (error) {
+        console.warn('[jitsi-audio] track.attach failed, falling back to raw stream', error);
+        audioElement.srcObject = new MediaStream([mediaTrack]);
+      }
+
+      const mediaStream = (typeof track.getOriginalStream === 'function' && track.getOriginalStream())
+        || audioElement.srcObject
+        || new MediaStream([mediaTrack]);
+      let sourceNode;
+
+      try {
+        sourceNode = audioContext.createMediaStreamSource(mediaStream);
+      } catch (error) {
+        console.warn('[jitsi-audio] media stream source failed, falling back to media element source', error);
+        sourceNode = audioContext.createMediaElementSource(audioElement);
+      }
+
+      sourceNode.connect(processor);
+      sourceNodes.set(trackKey, {
+        sourceNode,
+        audioElement,
+        track,
+        mediaStream,
+        participantId: typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown',
+      });
+      audioElements.set(trackKey, audioElement);
+      ensureAudioContextRunning().catch(() => {});
+
+      try {
+        if (typeof track.addEventListener === 'function') {
+          const muteHandler = () => onTrackMuteChanged(track);
+          trackMuteHandlers.set(trackKey, muteHandler);
+          track.addEventListener(JitsiMeetJS.events.track.TRACK_MUTE_CHANGED, muteHandler);
+
+          const audioLevelHandler = (audioLevel) => {
+            const now = Date.now();
+            if (now - lastTrackAudioLevelLogAt >= 4000) {
+              console.log(`[jitsi-audio] track audio level: ${trackKey} level=${Number(audioLevel || 0).toFixed(6)}`);
+              lastTrackAudioLevelLogAt = now;
+            }
+          };
+          trackAudioLevelHandlers.set(trackKey, audioLevelHandler);
+          track.addEventListener(JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED, audioLevelHandler);
+        }
+      } catch {
+        // ignore
+      }
+
+      Promise.resolve(audioElement.play())
+        .then(() => {
+          console.log(
+            `[jitsi-audio] attached remote audio track: ${trackKey} participant=${typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown'} muted=${typeof track.isMuted === 'function' ? track.isMuted() : 'unknown'} readyState=${mediaTrack.readyState} streamTracks=${typeof mediaStream?.getAudioTracks === 'function' ? mediaStream.getAudioTracks().length : 0}`
+          );
+        })
+        .catch((error) => {
+          console.warn('[jitsi-audio] audio element play failed', error);
+        });
+    };
+
+    const detachTrack = (track) => {
+      const mediaTrack = track && typeof track.getTrack === 'function' ? track.getTrack() : null;
+      const trackKey = (track && typeof track.getTrackId === 'function' && track.getTrackId()) || mediaTrack?.id;
+
+      if (!trackKey || !sourceNodes.has(trackKey)) {
+        return;
+      }
+
+      const entry = sourceNodes.get(trackKey);
+
+      try {
+        entry.sourceNode.disconnect();
+      } catch {
+        // ignore
+      }
+
+      try {
+        const muteHandler = trackMuteHandlers.get(trackKey);
+        if (entry.track && muteHandler && typeof entry.track.removeEventListener === 'function') {
+          entry.track.removeEventListener(JitsiMeetJS.events.track.TRACK_MUTE_CHANGED, muteHandler);
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        const audioLevelHandler = trackAudioLevelHandlers.get(trackKey);
+        if (entry.track && audioLevelHandler && typeof entry.track.removeEventListener === 'function') {
+          entry.track.removeEventListener(JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED, audioLevelHandler);
+        }
+      } catch {
+        // ignore
+      }
+
+      trackMuteHandlers.delete(trackKey);
+      trackAudioLevelHandlers.delete(trackKey);
+
+      try {
+        if (entry.audioElement) {
+          if (entry.track && typeof entry.track.detach === 'function') {
+            entry.track.detach(entry.audioElement);
+          }
+          entry.audioElement.pause();
+          entry.audioElement.srcObject = null;
+          entry.audioElement.remove();
+        }
+      } catch {
+        // ignore
+      }
+
+      sourceNodes.delete(trackKey);
+      audioElements.delete(trackKey);
+      console.log(`[jitsi-audio] detached remote audio track: ${trackKey}`);
+    };
+
+    const cleanup = async () => {
+      if (cleaningUp) {
+        return;
+      }
+      cleaningUp = true;
+
+      try {
+        if (conference) {
+          conference.off(JitsiMeetJS.events.conference.TRACK_ADDED, attachTrack);
+          conference.off(JitsiMeetJS.events.conference.TRACK_REMOVED, detachTrack);
+          conference.off(JitsiMeetJS.events.conference.TRACK_MUTE_CHANGED, onTrackMuteChanged);
+          conference.off(JitsiMeetJS.events.conference.CONFERENCE_LEFT, cleanup);
+
+          try {
+            conference.leave();
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        processor.disconnect();
+        zeroGain.disconnect();
+      } catch {
+        // ignore
+      }
+
+      for (const entry of sourceNodes.values()) {
+        try {
+          entry.sourceNode.disconnect();
+        } catch {
+          // ignore
+        }
+
+        try {
+          if (entry.audioElement) {
+            if (entry.track && typeof entry.track.detach === 'function') {
+              entry.track.detach(entry.audioElement);
+            }
+            entry.audioElement.pause();
+            entry.audioElement.srcObject = null;
+            entry.audioElement.remove();
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      sourceNodes.clear();
+      audioElements.clear();
+      trackMuteHandlers.clear();
+      trackAudioLevelHandlers.clear();
+
+      try {
+        if (connection) {
+          connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, onConnectionEstablished);
+          connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, onConnectionFailed);
+          connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, onConnectionDisconnected);
+          connection.disconnect();
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        await audioContext.close();
+      } catch {
+        // ignore
+      }
+    };
+
+    const attachExistingTracks = () => {
+      if (!conference || typeof conference.getParticipants !== 'function') {
+        return;
+      }
+
+      const participants = conference.getParticipants();
+      console.log(`[jitsi-audio] scanning existing participants: ${participants.length}`);
+
+      for (const participant of participants) {
+        const tracks = typeof participant?.getTracks === 'function' ? participant.getTracks() : [];
+        console.log(`[jitsi-audio] participant existing tracks: ${tracks.length}`);
+        for (const track of tracks) {
+          attachTrack(track);
+        }
+      }
+    };
+
+    function onConnectionEstablished() {
+      conference = connection.initJitsiConference(roomName, {
+        openBridgeChannel: 'websocket',
+        p2p: {
+          enabled: false,
+        },
+      });
+      conference.on(JitsiMeetJS.events.conference.TRACK_ADDED, attachTrack);
+      conference.on(JitsiMeetJS.events.conference.TRACK_REMOVED, detachTrack);
+      conference.on(JitsiMeetJS.events.conference.TRACK_MUTE_CHANGED, onTrackMuteChanged);
+      conference.on(JitsiMeetJS.events.conference.CONFERENCE_LEFT, cleanup);
+      conference.on(JitsiMeetJS.events.conference.CONFERENCE_JOINED, () => {
+        console.log('[jitsi-audio] conference joined');
+        attachExistingTracks();
+        if (currentAttempt?.resolve) {
+          currentAttempt.resolve();
+          currentAttempt = null;
+        }
+      });
+
+      if (typeof conference.setDisplayName === 'function') {
+        conference.setDisplayName(botDisplayName);
+      }
+
+      conference.join();
+      console.log('[jitsi-audio] conference join requested');
+    }
+
+    function onConnectionFailed(errorType, errorMessage) {
+      const errorText = `Jitsi connection failed: ${errorType || 'unknown'} ${errorMessage || ''}`.trim();
+      if (currentAttempt?.reject) {
+        currentAttempt.reject(new Error(errorText));
+        currentAttempt = null;
+        return;
+      }
+
+      throw new Error(errorText);
+    }
+
+    function onConnectionDisconnected() {
+      if (conference) {
+        cleanup().catch(() => {});
+      } else if (currentAttempt?.reject) {
+        currentAttempt.reject(new Error('Jitsi connection disconnected before conference join'));
+        currentAttempt = null;
+      }
+    }
+
+    const attemptConnection = async (serviceUrl) => {
+      const attemptOptions = {
+        ...joinConfig.connectionOptions,
+        serviceUrl,
+      };
+
+      connection = new JitsiMeetJS.JitsiConnection(null, joinConfig.token || null, attemptOptions);
+      connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, onConnectionEstablished);
+      connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, onConnectionFailed);
+      connection.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, onConnectionDisconnected);
+
+      console.log('[jitsi-audio] connecting', {
+        roomName,
+        domain: joinConfig.connectionOptions.hosts?.domain || parsedUrl.hostname,
+        serviceUrl,
+        hasToken: Boolean(joinConfig.token),
+      });
+
+      const startupPromise = new Promise((resolve, reject) => {
+        currentAttempt = { resolve, reject };
+      });
+      const timeoutMs = Number(joinConfig.connectionTimeoutMs || 12000);
+      const timeoutPromise = new Promise((_, reject) => {
+        window.setTimeout(() => {
+          reject(new Error(`Jitsi connection timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      connection.connect();
+      await Promise.race([startupPromise, timeoutPromise]);
+    };
+
+    try {
+      const serviceUrls = Array.isArray(joinConfig.serviceUrls) && joinConfig.serviceUrls.length > 0
+        ? joinConfig.serviceUrls
+        : [joinConfig.connectionOptions.serviceUrl];
+      let lastError = null;
+
+      for (let index = 0; index < serviceUrls.length; index += 1) {
+        const serviceUrl = serviceUrls[index];
+
+        try {
+          await attemptConnection(serviceUrl);
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          console.warn('[jitsi-audio] connection attempt failed', {
+            serviceUrl,
+            message: error?.message || String(error),
+          });
+
+          try {
+            if (connection) {
+              connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, onConnectionEstablished);
+              connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, onConnectionFailed);
+              connection.removeEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, onConnectionDisconnected);
+              connection.disconnect();
+            }
+          } catch {
+            // ignore
+          }
+
+          connection = null;
+          conference = null;
+          currentAttempt = null;
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
+    } finally {
+      window.__botStopAudioCapture = cleanup;
+    }
+  }, { targetMeetingUrl: meetingUrl, botDisplayName: botName, joinConfig: jitsiJoinConfig });
+
+  return {
+    kind: 'jitsi-capture',
+    async stop() {
+      try {
+        await page.evaluate(() => {
+          if (typeof window.__botStopAudioCapture === 'function') {
+            return window.__botStopAudioCapture();
+          }
+
+          return undefined;
+        });
+      } catch {
+        // ignore
+      }
+
+      try {
+        page.off('console', browserConsoleHandler);
+      } catch {
+        // ignore
+      }
+
+      try {
+        page.off('pageerror', pageErrorHandler);
+      } catch {
+        // ignore
+      }
+    },
+  };
 }
 
 (async () => {
   const config = parseArgs();
 
-  console.log('[bot] PHASE 1: AUDIO CAPTURE VALIDATION');
+  console.log('[bot] REALTIME MEETING BOT: JOIN + STREAM + CAPTION');
   console.log(`[bot] meetingId=${config.meetingId}`);
 
   let browser;
   let recorder;
+  let aaiWebSocket;
   let page;
   let monitorInterval;
-  let heartbeatInterval;
   let shuttingDown = false;
 
   const shutdown = async (reason) => {
@@ -884,12 +1908,13 @@ function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
       monitorInterval = null;
     }
 
-    if (heartbeatInterval) {
-      clearInterval(heartbeatInterval);
-      heartbeatInterval = null;
-    }
-
-    if (recorder && !recorder.killed) {
+    if (recorder && typeof recorder.stop === 'function') {
+      try {
+        await recorder.stop();
+      } catch {
+        // ignore
+      }
+    } else if (recorder && !recorder.killed) {
       try {
         recorder.stdin.write('q\n');
       } catch {
@@ -898,6 +1923,20 @@ function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
       if (!recorder.killed) {
         recorder.kill('SIGKILL');
+      }
+    }
+
+    if (aaiWebSocket && aaiWebSocket.readyState === WebSocketModule.OPEN) {
+      try {
+        aaiWebSocket.send(JSON.stringify({ type: 'Terminate' }));
+      } catch {
+        // ignore
+      }
+
+      try {
+        aaiWebSocket.close();
+      } catch {
+        // ignore
       }
     }
 
@@ -920,8 +1959,7 @@ function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
   });
 
   try {
-    console.log('[bot] PHASE 1: AUDIO CAPTURE VALIDATION (NO TRANSCRIPTION)');
-    console.log('[bot] mode: record to disk, validate, then exit');
+    console.log('[bot] mode: join meeting muted, stream audio to AssemblyAI realtime, publish captions');
 
     browser = await chromium.launch({
       headless: config.headless,
@@ -933,130 +1971,139 @@ function sendAudioChunkToAssemblyAI(aaiWebSocket, chunk) {
       ],
     });
 
-    const context = await browser.newContext({ permissions: ['microphone', 'camera'] });
+    const context = await browser.newContext();
     page = await context.newPage();
 
-    const joined = await joinZoomMeeting(page, config.meetingUrl, config.botName);
-    if (joined) {
-      console.log('[bot] ✅ joined meeting successfully');
+    const useJitsiCapture = shouldUseJitsiAudioCapture(config.meetingUrl, config.platform);
+
+    if (!useJitsiCapture) {
+      const joined = await joinZoomMeeting(page, config.meetingUrl, config.botName);
+      if (joined) {
+        console.log('[bot] ✅ joined meeting successfully');
+      } else {
+        console.warn('[bot] ⚠️ join state not confirmed, attempting audio capture anyway');
+      }
+    }
+
+    try {
+      aaiWebSocket = await connectAssemblyAiRealtime(config.meetingId);
+    } catch (streamError) {
+      console.error('[bot] ❌ AssemblyAI connection failed:', streamError.message);
+      await shutdown('assemblyai-connect-failed');
+      return;
+    }
+
+    recorder = await startRealtimeAudioStream({
+      page,
+      aaiWebSocket,
+      meetingUrl: config.meetingUrl,
+      meetingId: config.meetingId,
+      botName: config.botName,
+      platform: config.platform,
+    });
+    console.log('[bot] ✅ realtime audio stream started');
+
+    aaiWebSocket.on('close', () => {
+      if (!shuttingDown) {
+        shutdown('assemblyai-closed');
+      }
+    });
+
+    if (recorder && typeof recorder.on === 'function') {
+      recorder.on('exit', (code) => {
+        if (!shuttingDown) {
+          console.warn(`[bot] audio stream exited with code ${code}`);
+          shutdown('audio-stream-ended');
+        }
+      });
+    }
+
+    if (useJitsiCapture) {
+      monitorInterval = setInterval(async () => {
+        try {
+          if (!page || page.isClosed()) {
+            console.warn('[bot] Jitsi capture page closed, shutting down');
+            await shutdown('jitsi-page-closed');
+          }
+        } catch (error) {
+          console.warn('[bot] monitor check failed:', error.message);
+        }
+      }, Number(process.env.BOT_MONITOR_INTERVAL_MS || 15000));
     } else {
-      console.warn('[bot] ⚠️ join state not confirmed, attempting audio capture anyway');
+      let rejoinAttempts = 0;
+      const maxRejoinAttempts = Number(process.env.BOT_MAX_REJOIN_ATTEMPTS || 3);
+
+      monitorInterval = setInterval(async () => {
+        try {
+          if (!page || page.isClosed()) {
+            console.warn('[bot] meeting page closed, attempting to recreate page/context');
+            try {
+              if (!browser) {
+                console.log('[bot] browser missing, launching new browser instance');
+                browser = await chromium.launch({
+                  headless: config.headless,
+                  args: [
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-blink-features=AutomationControlled',
+                    '--autoplay-policy=no-user-gesture-required',
+                  ],
+                });
+              }
+
+              const context = await browser.newContext();
+              page = await context.newPage();
+
+              console.log('[bot] attempting to rejoin after page recreation');
+              const joined = await joinZoomMeeting(page, config.meetingUrl, config.botName);
+              if (joined) {
+                console.log('[bot] ✅ rejoin after recreation succeeded');
+              } else {
+                console.warn('[bot] ⚠️ rejoin after recreation not confirmed');
+              }
+            } catch (err) {
+              console.warn('[bot] failed to recreate page/context:', err.message);
+              // fall through; rejoin logic below will handle attempts
+            }
+          }
+
+          const status = await getZoomPageStatus(page);
+
+          if (status.hasJoinControls && !status.hasMeetingControls) {
+            console.warn('[bot] ⚠️ meeting page appears to be back in join flow');
+
+            if (rejoinAttempts >= maxRejoinAttempts) {
+              console.error('[bot] ❌ max rejoin attempts reached, shutting down');
+              await shutdown('rejoin-failed');
+              return;
+            }
+
+            try {
+              rejoinAttempts += 1;
+              console.log(`[bot] attempting rejoin (attempt ${rejoinAttempts}/${maxRejoinAttempts})`);
+              await clickJoinWithoutAudio(page);
+              await clickJoin(page);
+              await page.waitForTimeout(3000);
+              const confirmed = await waitUntilInsideMeeting(page);
+              if (confirmed) {
+                console.log('[bot] ✅ rejoined meeting successfully');
+                rejoinAttempts = 0;
+              } else {
+                console.warn('[bot] ⚠️ rejoin attempt did not confirm inside meeting');
+              }
+            } catch (err) {
+              console.warn('[bot] rejoin attempt failed:', err.message);
+            }
+          }
+        } catch (error) {
+          console.warn('[bot] monitor check failed:', error.message);
+        }
+      }, Number(process.env.BOT_MONITOR_INTERVAL_MS || 15000));
     }
 
-    // Record audio to test file
-    const recordDir = path.join(process.cwd(), 'data', 'audio', config.meetingId);
-    if (!fs.existsSync(recordDir)) {
-      fs.mkdirSync(recordDir, { recursive: true });
-    }
-    
-    const testWavPath = path.join(recordDir, 'test.wav');
-    console.log(`[bot] ✅ recording started, will save to: ${testWavPath}`);
+    console.log('[bot] 🎯 bot is live and streaming captions');
 
-    try {
-      await recordAudioToFile(testWavPath, 10);
-      console.log('[bot] ✅ recording completed');
-    } catch (recordError) {
-      console.error('[bot] ❌ recording failed:', recordError.message);
-      await shutdown('audio-record-failed');
-      return;
-    }
-
-    // Validate the recorded audio
-    console.log('[bot] validating audio file...');
-    let validation;
-    try {
-      validation = await validateAudioFile(testWavPath);
-    } catch (valError) {
-      console.error('[bot] ❌ validation error:', valError.message);
-      await shutdown('audio-validation-error');
-      return;
-    }
-
-    console.log(`
-[audio-validation] RESULTS
-==========================
-📁 file size:              ${(validation.fileSize / 1024).toFixed(2)} KB
-⏱️  estimated duration:     ${validation.estimatedDurationSeconds.toFixed(2)} seconds
-📊 RMS (root mean square): ${validation.rms.toFixed(6)}
-🔇 silence detected:       ${validation.isSilent ? '❌ YES (FAILED)' : '✅ NO (PASSED)'}
-✅ overall valid:          ${validation.isValid ? '✅ PASSED' : '❌ FAILED'}
-==========================
-    `);
-
-    if (!validation.isValid) {
-      console.error('[bot] ❌ AUDIO VALIDATION FAILED');
-      
-      if (validation.isSilent) {
-        console.error('[bot] ❌ REASON: Audio is silent (RMS < 0.001)');
-        console.error('[bot] ❌ This likely means:');
-        console.error('[bot]    - No audio source available on device');
-        console.error('[bot]    - Meeting has no active speakers');
-        console.error('[bot]    - OS-level loopback capture not configured');
-        console.error('[bot]    - Audio output not routed to loopback device');
-      }
-      
-      if (validation.estimatedDurationSeconds < 9) {
-        console.error(`[bot] ❌ REASON: Recording too short (${validation.estimatedDurationSeconds.toFixed(2)}s < 9s)`);
-        console.error('[bot]    - ffmpeg may have failed to start');
-        console.error('[bot]    - Device not recognized');
-      }
-
-      await shutdown('audio-validation-failed');
-      return;
-    }
-
-    console.log('[bot] ✅ AUDIO VALIDATION PASSED');
-    
-    // Print absolute path and file info clearly
-    const absolutePath = path.resolve(testWavPath);
-    const stats = fs.statSync(testWavPath);
-    const fileSizeKB = (stats.size / 1024).toFixed(2);
-    
-    console.log(`
-╔════════════════════════════════════════════════════════════════╗
-║                    AUDIO FILE SAVED                           ║
-╚════════════════════════════════════════════════════════════════╝
-
-📁 Absolute Path:
-   ${absolutePath}
-
-📊 File Size:
-   ${fileSizeKB} KB (${stats.size} bytes)
-
-⏱️  Duration:
-   ${validation.estimatedDurationSeconds.toFixed(2)} seconds
-
-🔊 Audio Energy (RMS):
-   ${validation.rms.toFixed(6)} (speech-like)
-
-════════════════════════════════════════════════════════════════
-🎧 NEXT: Open test.wav with any media player to listen
-════════════════════════════════════════════════════════════════
-    `);
-
-    // Auto-open folder based on platform
-    try {
-      const folderPath = path.dirname(absolutePath);
-      if (os.platform() === 'win32') {
-        const { exec } = require('child_process');
-        exec(`explorer "${folderPath}"`);
-        console.log(`[bot] 📂 Opening folder in Explorer...`);
-      } else if (os.platform() === 'darwin') {
-        const { exec } = require('child_process');
-        exec(`open "${folderPath}"`);
-        console.log(`[bot] 📂 Opening folder in Finder...`);
-      } else if (os.platform() === 'linux') {
-        const { exec } = require('child_process');
-        exec(`xdg-open "${folderPath}"`);
-        console.log(`[bot] 📂 Opening folder...`);
-      }
-    } catch (err) {
-      console.warn(`[bot] ⚠️ Could not auto-open folder: ${err.message}`);
-    }
-
-    console.log('[bot] 🎯 Ready for manual audio inspection');
-    
-    await shutdown('audio-validation-complete');
+    await new Promise(() => {});
   } catch (error) {
     console.error('[bot] fatal error:', error.message);
     console.error(error.stack);

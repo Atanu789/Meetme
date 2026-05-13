@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createJitsiBotToken } from '../../../lib/jitsi-bot-token';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { meetingId, meetingUrl, botName } = body;
+    const { meetingId, meetingUrl, botName, jwt, platform } = body;
 
     if (!meetingId || !meetingUrl) {
       return NextResponse.json(
@@ -25,6 +26,8 @@ export async function POST(request: NextRequest) {
         meetingId,
         meetingUrl,
         botName: botName || 'Melanam Bot',
+        jwt: jwt || createJitsiBotToken(meetingId, botName || 'Melanam Bot'),
+        platform: platform || 'jitsi',
       }),
     });
 

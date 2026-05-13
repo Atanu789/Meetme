@@ -67,7 +67,7 @@ function createServer() {
     if (request.method === 'POST' && requestUrl.pathname === '/api/start-bot') {
       try {
         const body = await readJsonBody(request);
-        const { meetingId, meetingUrl, botName } = body;
+        const { meetingId, meetingUrl, botName, jwt, platform } = body;
 
         if (!meetingId || !meetingUrl) {
           response.writeHead(400, { 'Content-Type': 'application/json' });
@@ -88,7 +88,11 @@ function createServer() {
         const botScript = path.join(__dirname, '..', 'bot', 'zoomBotAssemblyRunner.js');
         const botProcess = spawn('node', [botScript, meetingId, meetingUrl, botName || 'Melanam Bot'], {
           cwd: path.join(__dirname, '..', '..'),
-          env: { ...process.env },
+          env: {
+            ...process.env,
+            BOT_JITSI_TOKEN: jwt || '',
+            BOT_MEETING_PLATFORM: platform || '',
+          },
           detached: false,
           stdio: ['ignore', 'pipe', 'pipe'],
         });

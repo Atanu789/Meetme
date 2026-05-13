@@ -11,6 +11,7 @@
     "bot:test:assembly": "node src/bot/testAssemblyPipeline.js"
   },
   "dependencies": {
+    "@joinera/lib-jitsi-meet": "^1.0.1599",
     "dotenv": "^16.6.1",
     "playwright": "^1.53.2",
     "ws": "^8.18.0"
