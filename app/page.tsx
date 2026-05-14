@@ -9,7 +9,6 @@ export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -21,39 +20,7 @@ export default function Home() {
       return;
     }
 
-    setIsCreating(true);
-
-    try {
-      const response = await fetch('/api/create-meeting', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: 'Quick meeting',
-          description: 'Started from home page',
-          isPrivate: false,
-          chatEnabled: true,
-          recordingEnabled: false,
-        }),
-      });
-
-      if (response.status === 401) {
-        router.push('/sign-in');
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to create meeting');
-      }
-
-      const data = await response.json();
-      router.push(`/room/${data.meetingId}`);
-    } catch (error) {
-      console.error('Quick create meeting failed:', error);
-    } finally {
-      setIsCreating(false);
-    }
+    router.push('/dashboard?create=1');
   };
 
   if (!mounted) return null;
@@ -79,8 +46,8 @@ export default function Home() {
                 <Link href="/dashboard" className="button-primary w-full sm:w-auto">
                   Open dashboard
                 </Link>
-                <button onClick={() => void handleQuickCreateMeeting()} className="button-secondary w-full sm:w-auto" disabled={isCreating}>
-                  {isCreating ? 'Creating...' : 'Create meeting'}
+                <button onClick={() => void handleQuickCreateMeeting()} className="button-secondary w-full sm:w-auto">
+                  Create meeting
                 </button>
               </>
             ) : (

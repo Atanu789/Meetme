@@ -1,8 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { MeetingCard } from '../../components/MeetingCard';
+import { CreateMeetingModal } from '../../components/CreateMeetingModal';
 import { JoinModal } from '../../components/JoinModal';
 import { Loader } from '../../components/Loader';
 import { useSession } from 'next-auth/react';
@@ -36,20 +38,18 @@ interface DashboardMeetingActivity {
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [activity, setActivity] = useState<DashboardMeetingActivity[]>([]);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    isPrivate: false,
-    chatEnabled: true,
-    recordingEnabled: false,
-  });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') {
+      setIsCreateModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -79,18 +79,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleCreateMeeting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsCreating(true);
-
+  const handleCreateMeeting = async ({ title, description }: { title: string; description: string }) => {
     try {
-      if (!formData.title.trim()) {
-        setError('Meeting title is required');
-        setIsCreating(false);
-        return;
-      }
-
       const response = await fetch('/api/create-meeting', {
         method: 'POST',
         headers: {
@@ -98,11 +88,11 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           hostEmail: session?.user?.email,
-          title: formData.title,
-          description: formData.description,
-          isPrivate: formData.isPrivate,
-          chatEnabled: formData.chatEnabled,
-          recordingEnabled: formData.recordingEnabled,
+          title,
+          description,
+          isPrivate: false,
+          chatEnabled: true,
+          recordingEnabled: false,
         }),
       });
 
@@ -114,9 +104,7 @@ export default function Dashboard() {
       const data = await response.json();
       router.push(`/room/${data.meetingId}`);
     } catch (err: any) {
-      setError(err.message || 'Failed to create meeting');
-    } finally {
-      setIsCreating(false);
+      throw new Error(err.message || 'Failed to create meeting');
     }
   };
 
@@ -162,12 +150,12 @@ export default function Dashboard() {
 
           <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
             <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
+              onClick={() => setIsCreateModalOpen(true)}
               className="surface group rounded-[1.75rem] p-4 text-left hover:-translate-y-0.5 sm:p-6"
             >
               <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Start</p>
               <h2 className="mt-2 font-display text-2xl font-semibold text-slate-950">Create meeting</h2>
-              <p className="mt-2 text-sm text-slate-500">Set a title, choose privacy, and join immediately.</p>
+              <p className="mt-2 text-sm text-slate-500">Open a blurred popover to set a title and join immediately.</p>
             </button>
             <button
               onClick={() => setIsJoinModalOpen(true)}
@@ -178,91 +166,6 @@ export default function Dashboard() {
               <p className="mt-2 text-sm text-slate-500">Open any room by pasting a meeting ID or invite link.</p>
             </button>
           </div>
-
-          {showCreateForm && (
-            <div className="surface-strong rounded-[2rem] p-4 sm:p-6 lg:p-8 animate-fade-in-up">
-              <div className="mb-6">
-                <p className="section-kicker mb-2">New room</p>
-                <h2 className="section-title font-display text-xl font-semibold text-slate-950 sm:text-2xl">Create meeting</h2>
-              </div>
-              <form onSubmit={handleCreateMeeting} className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Meeting title</label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Team sync"
-                    className="input-modern"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Agenda, notes, or meeting context"
-                    className="input-modern min-h-[110px] resize-none"
-                    rows={4}
-                  />
-                </div>
-
-                <div className="grid gap-2 md:grid-cols-3 sm:gap-3">
-                  <label className="surface flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={formData.isPrivate}
-                      onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-950"
-                    />
-                    Private room
-                  </label>
-                  <label className="surface flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={formData.chatEnabled}
-                      onChange={(e) => setFormData({ ...formData, chatEnabled: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-950"
-                    />
-                    Save chat
-                  </label>
-                  <label className="surface flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={formData.recordingEnabled}
-                      onChange={(e) => setFormData({ ...formData, recordingEnabled: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-950 focus:ring-slate-950"
-                    />
-                    Recording ready
-                  </label>
-                </div>
-
-                {error && (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateForm(false);
-                      setFormData({ title: '', description: '', isPrivate: false, chatEnabled: true, recordingEnabled: false });
-                      setError('');
-                    }}
-                    className="button-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={isCreating} className="button-primary">
-                    {isCreating ? 'Creating...' : 'Create and join'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
 
           <section>
             <div className="mb-4 flex items-start justify-between gap-3 sm:items-end">
@@ -351,6 +254,11 @@ export default function Dashboard() {
       </section>
 
       <JoinModal isOpen={isJoinModalOpen} onClose={() => setIsJoinModalOpen(false)} />
+      <CreateMeetingModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateMeeting}
+      />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 const DEFAULT_TOOLBAR_BUTTONS = [
   'microphone',
   'camera',
-  'closedcaptions',
   'desktop',
   'fullscreen',
   'hangup',
