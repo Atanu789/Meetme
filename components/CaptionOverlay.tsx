@@ -192,7 +192,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
 export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
-  const [captionsEnabled, setCaptionsEnabled] = useState(true);
+  const captionsEnabled = true;
   const [lastSpeakerId, setLastSpeakerId] = useState<string | null>(null);
 
   const socketUrl = useMemo(() => resolveCaptionSocketUrl(meetingId), [meetingId]);
@@ -412,37 +412,6 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
         ))}
       </div>
 
-      {/* CC Toggle Button - Bottom Right */}
-      <div className="fixed bottom-6 right-6 pointer-events-auto">
-        <button
-          onClick={() => setCaptionsEnabled(!captionsEnabled)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 ${
-            captionsEnabled
-              ? 'bg-white/90 text-black hover:bg-white'
-              : 'bg-white/20 text-white hover:bg-white/30'
-          }`}
-          title={captionsEnabled ? 'Captions on' : 'Captions off'}
-        >
-          <svg
-            className="w-4 h-4"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V6c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v4z" />
-          </svg>
-          <span className="text-xs uppercase tracking-tight">
-            {captionsEnabled ? 'CC' : 'CC Off'}
-          </span>
-        </button>
-      </div>
-
-      {/* Connection indicator (only when no captions & enabled) */}
-      {captions.length === 0 && captionsEnabled && (
-        <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
-          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-400' : 'bg-amber-400'}`}></span>
-          <span>{connected ? 'Live captions' : 'Connecting...'}</span>
-        </div>
-      )}
     </div>
   );
 

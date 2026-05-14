@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
+import { BackgroundGradientAnimation } from '../components/BackgroundGradientAnimation';
 import { Navbar } from '../components/Navbar';
 import { Providers } from './providers';
 import ThemeInitializer from '../components/ThemeInitializer';
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <ThemeInitializer />
+          <BackgroundGradientAnimation />
           <Navbar />
           <main className="app-main pt-16">
             {children}

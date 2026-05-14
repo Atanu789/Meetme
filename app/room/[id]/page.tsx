@@ -27,7 +27,6 @@ export default function RoomPage() {
   const { data: session, status } = useSession();
   const [guestName, setGuestName] = useState('');
   const [nameReady, setNameReady] = useState(false);
-  const [copyStatus, setCopyStatus] = useState('');
   const [meetingError, setMeetingError] = useState('');
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [jwt, setJwt] = useState<string | null>(null);
@@ -206,46 +205,6 @@ export default function RoomPage() {
     <div className="page-shell-wide text-slate-950">
       <div className="space-y-3 sm:space-y-4">
         <div className="surface-strong overflow-hidden rounded-[2rem]">
-          <div className="flex flex-col gap-3 border-b border-slate-200/80 bg-white/90 px-3 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-4">
-            <div className="min-w-0">
-              <p className="section-kicker mb-1">Meeting</p>
-              <h1 className="font-display text-base font-semibold text-slate-950 sm:text-lg">{meeting?.title || 'Untitled room'}</h1>
-              <p className="text-xs text-slate-500">ID: {meetingId}</p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <button
-                onClick={async () => {
-                  try {
-                    if (navigator.clipboard?.writeText) {
-                      await navigator.clipboard.writeText(window.location.href);
-                    } else {
-                      const tempInput = document.createElement('input');
-                      tempInput.value = window.location.href;
-                      document.body.appendChild(tempInput);
-                      tempInput.select();
-                      document.execCommand('copy');
-                      document.body.removeChild(tempInput);
-                    }
-                    setCopyStatus('Invite link copied');
-                    setTimeout(() => setCopyStatus(''), 2000);
-                  } catch {
-                    setCopyStatus('Copy failed');
-                    setTimeout(() => setCopyStatus(''), 2000);
-                  }
-                }}
-                className="button-secondary w-full px-4 py-2 text-sm sm:w-auto"
-              >
-                Copy invite link
-              </button>
-              <button
-                onClick={() => router.push('/')}
-                className="button-primary w-full px-4 py-2 text-sm sm:w-auto"
-              >
-                Leave
-              </button>
-            </div>
-          </div>
-
           <div className="relative h-[76vh] min-h-[620px] sm:h-[calc(100vh-11rem)]">
             <JitsiMeeting
               roomName={jitsiRoomName}
@@ -262,12 +221,6 @@ export default function RoomPage() {
           <CaptionOverlay meetingId={meetingId} />
         </div>
       </div>
-
-      {copyStatus && (
-        <div className="fixed top-20 right-4 z-30 rounded-lg bg-emerald-500/90 text-white px-4 py-2 shadow-lg">
-          {copyStatus}
-        </div>
-      )}
     </div>
   );
 }

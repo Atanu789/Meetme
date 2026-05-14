@@ -122,7 +122,8 @@ export default function Dashboard() {
     <div className="page-shell-wide">
       <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-5 sm:space-y-6">
-          <div className="surface-strong rounded-[2rem] p-4 sm:p-6 lg:p-8">
+          <div className="surface-strong overflow-hidden rounded-[2rem] p-4 sm:p-6 lg:p-8 relative">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-emerald-400" />
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <p className="section-kicker mb-2">Workspace</p>
@@ -139,7 +140,7 @@ export default function Dashboard() {
                   { value: activity.length, label: 'Events' },
                   { value: meetings.filter((item) => item.isPrivate).length, label: 'Private' },
                 ].map((item) => (
-                  <div key={item.label} className="surface rounded-2xl p-4 text-center">
+                  <div key={item.label} className="surface rounded-2xl p-4 text-center ring-1 ring-white/50">
                     <div className="font-display text-2xl font-semibold text-slate-950">{item.value}</div>
                     <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
                   </div>
@@ -151,19 +152,63 @@ export default function Dashboard() {
           <div className="grid gap-3 md:grid-cols-2 sm:gap-4">
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="surface group rounded-[1.75rem] p-4 text-left hover:-translate-y-0.5 sm:p-6"
+              className="surface group relative overflow-hidden rounded-[2rem] p-5 text-left transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_60px_rgba(6,182,212,0.18)] sm:p-6 ring-1 ring-cyan-400/25"
             >
-              <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Start</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold text-slate-950">Create meeting</h2>
-              <p className="mt-2 text-sm text-slate-500">Open a blurred popover to set a title and join immediately.</p>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.12),transparent_34%)]" />
+              <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-cyan-400 via-blue-500 to-indigo-500" />
+              <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-cyan-400/10 blur-3xl" />
+              <div className="relative flex h-full flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Start</p>
+                    <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-cyan-700 ring-1 ring-cyan-500/15">
+                      Instant
+                    </span>
+                  </div>
+                  <h2 className="mt-3 font-display text-2xl font-semibold text-slate-950 sm:text-[2rem]">Create meeting</h2>
+                </div>
+                <div className="mt-8 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/12 text-cyan-700 ring-1 ring-cyan-500/15">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">Create room</p>
+                    <p className="text-xs text-slate-500">Fast setup</p>
+                  </div>
+                </div>
+              </div>
             </button>
             <button
               onClick={() => setIsJoinModalOpen(true)}
-              className="surface group rounded-[1.75rem] p-4 text-left hover:-translate-y-0.5 sm:p-6"
+              className="surface group relative overflow-hidden rounded-[2rem] p-5 text-left transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_60px_rgba(251,146,60,0.18)] sm:p-6 ring-1 ring-amber-400/25"
             >
-              <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Join</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold text-slate-950">Enter room code</h2>
-              <p className="mt-2 text-sm text-slate-500">Open any room by pasting a meeting ID or invite link.</p>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.18),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(244,114,182,0.12),transparent_34%)]" />
+              <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-amber-400 via-orange-500 to-rose-500" />
+              <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-amber-400/10 blur-3xl" />
+              <div className="relative flex h-full flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Join</p>
+                    <span className="rounded-full bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-500/15">
+                      Invite
+                    </span>
+                  </div>
+                  <h2 className="mt-3 font-display text-2xl font-semibold text-slate-950 sm:text-[2rem]">Enter room code</h2>
+                </div>
+                <div className="mt-8 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-700 ring-1 ring-amber-500/15">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h8m-4-4 4 4-4 4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">Join instantly</p>
+                    <p className="text-xs text-slate-500">Paste link or code</p>
+                  </div>
+                </div>
+              </div>
             </button>
           </div>
 
@@ -207,25 +252,6 @@ export default function Dashboard() {
         </div>
 
         <aside className="space-y-4">
-          <div className="surface-strong rounded-[2rem] p-4 sm:p-6">
-            <p className="section-kicker mb-2">Overview</p>
-            <h2 className="section-title font-display text-xl font-semibold text-slate-950 sm:text-2xl">Workspace summary</h2>
-            <div className="mt-5 space-y-3 text-sm text-slate-600">
-              <div className="flex items-start gap-3">
-                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-cyan-500" />
-                <p>Private rooms use JWT tokens when enabled.</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-slate-950" />
-                <p>Chat messages and room activity are stored in MongoDB.</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="mt-1 h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                <p>Recording controls are exposed for Jitsi-supported deployments.</p>
-              </div>
-            </div>
-          </div>
-
           <div className="surface rounded-[2rem] p-4 sm:p-6">
             <div className="mb-4 flex items-center justify-between">
               <div>

@@ -120,7 +120,6 @@ export const TOOLBAR_PRESETS = {
   full: [
     'microphone',
     'camera',
-    'closedcaptions',
     'desktop',
     'fullscreen',
     'hangup',

@@ -18,10 +18,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 32%),
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.12), transparent 30%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  background: #eef4fb;
   color: #0f172a;
   font-family: var(--font-sans), 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -30,11 +27,114 @@ body {
 }
 
 html.dark body {
-  background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 32%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 30%),
-    linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  background: #020617;
   color: #e2e8f0;
+}
+
+.app-background {
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.app-background__mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(251, 191, 36, 0.18), transparent 35%),
+    radial-gradient(circle at 78% 18%, rgba(14, 165, 233, 0.2), transparent 34%),
+    radial-gradient(circle at 62% 72%, rgba(59, 130, 246, 0.16), transparent 36%),
+    radial-gradient(circle at 34% 78%, rgba(45, 212, 191, 0.16), transparent 34%);
+  filter: blur(34px) saturate(112%);
+}
+
+.app-background__orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(54px);
+  opacity: 0.55;
+  animation-duration: 22s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.app-background__orb--one {
+  width: 34rem;
+  height: 34rem;
+  left: 3%;
+  top: 6%;
+  background: radial-gradient(circle at 30% 30%, rgba(251, 146, 60, 0.8), rgba(14, 165, 233, 0.22));
+  animation-name: app-orb-float-a;
+}
+
+.app-background__orb--two {
+  width: 32rem;
+  height: 32rem;
+  right: 8%;
+  top: 12%;
+  background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.75), rgba(45, 212, 191, 0.26));
+  animation-name: app-orb-float-b;
+  animation-delay: -6s;
+}
+
+.app-background__orb--three {
+  width: 30rem;
+  height: 30rem;
+  left: 18%;
+  bottom: 6%;
+  background: radial-gradient(circle at 52% 48%, rgba(45, 212, 191, 0.72), rgba(14, 165, 233, 0.22));
+  animation-name: app-orb-float-c;
+  animation-delay: -10s;
+}
+
+.app-background__orb--four {
+  width: 28rem;
+  height: 28rem;
+  right: 18%;
+  bottom: 4%;
+  background: radial-gradient(circle at 46% 36%, rgba(251, 191, 36, 0.74), rgba(59, 130, 246, 0.2));
+  animation-name: app-orb-float-a;
+  animation-delay: -14s;
+}
+
+.app-background__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 54%, rgba(15, 23, 42, 0.12) 100%);
+}
+
+html.dark .app-background__mesh {
+  background:
+    radial-gradient(circle at 20% 25%, rgba(14, 165, 233, 0.2), transparent 35%),
+    radial-gradient(circle at 78% 18%, rgba(56, 189, 248, 0.18), transparent 34%),
+    radial-gradient(circle at 62% 72%, rgba(59, 130, 246, 0.24), transparent 36%),
+    radial-gradient(circle at 34% 78%, rgba(14, 116, 144, 0.2), transparent 34%);
+}
+
+html.dark .app-background__orb {
+  opacity: 0.48;
+}
+
+html.dark .app-background__orb--one {
+  background: radial-gradient(circle at 30% 30%, rgba(56, 189, 248, 0.7), rgba(14, 116, 144, 0.18));
+}
+
+html.dark .app-background__orb--two {
+  background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.72), rgba(14, 165, 233, 0.2));
+}
+
+html.dark .app-background__orb--three {
+  background: radial-gradient(circle at 52% 48%, rgba(14, 165, 233, 0.62), rgba(15, 23, 42, 0.16));
+}
+
+html.dark .app-background__orb--four {
+  background: radial-gradient(circle at 46% 36%, rgba(37, 99, 235, 0.62), rgba(2, 6, 23, 0.2));
+}
+
+html.dark .app-background__vignette {
+  background: radial-gradient(circle at center, transparent 50%, rgba(2, 6, 23, 0.46) 100%);
 }
 
 body::before {
@@ -47,12 +147,48 @@ body::before {
     linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 92%);
-  z-index: 0;
+  z-index: 1;
 }
 
 .app-main {
   position: relative;
-  z-index: 1;
+  z-index: 10;
+}
+
+@keyframes app-orb-float-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(8%, -6%, 0) scale(1.08);
+  }
+}
+
+@keyframes app-orb-float-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-10%, 7%, 0) scale(1.1);
+  }
+}
+
+@keyframes app-orb-float-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, 8%, 0) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-background__orb {
+    animation: none;
+  }
 }
 
 .font-display {
@@ -66,7 +202,7 @@ body::before {
 }
 
 .page-shell-wide {
-  max-width: 1440px;
+  max-width: 80rem;
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
 }
