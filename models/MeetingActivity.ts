@@ -5,6 +5,7 @@ export type MeetingActivityType =
   | 'joined'
   | 'left'
   | 'chat'
+  | 'file_shared'
   | 'recording-started'
   | 'recording-stopped'
   | 'bot_started';
@@ -42,7 +43,7 @@ const MeetingActivitySchema = new Schema<IMeetingActivity>(
     type: {
       type: String,
       required: true,
-      enum: ['created', 'joined', 'left', 'chat', 'recording-started', 'recording-stopped', 'bot_started'],
+      enum: ['created', 'joined', 'left', 'chat', 'file_shared', 'recording-started', 'recording-stopped', 'bot_started'],
     },
     details: {
       type: String,

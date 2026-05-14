@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
-import FileShare from './FileShare';
+import { useEffect, useRef, useState } from 'react';
+import UploadMedia from './UploadMedia';
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -15,15 +15,28 @@ export function Navbar() {
   const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [isDark, setIsDark] = useState(false);
-
+  const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
-  const activeMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
+  const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
 
   useEffect(() => {
     setIsFilesOpen(false);
     setIsProductsOpen(false);
     setIsDropdownOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isFilesOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (filesPopoverRef.current && !filesPopoverRef.current.contains(event.target as Node)) {
+        setIsFilesOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isFilesOpen]);
 
   useEffect(() => {
     try {
@@ -79,18 +92,62 @@ export function Navbar() {
   const isLoggedIn = status === 'authenticated';
 
   const productLinks = [
-    { name: 'Meetings', href: '/dashboard', tag: 'Live' },
-    { name: 'Live Captions', href: '/dashboard', tag: 'AI' },
-    { name: 'File Share', href: '/dashboard', tag: 'Now' },
-    { name: 'Future Product 1', href: '/dashboard', tag: 'Soon' },
-    { name: 'Future Product 2', href: '/dashboard', tag: 'Soon' },
+    {
+      name: 'Meetings',
+      href: '/dashboard',
+      tag: 'Live',
+      description: 'Create rooms and start calls fast.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]',
+      tagClass: 'bg-cyan-500/15 text-cyan-800 ring-cyan-500/20',
+    },
+    {
+      name: 'Live Captions',
+      href: '/dashboard',
+      tag: 'AI',
+      description: 'Stream captions in real time.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-100 hover:shadow-[0_14px_30px_rgba(139,92,246,0.2)]',
+      tagClass: 'bg-violet-500/15 text-violet-800 ring-violet-500/20',
+    },
+    {
+      name: 'File Share',
+      href: '/dashboard',
+      tag: 'Now',
+      description: 'Keep room uploads in one place.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]',
+      tagClass: 'bg-emerald-500/15 text-emerald-800 ring-emerald-500/20',
+    },
+    {
+      name: 'Future Product 1',
+      href: '/dashboard',
+      tag: 'Soon',
+      description: 'Upcoming workflow tools.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:shadow-[0_14px_30px_rgba(245,158,11,0.2)]',
+      tagClass: 'bg-amber-500/15 text-amber-800 ring-amber-500/20',
+    },
+    {
+      name: 'Future Product 2',
+      href: '/dashboard',
+      tag: 'Soon',
+      description: 'More team utilities on the way.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-[0_14px_30px_rgba(244,63,94,0.2)]',
+      tagClass: 'bg-rose-500/15 text-rose-800 ring-rose-500/20',
+    },
   ];
+
+  const navActionBoxClass =
+    'group inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
+  const copyInviteHoverClass =
+    'hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-950 hover:shadow-[0_14px_30px_rgba(14,165,233,0.2)]';
+  const uploadMediaHoverClass =
+    'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]';
+  const themeHoverClass =
+    'hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-100 hover:text-violet-950 hover:shadow-[0_14px_30px_rgba(139,92,246,0.2)]';
 
   return (
     <nav className="fixed top-3 left-0 right-0 z-50 px-3 sm:px-5">
       <div className="mx-auto max-w-7xl rounded-2xl border border-white/60 bg-white/52 shadow-[0_18px_60px_rgba(15,23,42,0.14)] backdrop-blur-[28px] supports-[backdrop-filter]:bg-white/52">
         <div className="flex h-16 items-center justify-between gap-3 px-3 sm:px-5">
-          <div className="flex items-center gap-3 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-9 sm:w-9">
                 <span className="font-display text-base font-semibold">M</span>
@@ -100,23 +157,46 @@ export function Navbar() {
               </span>
             </Link>
 
-            <div className="relative hidden md:block">
+            <div
+              className="relative hidden md:block"
+              onMouseEnter={() => setIsProductsOpen(true)}
+              onMouseLeave={() => setIsProductsOpen(false)}
+            >
               <button
                 onClick={() => setIsProductsOpen((prev) => !prev)}
-                className="rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100/80"
+                onFocus={() => setIsProductsOpen(true)}
+                className={`inline-flex h-8 items-center whitespace-nowrap rounded-lg border px-2.5 text-left text-sm font-medium leading-none transition duration-200 ${
+                  isProductsOpen
+                    ? 'border-cyan-300 bg-cyan-100 text-cyan-950 shadow-[0_14px_30px_rgba(6,182,212,0.2)]'
+                    : 'border-slate-200 bg-slate-100/80 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-950 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]'
+                }`}
               >
                 Products
               </button>
               {isProductsOpen && (
-                <div className="absolute left-0 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div
+                  className="absolute left-0 mt-2 w-[22rem] overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white/95 p-2.5 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setIsProductsOpen(false);
+                    }
+                  }}
+                >
                   {productLinks.map((product) => (
                     <Link
                       key={product.name}
                       href={product.href}
-                      className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                      className={`group flex items-start justify-between gap-3 rounded-[1.2rem] border border-slate-200 bg-slate-100/80 px-3.5 py-3 text-sm text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 ${product.hoverClass}`}
                     >
-                      <span>{product.name}</span>
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                      <div className="min-w-0">
+                        <div className="font-medium text-slate-900 transition group-hover:text-slate-950">
+                          {product.name}
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {product.description}
+                        </p>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${product.tagClass}`}>
                         {product.tag}
                       </span>
                     </Link>
@@ -125,36 +205,35 @@ export function Navbar() {
               )}
             </div>
 
-            {activeMeetingId && (
+            {pathname?.startsWith('/room/') && (
               <div className="flex items-center gap-2">
-                <div className="hidden lg:flex flex-col leading-tight">
-                  <span className="text-[11px] uppercase tracking-wide text-slate-400">Meeting</span>
-                  <span className="max-w-[160px] truncate text-sm font-medium text-slate-700">ID: {activeMeetingId}</span>
-                </div>
                 <button
                   onClick={handleCopyInvite}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  className={`${navActionBoxClass} ${copyInviteHoverClass}`}
                 >
-                  Copy invite
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">Copy invite</div>
+                  </div>
                 </button>
-                <button
-                  onClick={handleLeave}
-                  className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-                >
-                  Leave
-                </button>
-                <div className="relative">
+                <div ref={filesPopoverRef} className="relative">
                   <button
                     onClick={() => setIsFilesOpen((prev) => !prev)}
-                    className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                    className={`${navActionBoxClass} ${
+                      isFilesOpen
+                        ? 'border-emerald-200 bg-emerald-50/85 text-emerald-950 shadow-[0_10px_24px_rgba(16,185,129,0.12)]'
+                        : uploadMediaHoverClass
+                    }`}
                   >
-                    Files
+                    <div className="min-w-0">
+                      <div className="font-medium text-slate-900 transition group-hover:text-slate-950">Upload Media</div>
+                    </div>
                   </button>
                   {isFilesOpen && (
-                    <div className="absolute left-0 mt-2 w-[330px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
-                      <FileShare
-                        meetingId={activeMeetingId}
-                        className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"
+                    <div className="absolute left-0 mt-3 w-[440px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+                      <UploadMedia
+                        meetingId={roomMeetingId}
+                        userEmail={userEmail}
+                        className="rounded-[1.75rem] border-0 bg-white p-0"
                       />
                     </div>
                   )}
@@ -163,24 +242,26 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <button
               onClick={toggleTheme}
-              className="button-secondary px-3 py-2 text-xs sm:px-3 sm:py-2"
+              className={`${navActionBoxClass} ${themeHoverClass}`}
               aria-label="Toggle dark mode"
               title="Toggle theme"
             >
-              {isDark ? 'Light' : 'Dark'}
+              <div className="min-w-0">
+                <div className="text-slate-900 transition group-hover:text-slate-950">{isDark ? 'Light' : 'Dark'}</div>
+              </div>
             </button>
             {isLoggedIn ? (
-              <div className="flex items-center gap-2 sm:gap-3">
-                <span className="hidden text-sm text-slate-500 lg:inline">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <span className="hidden h-8 items-center whitespace-nowrap px-1 text-sm leading-none text-slate-500 lg:inline-flex">
                   {userEmail}
                 </span>
                 <div className="relative">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white shadow-sm sm:h-10 sm:w-10"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold leading-none text-white shadow-sm"
                   >
                     {userInitial}
                   </button>

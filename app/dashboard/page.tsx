@@ -29,7 +29,7 @@ interface DashboardMeetingActivity {
   userId: string;
   userName: string;
   userEmail?: string;
-  type: 'created' | 'joined' | 'left' | 'chat' | 'recording-started' | 'recording-stopped';
+  type: 'created' | 'joined' | 'left' | 'chat' | 'file_shared' | 'recording-started' | 'recording-stopped';
   details?: string;
   createdAt: string;
   updatedAt: string;
@@ -264,7 +264,7 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {activity.slice(0, 6).map((item) => (
                   <div key={item._id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm font-medium text-slate-950 capitalize">{item.type.replace('-', ' ')}</p>
+                    <p className="text-sm font-medium text-slate-950 capitalize">{item.type.replace(/[-_]/g, ' ')}</p>
                     <p className="mt-1 text-xs text-slate-500">{item.userName} · {new Date(item.createdAt).toLocaleString()}</p>
                     {item.details && <p className="mt-2 text-xs text-slate-500">{item.details}</p>}
                   </div>

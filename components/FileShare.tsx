@@ -48,23 +48,45 @@ export default function FileShare({
   }
 
   const handleUpload = async () => {
-    if (!selected || !meetingId) return
+    if (!selected || !meetingId) {
+      console.verbose('[FileShare] Missing selected or meetingId', { selected, meetingId })
+      alert('No file selected or meeting ID missing')
+      return
+    }
     setUploading(true)
     const formData = new FormData()
     formData.append('meetingId', meetingId)
     formData.append('file', selected)
 
-    const res = await fetch('/api/files/upload', {
-      method: 'POST',
-      body: formData,
+    console.log('[FileShare] Uploading file:', {
+      meetingId,
+      fileName: selected.name,
+      fileSize: selected.size,
+      fileType: selected.type,
     })
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      alert('Upload failed: ' + (body.error || 'Unknown error'))
-    } else {
-      setSelected(null)
-      await fetchFiles()
+    try {
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      console.log('[FileShare] Upload response status:', res.status)
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        const errorMsg = body.error || `HTTP ${res.status}`
+        console.error('[FileShare] Upload failed:', errorMsg, body)
+        alert('Upload failed: ' + errorMsg)
+      } else {
+        const body = await res.json().catch(() => ({}))
+        console.log('[FileShare] Upload successful:', body)
+        setSelected(null)
+        await fetchFiles()
+      }
+    } catch (err) {
+      console.error('[FileShare] Upload error:', err)
+      alert('Upload error: ' + String(err))
     }
     setUploading(false)
   }
