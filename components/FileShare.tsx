@@ -49,7 +49,7 @@ export default function FileShare({
 
   const handleUpload = async () => {
     if (!selected || !meetingId) {
-      console.verbose('[FileShare] Missing selected or meetingId', { selected, meetingId })
+      console.log('[FileShare] Missing selected or meetingId', { selected, meetingId })
       alert('No file selected or meeting ID missing')
       return
     }

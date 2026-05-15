@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/db';
-import Meeting from '../../../models/Meeting';
+import dbConnect from '@/lib/db';
+import Meeting from '@/models/Meeting';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../lib/auth-options';
+import { authOptions } from '@/lib/auth-options';
 import { getAssemblyAIService } from '@/lib/assemblyai';
 
 /**
