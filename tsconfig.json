@@ -17,6 +17,9 @@
     "jsxImportSource": "react",
     "allowJs": true,
     "incremental": true,
+    "paths": {
+      "@/*": ["./*"]
+    },
     "plugins": [
       {
         "name": "next"

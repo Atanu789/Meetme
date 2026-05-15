@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { FileUpload } from './FileUpload'
 
 interface MediaFile {
   name: string
@@ -33,12 +34,9 @@ export default function UploadMedia({
 }) {
   const [files, setFiles] = useState<MediaFile[]>([])
   const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({})
-  const [selected, setSelected] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [recentActivity, setRecentActivity] = useState<MeetingActivityItem[]>([])
-  const [dragActive, setDragActive] = useState(false)
-  const inputRef = useRef<HTMLInputElement | null>(null)
 
   const userLabel = useMemo(() => {
     if (!userEmail) return 'Someone'
@@ -108,34 +106,25 @@ export default function UploadMedia({
     return () => window.clearInterval(interval)
   }, [meetingId])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null
-    setSelected(file)
-    if (file) {
-      pushNotice(`Selected ${file.name}`)
-    }
-  }
-
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    setDragActive(false)
     const file = e.dataTransfer.files?.[0] || null
     if (file) {
-      setSelected(file)
       pushNotice(`Selected ${file.name}`)
     }
   }
 
-  const handleUpload = async () => {
-    if (!selected || !meetingId) {
+  const handleFileUpload = async (uploadedFiles: File[]) => {
+    if (uploadedFiles.length === 0 || !meetingId) {
       pushNotice('Pick a file first')
       return
     }
 
+    const file = uploadedFiles[0]
     setUploading(true)
     const formData = new FormData()
     formData.append('meetingId', meetingId)
-    formData.append('file', selected)
+    formData.append('file', file)
 
     try {
       const res = await fetch('/api/files/upload', {
@@ -149,12 +138,8 @@ export default function UploadMedia({
         pushNotice(errorMsg)
       } else {
         const body = await res.json().catch(() => ({}))
-        const uploadedName = selected.name
+        const uploadedName = file.name
         pushNotice(`Shared media: ${uploadedName}`)
-        setSelected(null)
-        if (inputRef.current) {
-          inputRef.current.value = ''
-        }
 
         await fetch('/api/meeting-activity', {
           method: 'POST',
@@ -222,67 +207,21 @@ export default function UploadMedia({
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className="rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm text-cyan-900 shadow-sm"
+            className="rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm text-cyan-900 shadow-sm animate-in fade-in slide-in-from-top-2"
           >
             {notification.message}
           </div>
         ))}
         {recentActivity.length > 0 && (
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-sm">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-sm animate-in fade-in">
             <span className="font-semibold">Room update:</span> {recentActivity[0].userName} shared{' '}
             {recentActivity[0].details || 'media'}
           </div>
         )}
       </div>
 
-      <div
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragActive(true)
-        }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-        className={[
-          'mb-4 rounded-[1.25rem] border-2 border-dashed p-4 transition',
-          dragActive ? 'border-cyan-400 bg-cyan-50' : 'border-slate-200 bg-slate-50/80',
-        ].join(' ')}
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">Choose a file or drag it here</p>
-            <p className="text-xs text-slate-500">Supported by your browser and available to everyone in the meeting.</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              ref={inputRef}
-              type="file"
-              onChange={handleChange}
-              className="hidden"
-              disabled={uploading}
-            />
-            <button
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Browse files
-            </button>
-            <button
-              onClick={handleUpload}
-              disabled={!selected || uploading}
-              className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {uploading ? 'Uploading...' : 'Upload now'}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          <span className="rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
-            {selected ? `Selected: ${selected.name}` : 'No file selected'}
-          </span>
-          <span className="rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">Shared media is visible to all room members</span>
-        </div>
+      <div className="mb-4">
+        <FileUpload onChange={handleFileUpload} />
       </div>
 
       {files.length > 0 ? (
