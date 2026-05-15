@@ -6,6 +6,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import UploadMedia from './UploadMedia';
 import AIAssistant from './AIAssistant';
+import Whiteboard from './Whiteboard';
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -14,6 +15,7 @@ export function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isFilesOpen, setIsFilesOpen] = useState(false);
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [isDark, setIsDark] = useState(false);
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -24,6 +26,7 @@ export function Navbar() {
     setIsFilesOpen(false);
     setIsProductsOpen(false);
     setIsDropdownOpen(false);
+    setIsWhiteboardOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -51,6 +54,19 @@ export function Navbar() {
       // Keep default if storage/media query are unavailable.
     }
   }, []);
+
+  useEffect(() => {
+    if (!isWhiteboardOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsWhiteboardOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isWhiteboardOpen]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -141,6 +157,8 @@ export function Navbar() {
     'hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-950 hover:shadow-[0_14px_30px_rgba(14,165,233,0.2)]';
   const uploadMediaHoverClass =
     'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]';
+  const whiteboardHoverClass =
+    'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:text-amber-950 hover:shadow-[0_14px_30px_rgba(245,158,11,0.22)]';
   const themeHoverClass =
     'hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-100 hover:text-violet-950 hover:shadow-[0_14px_30px_rgba(139,92,246,0.2)]';
 
@@ -217,6 +235,18 @@ export function Navbar() {
                   </div>
                 </button>
                 <AIAssistant meetingId={roomMeetingId} />
+                <button
+                  onClick={() => setIsWhiteboardOpen((prev) => !prev)}
+                  className={`${navActionBoxClass} ${
+                    isWhiteboardOpen
+                      ? 'border-amber-200 bg-amber-50/85 text-amber-950 shadow-[0_10px_24px_rgba(245,158,11,0.12)]'
+                      : whiteboardHoverClass
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">🖍 Whiteboard</div>
+                  </div>
+                </button>
                 <div ref={filesPopoverRef} className="relative">
                   <button
                     onClick={() => setIsFilesOpen((prev) => !prev)}
@@ -302,6 +332,18 @@ export function Navbar() {
       {copyStatus && (
         <div className="fixed top-20 right-4 z-[60] rounded-lg bg-emerald-500/90 px-4 py-2 text-white shadow-lg">
           {copyStatus}
+        </div>
+      )}
+      {isWhiteboardOpen && roomMeetingId && (
+        <div className="fixed inset-0 z-[70]">
+          <button
+            aria-label="Close whiteboard backdrop"
+            onClick={() => setIsWhiteboardOpen(false)}
+            className="absolute inset-0 h-full w-full cursor-default bg-slate-950/40 backdrop-blur-sm"
+          />
+          <div className="absolute right-0 top-0 flex h-full w-full max-w-[72rem] flex-col border-l border-white/10 bg-slate-950 shadow-[0_28px_100px_rgba(2,6,23,0.45)] sm:w-[92vw]">
+            <Whiteboard meetingId={roomMeetingId} onClose={() => setIsWhiteboardOpen(false)} />
+          </div>
         </div>
       )}
     </nav>

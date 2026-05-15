@@ -4,6 +4,7 @@ import { BackgroundGradientAnimation } from '../components/BackgroundGradientAni
 import { Navbar } from '../components/Navbar';
 import { Providers } from './providers';
 import ThemeInitializer from '../components/ThemeInitializer';
+import '@excalidraw/excalidraw/index.css';
 import './globals.css';
 
 const sans = Plus_Jakarta_Sans({

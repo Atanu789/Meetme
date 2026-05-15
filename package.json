@@ -11,7 +11,11 @@
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.2",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@jitsi/react-sdk": "^1.4.4",
+    "@liveblocks/client": "^3.19.1",
+    "@liveblocks/node": "^3.19.1",
+    "@liveblocks/react": "^3.19.1",
     "@tabler/icons-react": "^3.44.0",
     "assemblyai": "^4.33.2",
     "axios": "^1.6.2",
