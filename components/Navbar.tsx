@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import UploadMedia from './UploadMedia';
+import AIAssistant from './AIAssistant';
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -215,6 +216,7 @@ export function Navbar() {
                     <div className="font-medium text-slate-900 transition group-hover:text-slate-950">Copy invite</div>
                   </div>
                 </button>
+                <AIAssistant meetingId={roomMeetingId} />
                 <div ref={filesPopoverRef} className="relative">
                   <button
                     onClick={() => setIsFilesOpen((prev) => !prev)}

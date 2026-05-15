@@ -13,6 +13,7 @@
     "@auth/mongodb-adapter": "^3.11.2",
     "@jitsi/react-sdk": "^1.4.4",
     "@tabler/icons-react": "^3.44.0",
+    "assemblyai": "^4.33.2",
     "axios": "^1.6.2",
     "clsx": "^2.1.1",
     "firebase": "^12.12.0",

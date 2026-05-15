@@ -1,5 +1,30 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+interface ISpeaker {
+  speakerId: string;
+  name: string;
+  color: string;
+}
+
+interface ITranscript {
+  text: string;
+  timestamp: number;
+  speakerId: string;
+  speaker: string;
+}
+
+interface IActionItem {
+  item: string;
+  owner?: string;
+}
+
+interface ITranslatedCaption {
+  language: string;
+  text: string;
+  timestamp: number;
+  speakerId: string;
+}
+
 interface IMeeting extends Document {
   meetingId: string;
   hostId: string;
@@ -12,6 +37,15 @@ interface IMeeting extends Document {
   joinCount: number;
   lastSessionAt?: Date;
   lastRecordingAt?: Date;
+  // AI Assistant fields
+  aiEnabled?: boolean;
+  aiLanguage?: string;
+  transcript?: ITranscript[];
+  summary?: string;
+  keyDecisions?: string[];
+  actionItems?: IActionItem[];
+  translatedCaptions?: ITranslatedCaption[];
+  speakerLabels?: ISpeaker[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +98,48 @@ const MeetingSchema = new Schema<IMeeting>(
       type: Date,
       default: null,
     },
+    aiEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    aiLanguage: {
+      type: String,
+      default: 'en',
+    },
+    transcript: [
+      {
+        text: String,
+        timestamp: Number,
+        speakerId: String,
+        speaker: String,
+      },
+    ],
+    summary: {
+      type: String,
+      default: '',
+    },
+    keyDecisions: [String],
+    actionItems: [
+      {
+        item: String,
+        owner: String,
+      },
+    ],
+    translatedCaptions: [
+      {
+        language: String,
+        text: String,
+        timestamp: Number,
+        speakerId: String,
+      },
+    ],
+    speakerLabels: [
+      {
+        speakerId: String,
+        name: String,
+        color: String,
+      },
+    ],
     createdAt: {
       type: Date,
       default: Date.now,
