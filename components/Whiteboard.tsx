@@ -109,12 +109,17 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
           ? {
               meetingId: String(loadedScene.meetingId || meetingId),
               elements: loadedScene.elements || [],
-              appState: loadedScene.appState || {},
+              appState: {
+                collaborators: [],
+                ...(loadedScene.appState || {}),
+              },
             }
           : {
               meetingId,
               elements: [],
-              appState: {},
+              appState: {
+                collaborators: [],
+              },
             };
 
         elementsRef.current = nextScene.elements;
@@ -410,7 +415,10 @@ function CollaborativeWhiteboard({
     isApplyingRemoteRef.current = true;
     excalidrawApiRef.current?.updateScene({
       elements: nextScene.elements || [],
-      appState: nextScene.appState || {},
+      appState: {
+        collaborators: [],
+        ...(nextScene.appState || {}),
+      },
     });
     onChange(nextScene.elements || [], nextScene.appState || {});
     setStatus('Live update received');
