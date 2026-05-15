@@ -12,9 +12,13 @@ const DEFAULT_TOOLBAR_BUTTONS = [
   'recording',
   'settings',
   'raisehand',
+  'participants-pane',
   'videoquality',
   'tileview',
   'stats',
+  'shortcuts',
+  'download',
+  'security',
 ];
 
 declare global {
@@ -218,6 +222,7 @@ export function JitsiMeeting({
           ...(userEmail && { email: userEmail }),
         },
         configOverwrite: {
+          toolbarButtons,
           startWithAudioMuted: startWithAudioMuted,
           startWithVideoMuted: startWithVideoMuted,
           disableSimulcast: false,
@@ -231,12 +236,20 @@ export function JitsiMeeting({
           disableAudioLevels: false,
           enableLayerSuspension: true,
           enableFeaturesBasedOnToken: Boolean(jwt),
+          localRecording: {
+            enabled: true,
+            notifyAllParticipants: false,
+            disable: false,
+          },
+          recordingService: {
+            enabled: true,
+            sharingEnabled: true,
+          },
           // Self-hosted Jitsi configuration
           enableWelcomePage: false,
           enableUserRolesBasedOnToken: Boolean(jwt),
         },
         interfaceConfigOverwrite: {
-          TOOLBAR_BUTTONS: toolbarButtons,
           LANG_DETECTION: true,
           SHOW_CHROME_EXTENSION_BANNER: false,
           MOBILE_APP_PROMO: false,

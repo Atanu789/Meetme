@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       description,
       isPrivate = false,
       chatEnabled = true,
-      recordingEnabled = false,
+      recordingEnabled = true,
     } = body;
 
     if (!title) {

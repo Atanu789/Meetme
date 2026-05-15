@@ -84,7 +84,7 @@ const MeetingSchema = new Schema<IMeeting>(
     },
     recordingEnabled: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     joinCount: {
       type: Number,

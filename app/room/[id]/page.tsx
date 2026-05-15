@@ -30,6 +30,7 @@ export default function RoomPage() {
   const [meetingError, setMeetingError] = useState('');
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [jwt, setJwt] = useState<string | null>(null);
+  const [hasJoinedConference, setHasJoinedConference] = useState(false);
   const apiRef = useRef<any>(null);
   const joinedLoggedRef = useRef(false);
 
@@ -121,9 +122,9 @@ export default function RoomPage() {
     verifyMeeting();
   }, [fallbackRoute, nameReady, meetingId, router, userDisplayName]);
 
-  // Trigger bot to join meeting when room is loaded
+  // Trigger bot only after the user joins, so host keeps moderator controls.
   useEffect(() => {
-    if (!meeting || !nameReady) {
+    if (!meeting || !nameReady || !hasJoinedConference) {
       return;
     }
 
@@ -162,7 +163,7 @@ export default function RoomPage() {
     };
 
     triggerBot();
-  }, [jwt, jitsiRoomName, meeting, nameReady, meetingId]);
+  }, [hasJoinedConference, jwt, jitsiRoomName, meeting, nameReady, meetingId]);
 
   const handleApiReady = (api: any) => {
     apiRef.current = api;
@@ -170,6 +171,7 @@ export default function RoomPage() {
     api.addEventListener('videoConferenceJoined', () => {
       if (!joinedLoggedRef.current) {
         joinedLoggedRef.current = true;
+        setHasJoinedConference(true);
       }
     });
   };
@@ -201,6 +203,24 @@ export default function RoomPage() {
     );
   }
 
+  const roomToolbarButtons = [
+    'microphone',
+    'camera',
+    'desktop',
+    'fullscreen',
+    'hangup',
+    ...(meeting?.chatEnabled !== false ? ['chat'] : []),
+    ...(meeting?.recordingEnabled !== false ? ['recording'] : []),
+    'settings',
+    'raisehand',
+    'tileview',
+    'participants-pane',
+    'stats',
+    'shortcuts',
+    'security',
+    'download',
+  ];
+
   return (
     <div className="page-shell-wide text-slate-950">
       <div className="space-y-3 sm:space-y-4">
@@ -214,7 +234,7 @@ export default function RoomPage() {
               height="100%"
               onApiReady={handleApiReady}
               onReadyToClose={handleMeetingClose}
-              toolbarButtons={['microphone', 'camera', 'fullscreen', 'hangup', 'settings', 'raisehand', 'tileview']}
+              toolbarButtons={roomToolbarButtons}
             />
           </div>
 

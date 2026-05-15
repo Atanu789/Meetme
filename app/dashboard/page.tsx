@@ -92,7 +92,7 @@ export default function Dashboard() {
           description,
           isPrivate: false,
           chatEnabled: true,
-          recordingEnabled: false,
+          recordingEnabled: true,
         }),
       });
 
