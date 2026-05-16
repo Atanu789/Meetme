@@ -34,7 +34,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState('Loading whiteboard...');
-  const [isDark, setIsDark] = useState(false);
   const [scene, setScene] = useState<WhiteboardScene | null>(null);
 
   const elementsRef = useRef<readonly unknown[]>([]);
@@ -70,19 +69,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
         : null,
     [liveblocksEnabled, meetingId]
   );
-
-  useEffect(() => {
-    const syncTheme = () => {
-      setIsDark(document.documentElement.classList.contains('dark'));
-    };
-
-    syncTheme();
-
-    const observer = new MutationObserver(syncTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -258,7 +244,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       <SoloWhiteboard
         meetingId={meetingId}
         onClose={onClose}
-        isDark={isDark}
         initialData={initialData}
         status={status}
         isSaving={isSaving}
@@ -279,7 +264,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
         <CollaborativeWhiteboard
           meetingId={meetingId}
           onClose={onClose}
-          isDark={isDark}
           scene={scene}
           initialData={initialData}
           status={status}
@@ -310,7 +294,6 @@ function SoloWhiteboard({
 }: {
   meetingId: string;
   onClose: () => void;
-  isDark: boolean;
   initialData: { elements: readonly unknown[]; appState: Record<string, unknown> } | undefined;
   status: string;
   isSaving: boolean;
@@ -342,7 +325,7 @@ function SoloWhiteboard({
         <Excalidraw
           key={meetingId}
           name={meetingId}
-          theme={isDark ? 'dark' : 'light'}
+          theme={'light'}
           initialData={initialData}
           autoFocus
           handleKeyboardGlobally={false}
@@ -372,7 +355,6 @@ function SoloWhiteboard({
 function CollaborativeWhiteboard({
   meetingId,
   onClose,
-  isDark,
   scene,
   initialData,
   status,
@@ -383,7 +365,6 @@ function CollaborativeWhiteboard({
 }: {
   meetingId: string;
   onClose: () => void;
-  isDark: boolean;
   scene: WhiteboardScene | null;
   initialData: { elements: readonly unknown[]; appState: Record<string, unknown> } | undefined;
   status: string;
@@ -482,7 +463,7 @@ function CollaborativeWhiteboard({
         <Excalidraw
           key={meetingId}
           name={meetingId}
-          theme={isDark ? 'dark' : 'light'}
+          theme={'light'}
           initialData={initialData}
           autoFocus
           handleKeyboardGlobally={false}

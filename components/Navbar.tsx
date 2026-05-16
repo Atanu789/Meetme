@@ -18,7 +18,6 @@ export function Navbar() {
   const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
-  const [isDark, setIsDark] = useState(false);
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
@@ -46,19 +45,7 @@ export function Navbar() {
   }, [isFilesOpen]);
 
   useEffect(() => {
-    try {
-      const storedTheme = localStorage.getItem('theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
 
-      document.documentElement.classList.toggle('dark', shouldUseDark);
-      setIsDark(shouldUseDark);
-    } catch {
-      // Keep default if storage/media query are unavailable.
-    }
-  }, []);
-
-  useEffect(() => {
     if (!isWhiteboardOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -70,13 +57,6 @@ export function Navbar() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isWhiteboardOpen]);
-
-  const toggleTheme = () => {
-    const nextDark = !isDark;
-    setIsDark(nextDark);
-    document.documentElement.classList.toggle('dark', nextDark);
-    localStorage.setItem('theme', nextDark ? 'dark' : 'light');
-  };
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
@@ -162,8 +142,6 @@ export function Navbar() {
     'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]';
   const whiteboardHoverClass =
     'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:text-amber-950 hover:shadow-[0_14px_30px_rgba(245,158,11,0.22)]';
-  const themeHoverClass =
-    'hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-100 hover:text-violet-950 hover:shadow-[0_14px_30px_rgba(139,92,246,0.2)]';
 
   return (
     <nav className="fixed top-3 left-0 right-0 z-50 px-3 sm:px-5">
@@ -278,16 +256,6 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <button
-              onClick={toggleTheme}
-              className={`${navActionBoxClass} ${themeHoverClass}`}
-              aria-label="Toggle dark mode"
-              title="Toggle theme"
-            >
-              <div className="min-w-0">
-                <div className="text-slate-900 transition group-hover:text-slate-950">{isDark ? 'Light' : 'Dark'}</div>
-              </div>
-            </button>
             {isLoggedIn ? (
               <div className="flex items-center gap-2 sm:gap-2.5">
                 <span className="hidden h-8 items-center whitespace-nowrap px-1 text-sm leading-none text-slate-500 lg:inline-flex">

@@ -374,38 +374,7 @@ html.dark .pill {
   background-clip: text;
 }
 
-html.dark .gradient-text {
-  background: linear-gradient(135deg, #f8fafc 0%, #38bdf8 45%, #22d3ee 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
 
-/* Dark mode compatibility for common utility classes used across pages */
-html.dark .text-slate-950,
-html.dark .text-slate-900,
-html.dark .text-slate-800,
-html.dark .text-slate-700 {
-  color: #f8fafc !important;
-}
-
-html.dark .text-slate-600,
-html.dark .text-slate-500,
-html.dark .text-slate-400 {
-  color: #cbd5e1 !important;
-}
-
-html.dark [class*='bg-white'] {
-  background-color: rgba(15, 23, 42, 0.88) !important;
-}
-
-html.dark [class*='border-slate-200'] {
-  border-color: rgba(148, 163, 184, 0.24) !important;
-}
-
-html.dark [class*='border-slate-300'] {
-  border-color: rgba(148, 163, 184, 0.3) !important;
-}
 
 /* Animations */
 @keyframes fadeIn {
