@@ -13,7 +13,7 @@ interface JitsiMeetingContainerProps extends JitsiMeetingProps {
   /** Container background color */
   bgColor?: string;
 }
-
+ 
 /**
  * JitsiMeetingContainer Component
  * 

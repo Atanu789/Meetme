@@ -53,9 +53,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/sign-in');
+      const currentUrl = `/dashboard${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+      router.push(`/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`);
     }
-  }, [status, router]);
+  }, [searchParams, router, status]);
 
   useEffect(() => {
     if (status === 'authenticated') {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Liveblocks } from '@liveblocks/node';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../lib/auth-options';
+import { authOptions } from '../../../lib/auth-options';
 
 const liveblocks = new Liveblocks({
   secret: process.env.LIVEBLOCKS_SECRET_KEY || '',

@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import UploadMedia from './UploadMedia';
@@ -12,6 +12,7 @@ export function Navbar() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isFilesOpen, setIsFilesOpen] = useState(false);
@@ -21,6 +22,8 @@ export function Navbar() {
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
+  const currentUrl = pathname ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}` : '/';
+  const signInHref = `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
   useEffect(() => {
     setIsFilesOpen(false);
@@ -318,10 +321,10 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link href="/sign-in" className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-950 transition sm:px-4 sm:text-sm">
+                <Link href={signInHref} className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-950 transition sm:px-4 sm:text-sm">
                   Sign In
                 </Link>
-                <Link href="/sign-in" className="button-primary px-3 py-2 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                <Link href={signInHref} className="button-primary px-3 py-2 text-xs sm:px-4 sm:py-2 sm:text-sm">
                   Get Started
                 </Link>
               </div>

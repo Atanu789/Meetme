@@ -1,13 +1,16 @@
 "use client";
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
 export default function Page() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -22,7 +25,7 @@ export default function Page() {
 
     const result = await signIn('email', {
       email,
-      callbackUrl: '/',
+      callbackUrl,
       redirect: false,
     });
 

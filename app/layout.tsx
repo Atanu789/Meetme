@@ -1,7 +1,6 @@
 ﻿import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
-import { BackgroundGradientAnimation } from '../components/BackgroundGradientAnimation';
-import { Navbar } from '../components/Navbar';
+import { AppChrome } from '../components/AppChrome';
 import { Providers } from './providers';
 import ThemeInitializer from '../components/ThemeInitializer';
 import '@excalidraw/excalidraw/index.css';
@@ -38,8 +37,7 @@ export default function RootLayout({
       <body>
         <Providers>
           <ThemeInitializer />
-          <BackgroundGradientAnimation />
-          <Navbar />
+          <AppChrome />
           <main className="app-main pt-16">
             {children}
           </main>
