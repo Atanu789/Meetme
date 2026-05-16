@@ -21,6 +21,8 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
+  // Enable debug logging in development to surface SMTP/host errors
+  debug: process.env.NODE_ENV !== 'production',
   pages: {
     signIn: '/sign-in',
   },
