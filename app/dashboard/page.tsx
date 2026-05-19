@@ -7,8 +7,9 @@ import { useSession } from 'next-auth/react';
 import { CreateMeetingModal } from '../../components/CreateMeetingModal';
 import { JoinModal } from '../../components/JoinModal';
 import { MeetingCard } from '../../components/MeetingCard';
+import { GithubGlobe } from '../../components/ui/github-globe';
 import { GlowCard } from '../../components/ui/glow-card';
-import { BentoCard, BentoGrid } from '../../components/ui/bento-grid';
+import { BentoGrid } from '../../components/ui/bento-grid';
 import { GradientBorderButton, GradientBorderLink } from '../../components/ui/gradient-border-button';
 import { SectionHeading } from '../../components/ui/section-heading';
 import { Footer } from '../../components/ui/footer';
@@ -51,35 +52,6 @@ function formatRoomTime(value?: string | null) {
   }).format(new Date(value));
 }
 
-function DashboardSkeleton() {
-  return (
-    <div className="page-shell-wide space-y-10">
-      <GlowCard className="relative overflow-hidden p-8 sm:p-10">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="mt-4 h-12 w-full max-w-2xl" />
-        <Skeleton className="mt-3 h-5 w-full max-w-xl" />
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Skeleton className="h-11 w-36 rounded-full" />
-          <Skeleton className="h-11 w-32 rounded-full" />
-        </div>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={`dashboard-stat-${index}`} className="h-28 rounded-[1.75rem]" />
-          ))}
-        </div>
-        <div className="mt-10 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <Skeleton className="h-6 w-40" />
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={`dashboard-action-${index}`} className="h-52 rounded-[1.75rem]" />
-            ))}
-          </div>
-        </div>
-      </GlowCard>
-    </div>
-  );
-}
-
 function formatActivityText(item?: DashboardMeetingActivity) {
   if (!item) return null;
 
@@ -94,6 +66,32 @@ function formatActivityText(item?: DashboardMeetingActivity) {
   return item.details
     ? `${action} by ${item.userName} on ${when} - ${item.details}`
     : `${action} by ${item.userName} on ${when}`;
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="page-shell-wide space-y-10">
+      <section className="relative overflow-hidden rounded-[2.75rem] border border-white/70 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)] backdrop-blur sm:p-10">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="mt-4 h-12 w-full max-w-2xl" />
+        <Skeleton className="mt-3 h-5 w-full max-w-xl" />
+        <div className="mt-6 flex flex-wrap gap-4">
+          <Skeleton className="h-16 w-56 rounded-full" />
+          <Skeleton className="h-16 w-48 rounded-full" />
+        </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={`dashboard-stat-${index}`} className="h-28 rounded-[1.75rem]" />
+          ))}
+        </div>
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Skeleton key={`meeting-loading-${index}`} className="h-52 rounded-[1.75rem]" />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -210,58 +208,6 @@ export default function Dashboard() {
     [activity.length, latestMeeting, meetings.length]
   );
 
-  const quickActions = useMemo(
-    () => [
-      {
-        eyebrow: 'Create',
-        title: 'Start a fresh room',
-        description: 'Launch a new session with your usual defaults and jump in right away.',
-        action: (
-          <GradientBorderButton variant="create" onClick={() => setIsCreateModalOpen(true)}>
-            Create meeting
-          </GradientBorderButton>
-        ),
-      },
-      {
-        eyebrow: 'Join',
-        title: 'Enter with a code',
-        description: 'Paste a room ID or open an invite link without digging through menus.',
-        action: (
-          <GradientBorderButton variant="join" onClick={() => setIsJoinModalOpen(true)}>
-            Join room
-          </GradientBorderButton>
-        ),
-      },
-      {
-        eyebrow: 'Resume',
-        title: latestMeeting ? latestMeeting.title || 'Untitled room' : 'No room to resume yet',
-        description: latestMeeting
-          ? 'Jump back into your latest room with one click.'
-          : 'Your latest room will show up here once you create one.',
-        action: latestMeeting ? (
-          <GradientBorderLink href={`/room/${latestMeeting.meetingId}`} variant="light">
-            Open latest room
-          </GradientBorderLink>
-        ) : (
-          <GradientBorderButton variant="create" onClick={() => setIsCreateModalOpen(true)}>
-            Create first room
-          </GradientBorderButton>
-        ),
-      },
-      {
-        eyebrow: 'Refresh',
-        title: 'Sync the workspace',
-        description: 'Pull the latest meetings and updates if teammates have been moving fast.',
-        action: (
-          <GradientBorderButton variant="light" onClick={fetchDashboardData}>
-            Refresh data
-          </GradientBorderButton>
-        ),
-      },
-    ],
-    [latestMeeting]
-  );
-
   if (status === 'loading' || (status === 'authenticated' && loading && meetings.length === 0 && activity.length === 0)) {
     return <DashboardSkeleton />;
   }
@@ -276,155 +222,141 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
+        className="relative overflow-hidden rounded-[2.75rem] border border-white/70 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)] backdrop-blur sm:p-10"
       >
-        <GlowCard className="relative overflow-hidden p-8 sm:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(14,165,233,0.18),transparent_40%),radial-gradient(circle_at_86%_22%,rgba(16,185,129,0.16),transparent_40%),radial-gradient(circle_at_66%_80%,rgba(251,191,36,0.16),transparent_45%)]" />
-          <div className="relative z-10 space-y-10">
-            <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
-              <div className="space-y-6">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
-                    Aceternity-inspired workspace
-                  </p>
-                  <h1 className="mt-4 font-display text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl">
-                    Welcome back, {userName}.
-                    <span className="mt-3 block bg-[linear-gradient(135deg,#0f172a_0%,#0ea5e9_45%,#22c55e_100%)] bg-clip-text text-transparent">
-                      Your meetings now live inside one focused command center.
-                    </span>
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-base text-slate-600">
-                    Create, rejoin, and track rooms from one polished surface. The goal here is simple: less dashboard noise, more forward motion.
-                  </p>
-                </div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(14,165,233,0.18),transparent_45%),radial-gradient(circle_at_86%_24%,rgba(16,185,129,0.14),transparent_42%),radial-gradient(circle_at_68%_82%,rgba(251,191,36,0.16),transparent_46%)]" />
+        <div className="relative z-10 space-y-12">
+          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-6">
+              <motion.p
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500"
+              >
+                Aceternity-inspired workspace
+              </motion.p>
+              <motion.h1
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="font-display text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl"
+              >
+                Welcome back, {userName}.
+                <span className="mt-3 block bg-[linear-gradient(135deg,#0f172a_0%,#0ea5e9_45%,#22c55e_100%)] bg-clip-text text-transparent">
+                  Your dashboard should feel just as polished and bold as the landing page.
+                </span>
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1, duration: 0.5 }}
+                className="max-w-2xl text-base text-slate-600"
+              >
+                Start a room, jump into an invite, or reopen a recent session without digging through clutter.
+              </motion.p>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <GradientBorderButton variant="create" onClick={() => setIsCreateModalOpen(true)}>
-                    Create meeting
-                  </GradientBorderButton>
-                  <GradientBorderButton variant="join" onClick={() => setIsJoinModalOpen(true)}>
-                    Join room
-                  </GradientBorderButton>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  {stats.map((stat) => (
-                    <GlowCard key={stat.label} className="rounded-[1.75rem] p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{stat.label}</p>
-                      <p className="mt-3 font-display text-3xl font-semibold text-slate-950">{stat.value}</p>
-                      <p className="mt-2 text-sm text-slate-500">{stat.helper}</p>
-                    </GlowCard>
-                  ))}
-                </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <GradientBorderButton
+                  variant="create"
+                  className="hover:-translate-y-1 hover:scale-[1.01]"
+                  onClick={() => setIsCreateModalOpen(true)}
+                >
+                  <span className="text-xl">✨</span>
+                  <span className="text-base sm:text-lg">Create Meeting</span>
+                </GradientBorderButton>
+                <GradientBorderButton
+                  variant="join"
+                  className="hover:-translate-y-1 hover:scale-[1.01]"
+                  onClick={() => setIsJoinModalOpen(true)}
+                >
+                  <span className="text-xl">🚀</span>
+                  <span className="text-base sm:text-lg">Join Room</span>
+                </GradientBorderButton>
+                {latestMeeting ? (
+                  <GradientBorderLink href={`/room/${latestMeeting.meetingId}`} variant="light">
+                    Open latest room
+                  </GradientBorderLink>
+                ) : null}
               </div>
 
-              <div className="grid gap-4">
-                <GlowCard className="rounded-[1.75rem] border border-slate-900/10 bg-slate-950/90 p-6 text-white shadow-[0_32px_90px_rgba(15,23,42,0.28)]">
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">Latest room</p>
-                  <h2 className="mt-4 font-display text-2xl font-semibold">
-                    {latestMeeting ? latestMeeting.title || 'Untitled room' : 'Nothing scheduled yet'}
-                  </h2>
-                  <p className="mt-2 text-sm text-slate-300">
-                    {latestMeeting
-                      ? `Room ID ${latestMeeting.meetingId}`
-                      : 'Create your first room and it will appear here with a direct jump-back shortcut.'}
-                  </p>
-                  <p className="mt-4 text-sm text-slate-300">
-                    Last session: {formatRoomTime(latestMeeting?.lastSessionAt || latestMeeting?.createdAt)}
-                  </p>
-                  <div className="mt-6">
-                    {latestMeeting ? (
-                      <GradientBorderLink href={`/room/${latestMeeting.meetingId}`} variant="light">
-                        Reopen latest room
-                      </GradientBorderLink>
-                    ) : (
-                      <GradientBorderButton variant="create" onClick={() => setIsCreateModalOpen(true)}>
-                        Create your first room
-                      </GradientBorderButton>
-                    )}
-                  </div>
-                </GlowCard>
-
-                <GlowCard className="rounded-[1.75rem] p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Room host</p>
-                  <p className="mt-4 truncate font-display text-xl font-semibold text-slate-950">
-                    {latestMeeting?.hostEmail || session.user?.email || 'Unknown'}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Recent room updates will appear directly inside the meeting cards below.
-                  </p>
-                </GlowCard>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {stats.map((stat) => (
+                  <GlowCard key={stat.label} className="p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">{stat.label}</p>
+                    <p className="mt-3 font-display text-2xl font-semibold text-slate-950">{stat.value}</p>
+                    <p className="mt-2 text-sm text-slate-500">{stat.helper}</p>
+                  </GlowCard>
+                ))}
               </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <div>
-                <SectionHeading
-                  kicker="Quick actions"
-                  title="Everything you need at arm's reach"
-                  description="Main actions stay close, and the rest of the dashboard stays out of the way."
-                />
-
-                <BentoGrid className="mt-6 md:grid-cols-2">
-                  {quickActions.map((item) => (
-                    <BentoCard
-                      key={item.title}
-                      eyebrow={item.eyebrow}
-                      title={item.title}
-                      description={item.description}
-                      actions={item.action}
-                    />
-                  ))}
-                </BentoGrid>
+            <div className="space-y-5">
+              <div className="flex items-center justify-center">
+                <GithubGlobe className="w-full max-w-[460px]" />
               </div>
-
-              <div>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <SectionHeading
-                    kicker="Rooms"
-                    title="Recent meetings"
-                    description="Useful room updates now live here instead of a separate activity panel."
-                  />
-                  <GradientBorderButton variant="light" onClick={fetchDashboardData}>
-                    Refresh rooms
-                  </GradientBorderButton>
-                </div>
-
-                {loading ? (
-                  <BentoGrid className="mt-6 md:grid-cols-2">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                      <Skeleton key={`meeting-loading-${index}`} className="h-52 rounded-[1.75rem]" />
-                    ))}
-                  </BentoGrid>
-                ) : recentMeetings.length > 0 ? (
-                  <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    {recentMeetings.map((meeting) => (
-                      <MeetingCard
-                        key={meeting._id}
-                        meetingId={meeting.meetingId}
-                        title={meeting.title}
-                        hostEmail={meeting.hostEmail}
-                        createdAt={meeting.createdAt}
-                        activityText={formatActivityText(meetingActivityMap[meeting.meetingId]) || undefined}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <GlowCard className="mt-6 p-8 text-center">
-                    <p className="font-display text-2xl font-semibold text-slate-950">No meetings yet</p>
-                    <p className="mt-3 text-sm text-slate-500">
-                      Create your first room and it will show up here.
-                    </p>
-                    <div className="mt-5 flex justify-center">
-                      <GradientBorderButton variant="create" onClick={() => setIsCreateModalOpen(true)}>
-                        Create your first meeting
-                      </GradientBorderButton>
-                    </div>
-                  </GlowCard>
-                )}
-              </div>
+              <GlowCard className="p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Latest room</p>
+                <h2 className="mt-3 font-display text-2xl font-semibold text-slate-950">
+                  {latestMeeting ? latestMeeting.title || 'Untitled room' : 'Nothing scheduled yet'}
+                </h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  {latestMeeting
+                    ? `Room ID ${latestMeeting.meetingId}`
+                    : 'Create your first room and it will show up here.'}
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Last session: {formatRoomTime(latestMeeting?.lastSessionAt || latestMeeting?.createdAt)}
+                </p>
+              </GlowCard>
             </div>
           </div>
-        </GlowCard>
+
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <SectionHeading
+                kicker="Rooms"
+                title="Recent meetings"
+                description="Side-by-side cards with the same airy layout language as the landing page."
+              />
+              <GradientBorderButton variant="light" onClick={fetchDashboardData}>
+                Refresh rooms
+              </GradientBorderButton>
+            </div>
+
+            {loading ? (
+              <BentoGrid className="md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={`meeting-loading-${index}`} className="h-52 rounded-[1.75rem]" />
+                ))}
+              </BentoGrid>
+            ) : recentMeetings.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {recentMeetings.map((meeting) => (
+                  <MeetingCard
+                    key={meeting._id}
+                    meetingId={meeting.meetingId}
+                    title={meeting.title}
+                    hostEmail={meeting.hostEmail}
+                    createdAt={meeting.createdAt}
+                    activityText={formatActivityText(meetingActivityMap[meeting.meetingId]) || undefined}
+                  />
+                ))}
+              </div>
+            ) : (
+              <GlowCard className="p-8 text-center">
+                <p className="font-display text-2xl font-semibold text-slate-950">No meetings yet</p>
+                <p className="mt-3 text-sm text-slate-500">Create your first room and it will show up here.</p>
+                <div className="mt-5 flex justify-center">
+                  <GradientBorderButton variant="create" onClick={() => setIsCreateModalOpen(true)}>
+                    <span className="text-xl">✨</span>
+                    <span>Create your first meeting</span>
+                  </GradientBorderButton>
+                </div>
+              </GlowCard>
+            )}
+          </div>
+        </div>
       </motion.section>
 
       <Footer />
