@@ -26,6 +26,15 @@ body {
   position: relative;
 }
 
+:root {
+  --aceternity-ink: #0f172a;
+  --aceternity-sky: #0ea5e9;
+  --aceternity-mint: #10b981;
+  --aceternity-sun: #f59e0b;
+  --aceternity-sand: #fde68a;
+  --aceternity-cloud: #f8fafc;
+}
+
 html.dark body {
   background: #020617;
   color: #e2e8f0;
@@ -399,12 +408,55 @@ html.dark .pill {
   }
 }
 
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out;
 }
 
 .animate-slide-in {
   animation: slideInFromLeft 0.5s ease-out;
+}
+
+.marquee {
+  width: max-content;
+  animation: marquee 32s linear infinite;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.08) 0%,
+    rgba(15, 23, 42, 0.16) 50%,
+    rgba(15, 23, 42, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+html.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.12) 0%,
+    rgba(148, 163, 184, 0.22) 50%,
+    rgba(148, 163, 184, 0.12) 100%
+  );
 }
 
 /* Scrollbar styling */

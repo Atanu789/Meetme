@@ -29,9 +29,11 @@
     "next": "^14.0.0",
     "next-auth": "^4.24.14",
     "nodemailer": "^7.0.13",
+    "react-globe.gl": "^2.31.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^15.0.0",
+    "three": "^0.169.0",
     "tailwind-merge": "^3.6.0",
     "typescript": "^5.3.3",
     "zustand": "^4.4.7"
