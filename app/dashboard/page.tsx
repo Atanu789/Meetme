@@ -217,7 +217,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="page-shell-wide space-y-10 pb-10">
+    <div className="page-shell-wide space-y-10">
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}

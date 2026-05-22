@@ -19,6 +19,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Footer } from '@/components/ui/footer';
 
 const STATS = [
   { value: 1000, suffix: '+', label: 'Private rooms' },
@@ -144,22 +145,57 @@ const MEETING_NODES = [
 ] as const;
 
 function FloatingDoodles() {
+  const [nodeOffsets, setNodeOffsets] = useState<Record<string, { x: number; y: number; duration: number; delay: number }>>({});
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    setIsHydrated(true);
+    const offsets: typeof nodeOffsets = {};
+    MEETING_NODES.forEach(({ label }) => {
+      offsets[label] = {
+        x: (Math.random() - 0.5) * 40,
+        y: (Math.random() - 0.5) * 40,
+        duration: 18 + Math.random() * 10,
+        delay: Math.random() * -20,
+      };
+    });
+    setNodeOffsets(offsets);
+  }, []);
+
+  if (!isHydrated) return null;
+
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-visible">
       <div className="landing-doodle-grid" />
       <div className="landing-doodle-haze landing-doodle-haze--one" />
       <div className="landing-doodle-haze landing-doodle-haze--two" />
 
-      {MEETING_NODES.map(({ icon: Icon, label, left, top, delay, pulse }) => (
-        <span key={label} className={cn('landing-doodle-node', pulse)} style={{ left, top, zIndex: 3, animationDelay: delay }}>
-          <span className="landing-doodle-node__ring" />
-          <span className="landing-doodle-node__pulse" />
-          <span className="landing-doodle-node__core">
-            <Icon className="h-4 w-4" />
+      {MEETING_NODES.map(({ icon: Icon, label, left, top, delay }) => {
+        const offset = nodeOffsets[label];
+        const animationDuration = offset ? `${offset.duration}s` : '24s';
+        const animationDelay = offset ? `${offset.delay}s` : '0s';
+        
+        return (
+          <span
+            key={label}
+            className="landing-doodle-node landing-doodle-node--float"
+            style={{
+              left,
+              top,
+              zIndex: 3,
+              animationDelay,
+              animationDuration,
+            }}
+          >
+            <span className="landing-doodle-node__ring" />
+            <span className="landing-doodle-node__pulse" />
+            <span className="landing-doodle-node__core">
+              <Icon className="h-4 w-4" />
+            </span>
+            <span className="landing-doodle-node__label">{label}</span>
           </span>
-          <span className="landing-doodle-node__label">{label}</span>
-        </span>
-      ))}
+        );
+      })}
 
       <div className="landing-doodle-caption-card landing-doodle-caption-card--top" style={{ zIndex: 2 }}>
         <span className="landing-doodle-caption-card__chip">AI recap</span>
@@ -251,14 +287,14 @@ function HeroSection() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/sign-up"
-            className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 px-5.5 py-3 text-[0.95rem] font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:from-brand-500 hover:to-violet-500 hover:shadow-brand-500/35 active:scale-[0.97]"
+            className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5.5 py-3 text-[0.95rem] font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-emerald-400 hover:shadow-cyan-500/35 active:scale-[0.97]"
           >
             Start a meeting
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
           <a
             href="#features"
-            className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-5 py-3 text-[0.95rem] font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/60 dark:hover:bg-white/[0.05]"
+            className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-5 py-3 text-[0.95rem] font-semibold text-cyan-700 transition-all hover:border-cyan-300 hover:bg-cyan-100/80 dark:border-cyan-300/20 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-300/15"
           >
             See features
           </a>
@@ -351,7 +387,7 @@ function FeaturesSection() {
 function StepsStrip() {
   return (
     <div className="mx-auto max-w-6xl px-5 pb-10 sm:px-8">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/75 backdrop-blur-sm dark:border-white/[0.07] dark:bg-white/[0.02]">
+      <div className="overflow-hidden rounded-2xl border border-slate-300/80 bg-white/85 shadow-[0_18px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-white/[0.05] dark:shadow-[0_20px_46px_rgba(2,6,23,0.4)]">
         <div className="grid grid-cols-2 divide-x divide-y divide-slate-200 dark:divide-white/[0.06] sm:grid-cols-4 sm:divide-y-0">
           {STEPS.map(({ n, icon: Icon, title, desc }) => (
             <div key={n} className="flex flex-col gap-2 p-4">
@@ -405,10 +441,10 @@ function PricingSection() {
 
 function CtaSection() {
   return (
-    <div className="mx-auto max-w-4xl px-5 pb-12 sm:px-8">
-      <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm dark:border-white/[0.07] dark:bg-white/[0.02]">
+    <div className="mx-auto max-w-4xl px-5 pb-8 sm:px-8">
+      <div className="rounded-2xl border border-slate-300/80 bg-white/86 shadow-[0_22px_52px_rgba(15,23,42,0.1)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-white/[0.05] dark:shadow-[0_22px_56px_rgba(2,6,23,0.42)]">
         <div className="flex flex-col items-center gap-4 px-6 py-10 text-center sm:flex-row sm:gap-8 sm:px-10 sm:py-8 sm:text-left">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-violet-600 shadow-lg shadow-brand-500/30">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-500 shadow-lg shadow-cyan-500/30">
             <BookOpen className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
@@ -419,7 +455,7 @@ function CtaSection() {
           </div>
           <Link
             href="/sign-up"
-            className="font-display group inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:from-brand-500 hover:to-violet-500 active:scale-[0.97]"
+            className="font-display group inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-emerald-400 active:scale-[0.97]"
           >
             Start a meeting
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -430,55 +466,18 @@ function CtaSection() {
   );
 }
 
-function FooterSection() {
-  return (
-    <footer className="px-5 pb-14 pt-2 sm:px-8">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200/80 bg-white/75 px-6 py-8 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.03]">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-md">
-            <div className="font-display text-[1.05rem] font-bold uppercase tracking-[0.22em] text-slate-900 dark:text-white">Meetme</div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-white/45">
-              Secure rooms, live captions, AI notes, and clean follow-ups in one focused meeting workspace.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/sign-up"
-              className="font-display inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
-            >
-              Create room
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-            <Link
-              href="#features"
-              className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/65 dark:hover:bg-white/[0.05]"
-            >
-              Features
-            </Link>
-            <Link
-              href="#pricing"
-              className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/65 dark:hover:bg-white/[0.05]"
-            >
-              Workflow
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-8 flex flex-col gap-3 border-t border-slate-200/80 pt-5 text-sm text-slate-500 dark:border-white/[0.08] dark:text-white/35 sm:flex-row sm:items-center sm:justify-between">
-          <span>© 2026 Meetme. Built for secure, AI-assisted meetings.</span>
-          <span className="font-display uppercase tracking-[0.18em] text-[11px] text-slate-400 dark:text-white/25">Private by design</span>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 export default function LandingPage() {
   useEffect(() => {
+    const htmlEl = document.documentElement;
+    const hadDarkMode = htmlEl.classList.contains('dark');
+
+    htmlEl.classList.add('dark');
     document.body.classList.add('landing-page');
 
     return () => {
+      if (!hadDarkMode) {
+        htmlEl.classList.remove('dark');
+      }
       document.body.classList.remove('landing-page');
     };
   }, []);
@@ -490,8 +489,8 @@ export default function LandingPage() {
         <FeaturesSection />
         <StepsStrip />
         <CtaSection />
-        <FooterSection />
       </div>
+      <Footer />
     </div>
   );
 }

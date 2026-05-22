@@ -145,7 +145,7 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-3 left-0 right-0 z-50 px-3 sm:px-5">
-      <div className="mx-auto max-w-7xl rounded-2xl border border-white/60 bg-white/52 shadow-[0_18px_60px_rgba(15,23,42,0.14)] backdrop-blur-[28px] supports-[backdrop-filter]:bg-white/52">
+      <div className="mx-auto max-w-7xl rounded-2xl border border-white/45 bg-white/42 shadow-[0_22px_70px_rgba(15,23,42,0.18)] backdrop-blur-[45px] supports-[backdrop-filter]:bg-white/42 dark:border-white/15 dark:bg-slate-950/40 dark:shadow-[0_28px_90px_rgba(2,6,23,0.55)]">
         <div className="flex h-16 items-center justify-between gap-3 px-3 sm:px-5">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="flex items-center gap-2">
@@ -289,7 +289,7 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link href={signInHref} className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-950 transition sm:px-4 sm:text-sm">
+                <Link href={signInHref} className="inline-flex items-center rounded-full border border-cyan-200/70 bg-cyan-50/80 px-3 py-2 text-xs font-semibold text-cyan-700 shadow-[0_8px_20px_rgba(6,182,212,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20 sm:px-4 sm:text-sm">
                   Sign In
                 </Link>
                 <Link href={signInHref} className="button-primary px-3 py-2 text-xs sm:px-4 sm:py-2 sm:text-sm">
