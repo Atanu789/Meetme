@@ -12,6 +12,10 @@
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.2",
     "@excalidraw/excalidraw": "^0.18.1",
+    "@fontsource/exo-2": "^5.2.8",
+    "@fontsource/orbitron": "^5.2.8",
+    "@fontsource/rajdhani": "^5.2.7",
+    "@fontsource/space-grotesk": "^5.2.10",
     "@jitsi/react-sdk": "^1.4.4",
     "@liveblocks/client": "^3.19.1",
     "@liveblocks/node": "^3.19.1",
@@ -24,6 +28,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "firebase": "^12.12.0",
+    "lucide-react": "^1.16.0",
     "mongodb": "^6.21.0",
     "mongoose": "^8.0.3",
     "motion": "^12.38.0",

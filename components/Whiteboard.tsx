@@ -3,8 +3,8 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LiveblocksProvider, RoomProvider, useBroadcastEvent, useEventListener, useOthers } from '@liveblocks/react';
-import { createClient } from '@liveblocks/client';
 import { Loader } from './Loader';
+import type { ExcalidrawInitialDataState } from '@excalidraw/excalidraw/types';
 
 const Excalidraw = dynamic(
   () => import('@excalidraw/excalidraw').then((module) => module.Excalidraw),
@@ -20,9 +20,7 @@ const Excalidraw = dynamic(
 
 type WhiteboardScene = {
   meetingId: string;
-  elements: readonly unknown[];
-  appState: Record<string, unknown>;
-};
+} & ExcalidrawInitialDataState;
 
 interface WhiteboardProps {
   meetingId: string;
@@ -36,8 +34,8 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   const [status, setStatus] = useState('Loading whiteboard...');
   const [scene, setScene] = useState<WhiteboardScene | null>(null);
 
-  const elementsRef = useRef<readonly unknown[]>([]);
-  const appStateRef = useRef<Record<string, unknown>>({});
+  const elementsRef = useRef<ExcalidrawInitialDataState['elements']>([]);
+  const appStateRef = useRef<ExcalidrawInitialDataState['appState']>({});
   const lastSavedSnapshotRef = useRef('');
   const saveInFlightRef = useRef(false);
   const saveQueuedRef = useRef(false);
@@ -49,26 +47,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   );
 
   const liveblocksEnabled = Boolean(process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY);
-
-  const liveblocksClient = useMemo(
-    () =>
-      liveblocksEnabled
-        ? createClient({
-            authEndpoint: async (room) => {
-              const response = await fetch('/api/liveblocks-auth', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ room: room || meetingId }),
-              });
-
-              return response.json();
-            },
-          })
-        : null,
-    [liveblocksEnabled, meetingId]
-  );
 
   useEffect(() => {
     let active = true;
@@ -94,7 +72,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
         const nextScene: WhiteboardScene = loadedScene
           ? {
               meetingId: String(loadedScene.meetingId || meetingId),
-              elements: loadedScene.elements || [],
+              elements: (loadedScene.elements || []) as ExcalidrawInitialDataState['elements'],
               appState: {
                 collaborators: [],
                 ...(loadedScene.appState || {}),
@@ -239,7 +217,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       }
     : undefined;
 
-  if (!liveblocksEnabled || !liveblocksClient) {
+  if (!liveblocksEnabled) {
     return (
       <SoloWhiteboard
         meetingId={meetingId}
@@ -259,7 +237,19 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   }
 
   return (
-    <LiveblocksProvider client={liveblocksClient}>
+    <LiveblocksProvider
+      authEndpoint={async (room) => {
+        const response = await fetch('/api/liveblocks-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ room: room || meetingId }),
+        });
+
+        return response.json();
+      }}
+    >
       <RoomProvider id={meetingId} initialPresence={{}}>
         <CollaborativeWhiteboard
           meetingId={meetingId}
@@ -285,7 +275,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
 function SoloWhiteboard({
   meetingId,
   onClose,
-  isDark,
   initialData,
   status,
   isSaving,
@@ -294,10 +283,10 @@ function SoloWhiteboard({
 }: {
   meetingId: string;
   onClose: () => void;
-  initialData: { elements: readonly unknown[]; appState: Record<string, unknown> } | undefined;
+  initialData: ExcalidrawInitialDataState | null | undefined;
   status: string;
   isSaving: boolean;
-  onChange: (elements: readonly unknown[], appState: Record<string, unknown>) => void;
+  onChange: (elements: ExcalidrawInitialDataState['elements'], appState: ExcalidrawInitialDataState['appState']) => void;
   onApiReady: (api: any) => void;
 }) {
   return (
@@ -366,11 +355,11 @@ function CollaborativeWhiteboard({
   meetingId: string;
   onClose: () => void;
   scene: WhiteboardScene | null;
-  initialData: { elements: readonly unknown[]; appState: Record<string, unknown> } | undefined;
+  initialData: ExcalidrawInitialDataState | null | undefined;
   status: string;
   isSaving: boolean;
   setStatus: (value: string) => void;
-  onChange: (elements: readonly unknown[], appState: Record<string, unknown>) => void;
+  onChange: (elements: ExcalidrawInitialDataState['elements'], appState: ExcalidrawInitialDataState['appState']) => void;
   onApiReady: (api: any) => void;
 }) {
   const collaboratorsCount = useOthers().length;

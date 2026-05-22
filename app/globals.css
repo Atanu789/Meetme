@@ -8,6 +8,17 @@
   box-sizing: border-box;
 }
 
+:root {
+  --aceternity-ink: #0f172a;
+  --aceternity-sky: #0ea5e9;
+  --aceternity-mint: #10b981;
+  --aceternity-sun: #f59e0b;
+  --aceternity-sand: #fde68a;
+  --aceternity-cloud: #f8fafc;
+  --font-sans: 'Orbitron', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Orbitron', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -23,32 +34,22 @@ body {
   font-family: var(--font-sans), 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
   position: relative;
 }
 
-:root {
-  --aceternity-ink: #0f172a;
-  --aceternity-sky: #0ea5e9;
-  --aceternity-mint: #10b981;
-  --aceternity-sun: #f59e0b;
-  --aceternity-sand: #fde68a;
-  --aceternity-cloud: #f8fafc;
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
+
 
 html.dark body {
+  text-rendering: geometricPrecision;
   background: #020617;
   color: #e2e8f0;
-}
-
-.app-background {
-  position: fixed;
-  inset: -20%;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.app-background__mesh {
   position: absolute;
   inset: 0;
   background:
@@ -57,6 +58,86 @@ html.dark body {
     radial-gradient(circle at 62% 72%, rgba(59, 130, 246, 0.16), transparent 36%),
     radial-gradient(circle at 34% 78%, rgba(45, 212, 191, 0.16), transparent 34%);
   filter: blur(34px) saturate(112%);
+}
+
+.app-background__vortex {
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.0) 0 12%, rgba(79, 70, 229, 0.18) 13%, rgba(14, 165, 233, 0.16) 18%, rgba(99, 102, 241, 0.08) 24%, transparent 34%),
+    conic-gradient(from 0deg at 50% 50%, rgba(79, 70, 229, 0.0), rgba(79, 70, 229, 0.18), rgba(14, 165, 233, 0.14), rgba(168, 85, 247, 0.18), rgba(79, 70, 229, 0.0));
+  filter: blur(24px) saturate(125%);
+  opacity: 0.62;
+  animation: app-vortex-spin 28s linear infinite;
+}
+
+.app-background__vortex-core {
+  position: absolute;
+  inset: 18% 22%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.45) 0%, rgba(79, 70, 229, 0.26) 18%, rgba(14, 165, 233, 0.14) 36%, transparent 68%);
+  filter: blur(48px);
+  opacity: 0.8;
+  animation: app-vortex-pulse 8s ease-in-out infinite;
+}
+
+.app-background__vortex-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+}
+
+.app-background__vortex-ring--one {
+  width: 72rem;
+  height: 72rem;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-top-color: rgba(56, 189, 248, 0.45);
+  border-right-color: rgba(168, 85, 247, 0.18);
+  filter: blur(1px);
+  opacity: 0.9;
+  animation: app-vortex-spin 48s linear infinite reverse;
+}
+
+.app-background__vortex-ring--two {
+  width: 44rem;
+  height: 44rem;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  border-left-color: rgba(79, 70, 229, 0.4);
+  border-bottom-color: rgba(168, 85, 247, 0.22);
+  filter: blur(2px);
+  opacity: 0.85;
+  animation: app-vortex-spin 30s linear infinite;
+}
+
+.app-background__vortex-sweep {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+  border-radius: 9999px;
+  mix-blend-mode: screen;
+}
+
+.app-background__vortex-sweep--one {
+  width: 58rem;
+  height: 58rem;
+  background: conic-gradient(from 180deg, rgba(79, 70, 229, 0) 0deg, rgba(79, 70, 229, 0.0) 120deg, rgba(79, 70, 229, 0.28) 180deg, rgba(14, 165, 233, 0.08) 220deg, rgba(168, 85, 247, 0.18) 275deg, rgba(79, 70, 229, 0) 360deg);
+  filter: blur(40px) saturate(130%);
+  opacity: 0.65;
+  animation: app-vortex-spin 22s linear infinite;
+}
+
+.app-background__vortex-sweep--two {
+  width: 36rem;
+  height: 36rem;
+  background: conic-gradient(from 30deg, rgba(14, 165, 233, 0) 0deg, rgba(14, 165, 233, 0.22) 140deg, rgba(99, 102, 241, 0.12) 220deg, rgba(168, 85, 247, 0.2) 300deg, rgba(14, 165, 233, 0) 360deg);
+  filter: blur(28px) saturate(140%);
+  opacity: 0.8;
+  animation: app-vortex-spin 14s linear infinite reverse;
 }
 
 .app-background__orb {
@@ -122,6 +203,38 @@ html.dark .app-background__mesh {
     radial-gradient(circle at 34% 78%, rgba(14, 116, 144, 0.2), transparent 34%);
 }
 
+html.dark .app-background__vortex {
+  opacity: 0.78;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.0) 0 12%, rgba(14, 165, 233, 0.22) 13%, rgba(59, 130, 246, 0.16) 18%, rgba(99, 102, 241, 0.08) 24%, transparent 34%),
+    conic-gradient(from 0deg at 50% 50%, rgba(14, 165, 233, 0.0), rgba(14, 165, 233, 0.22), rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.2), rgba(14, 165, 233, 0.0));
+}
+
+html.dark .app-background__vortex-core {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 0%, rgba(14, 165, 233, 0.18) 18%, rgba(59, 130, 246, 0.12) 36%, transparent 68%);
+}
+
+html.dark .app-background__vortex-ring--one {
+  border-color: rgba(14, 165, 233, 0.18);
+  border-top-color: rgba(56, 189, 248, 0.48);
+  border-right-color: rgba(99, 102, 241, 0.24);
+}
+
+html.dark .app-background__vortex-ring--two {
+  border-color: rgba(14, 165, 233, 0.2);
+  border-left-color: rgba(59, 130, 246, 0.42);
+  border-bottom-color: rgba(168, 85, 247, 0.24);
+}
+
+html.dark .app-background__vortex-sweep--one {
+  background: conic-gradient(from 180deg, rgba(14, 165, 233, 0) 0deg, rgba(14, 165, 233, 0.0) 120deg, rgba(14, 165, 233, 0.28) 180deg, rgba(99, 102, 241, 0.1) 220deg, rgba(168, 85, 247, 0.22) 275deg, rgba(14, 165, 233, 0) 360deg);
+}
+
+html.dark .app-background__vortex-sweep--two {
+  background: conic-gradient(from 30deg, rgba(14, 165, 233, 0) 0deg, rgba(14, 165, 233, 0.24) 140deg, rgba(59, 130, 246, 0.14) 220deg, rgba(168, 85, 247, 0.24) 300deg, rgba(14, 165, 233, 0) 360deg);
+}
+
 html.dark .app-background__orb {
   opacity: 0.48;
 }
@@ -159,6 +272,10 @@ body::before {
   z-index: 1;
 }
 
+body.landing-page::before {
+  opacity: 0;
+}
+
 .app-main {
   position: relative;
   z-index: 10;
@@ -194,8 +311,36 @@ body::before {
   }
 }
 
+@keyframes app-vortex-spin {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes app-vortex-pulse {
+  0%,
+  100% {
+    transform: scale(0.98);
+    opacity: 0.68;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.86;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-background__orb {
+    animation: none;
+  }
+
+  .app-background__vortex,
+  .app-background__vortex-core,
+  .app-background__vortex-ring,
+  .app-background__vortex-sweep {
     animation: none;
   }
 }

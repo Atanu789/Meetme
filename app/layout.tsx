@@ -1,20 +1,12 @@
 ﻿import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, Space_Grotesk } from 'next/font/google';
 import { AppChrome } from '../components/AppChrome';
 import { Providers } from './providers';
 import ThemeInitializer from '../components/ThemeInitializer';
 import '@excalidraw/excalidraw/index.css';
 import './globals.css';
-
-const sans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-});
-
-const display = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display',
-});
+import '@fontsource/orbitron/400.css';
+import '@fontsource/orbitron/500.css';
+import '@fontsource/orbitron/700.css';
 
 export const metadata: Metadata = {
   title: 'Melanam',
@@ -28,11 +20,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+    <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="color-scheme" content="light" />
+        <meta name="color-scheme" content="light dark" />
       </head>
       <body>
         <Providers>
