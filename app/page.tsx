@@ -134,31 +134,45 @@ const STEPS = [
   { n: '04', icon: Download, title: 'Follow up', desc: 'Share recordings, transcripts, and next steps after the call.' },
 ] as const;
 
-function BackgroundDots({ className = '' }: { className?: string }) {
-  return (
-    <div
-      aria-hidden
-      className={cn('pointer-events-none absolute inset-0', className)}
-      style={{
-        backgroundImage: 'radial-gradient(rgba(99, 102, 241, 0.18) 1px, transparent 1px)',
-        backgroundSize: '22px 22px',
-      }}
-    />
-  );
-}
+const MEETING_NODES = [
+  { icon: ScanText, label: 'Live captions', left: '12%', top: '18%', delay: '-2s', pulse: 'landing-node-a' },
+  { icon: ShieldCheck, label: 'Secure rooms', left: '84%', top: '16%', delay: '-6s', pulse: 'landing-node-b' },
+  { icon: Brain, label: 'AI recap', left: '88%', top: '44%', delay: '-1s', pulse: 'landing-node-c' },
+  { icon: FileText, label: 'Meeting notes', left: '80%', top: '82%', delay: '-8s', pulse: 'landing-node-d' },
+  { icon: Upload, label: 'File share', left: '20%', top: '84%', delay: '-5s', pulse: 'landing-node-b' },
+  { icon: Mic2, label: 'Audio sync', left: '10%', top: '54%', delay: '-10s', pulse: 'landing-node-c' },
+] as const;
 
-function BackgroundGrid({ className = '' }: { className?: string }) {
+function FloatingDoodles() {
   return (
-    <div
-      aria-hidden
-      className={cn('pointer-events-none absolute inset-0', className)}
-      style={{
-        backgroundImage:
-          'linear-gradient(rgba(99,102,241,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.6) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-        opacity: 0.08,
-      }}
-    />
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-visible">
+      <div className="landing-doodle-grid" />
+      <div className="landing-doodle-haze landing-doodle-haze--one" />
+      <div className="landing-doodle-haze landing-doodle-haze--two" />
+
+      {MEETING_NODES.map(({ icon: Icon, label, left, top, delay, pulse }) => (
+        <span key={label} className={cn('landing-doodle-node', pulse)} style={{ left, top, zIndex: 3, animationDelay: delay }}>
+          <span className="landing-doodle-node__ring" />
+          <span className="landing-doodle-node__pulse" />
+          <span className="landing-doodle-node__core">
+            <Icon className="h-4 w-4" />
+          </span>
+          <span className="landing-doodle-node__label">{label}</span>
+        </span>
+      ))}
+
+      <div className="landing-doodle-caption-card landing-doodle-caption-card--top" style={{ zIndex: 2 }}>
+        <span className="landing-doodle-caption-card__chip">AI recap</span>
+        <span className="landing-doodle-caption-card__line" />
+        <span className="landing-doodle-caption-card__line landing-doodle-caption-card__line--soft" />
+      </div>
+
+      <div className="landing-doodle-caption-card landing-doodle-caption-card--bottom" style={{ zIndex: 2 }}>
+        <span className="landing-doodle-caption-card__chip landing-doodle-caption-card__chip--accent">Private room</span>
+        <span className="landing-doodle-caption-card__line" />
+        <span className="landing-doodle-caption-card__line landing-doodle-caption-card__line--soft" />
+      </div>
+    </div>
   );
 }
 
@@ -211,18 +225,11 @@ function GlowCard({ className, children }: { className?: string; children: React
 
 function HeroSection() {
   return (
-    <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-hidden px-5 pb-4 pt-16 sm:pt-18">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-80 opacity-50 dark:opacity-30"
-        style={{ background: 'radial-gradient(ellipse 60% 50% at 50% -10%, rgba(79,70,229,0.42) 0%, transparent 78%)' }}
-      />
-
-      <BackgroundDots className="opacity-70 dark:opacity-100" />
-      <BackgroundGrid className="hidden dark:block" />
+    <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-visible px-5 pb-4 pt-16 sm:pt-18">
+      <FloatingDoodles />
 
       <div className="relative z-10 mx-auto max-w-4xl text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-200/80 bg-brand-50/90 px-3 py-1 backdrop-blur-sm dark:border-brand-500/20 dark:bg-brand-500/10">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-200/80 bg-brand-50/90 px-3 py-1 backdrop-blur-sm dark:border-brand-500/20 dark:bg-brand-500/10 font-display">
           <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600">
             <Sparkles className="h-2 w-2 text-white" />
           </span>
@@ -230,7 +237,7 @@ function HeroSection() {
           <ChevronRight className="h-3 w-3 text-brand-400" />
         </div>
 
-        <h1 className="text-[2.9rem] font-extrabold leading-[1.04] tracking-tight text-slate-900 dark:text-white sm:text-[4.15rem] lg:text-[5.3rem]">
+        <h1 className="font-display text-[2.9rem] font-extrabold leading-[1.04] tracking-tight text-slate-900 dark:text-white sm:text-[4.15rem] lg:text-[5.3rem]">
           Meet. Capture.{' '}
           <span className="bg-[length:200%_auto] bg-gradient-to-r from-brand-600 via-violet-500 to-sky-400 bg-clip-text text-transparent animate-[gradient-x_4s_ease_infinite]">
             Ship.
@@ -244,14 +251,14 @@ function HeroSection() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/sign-up"
-            className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 px-5.5 py-3 text-[0.95rem] font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:from-brand-500 hover:to-violet-500 hover:shadow-brand-500/35 active:scale-[0.97]"
+            className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 px-5.5 py-3 text-[0.95rem] font-semibold text-white shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:from-brand-500 hover:to-violet-500 hover:shadow-brand-500/35 active:scale-[0.97]"
           >
             Start a meeting
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
           <a
             href="#features"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-5 py-3 text-[0.95rem] font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/60 dark:hover:bg-white/[0.05]"
+            className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-5 py-3 text-[0.95rem] font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-white dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/60 dark:hover:bg-white/[0.05]"
           >
             See features
           </a>
@@ -260,7 +267,7 @@ function HeroSection() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-5 border-y border-slate-100 py-4 dark:border-white/[0.06]">
           {STATS.map(({ value, suffix, label, decimals }) => (
             <div key={label} className="min-w-[64px] flex flex-col items-center gap-0.5">
-              <span className="text-[1.4rem] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[1.55rem]">
+                <span className="font-display text-[1.4rem] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[1.55rem]">
                 <NumberTicker value={value} decimals={decimals} />
                 {suffix}
               </span>
@@ -282,15 +289,27 @@ function HeroSection() {
 
 function FeaturesSection() {
   return (
-    <section id="features" className="relative px-5 pb-10 pt-0 sm:px-8 sm:pt-0">
-      <div className="mx-auto max-w-6xl">
+    <section id="features" className="relative overflow-hidden px-5 pb-10 pt-0 sm:px-8 sm:pt-0">
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="features-doodle-grid" />
+        <div className="features-doodle-orb features-doodle-orb--one" />
+        <div className="features-doodle-orb features-doodle-orb--two" />
+        <div className="features-doodle-orb features-doodle-orb--three" />
+        
+        <svg className="features-doodle-paths" viewBox="0 0 1440 600" fill="none" preserveAspectRatio="none">
+          <path className="features-doodle-path" d="M0 300C240 200 480 400 720 300C960 200 1200 400 1440 300" />
+          <path className="features-doodle-path features-doodle-path--delayed" d="M0 200C300 100 600 350 900 200C1100 100 1300 300 1440 200" />
+        </svg>
+      </div>
+
+      <div className="mx-auto max-w-6xl relative z-10">
         <div className="mb-2.5 flex items-center gap-3 sm:mb-3">
           <div className="flex items-center gap-1.5">
             <LayoutGrid className="h-4 w-4 text-brand-500" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-brand-500 dark:text-brand-400">Platform</span>
           </div>
           <div className="h-px flex-1 bg-slate-200 dark:bg-white/[0.06]" />
-          <h2 className="text-sm font-semibold text-slate-500 dark:text-white/30">Everything in one meeting flow</h2>
+          <h2 className="font-display text-sm font-semibold text-slate-500 dark:text-white/30">Everything in one meeting flow</h2>
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -298,12 +317,12 @@ function FeaturesSection() {
             const colors = FEATURE_COLOR_MAP[feature.color];
 
             return (
-              <GlowCard key={feature.title} className={cn('p-6 sm:p-6', feature.size === 'large' && 'lg:col-span-2')}>
-                <div className={cn('mb-3.5 inline-flex h-10 w-10 items-center justify-center rounded-xl', colors.pill)}>
-                  <feature.icon className={cn('h-4 w-4', colors.icon)} />
+              <GlowCard key={feature.title} className={cn('p-6 sm:p-6 features-card', feature.size === 'large' && 'lg:col-span-2')}>
+                <div className={cn('mb-3.5 inline-flex h-10 w-10 items-center justify-center rounded-xl features-icon-pulse', colors.pill)}>
+                  <feature.icon className={cn('h-4 w-4 features-icon-animate', colors.icon)} />
                 </div>
 
-                <h3 className="text-[17px] font-semibold text-slate-900 dark:text-white sm:text-[1.1rem]">{feature.title}</h3>
+                <h3 className="font-display text-[17px] font-semibold text-slate-900 dark:text-white sm:text-[1.1rem]">{feature.title}</h3>
 
                 <p className="mt-1.5 text-[14px] leading-relaxed text-slate-500 dark:text-white/40 sm:text-[0.98rem]">{feature.description}</p>
 
@@ -359,10 +378,10 @@ function PricingSection() {
         <div className="mb-6 flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Upload className="h-3.5 w-3.5 text-indigo-500" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">Workflow</span>
+            <span className="font-display text-[11px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">Workflow</span>
           </div>
           <div className="h-px flex-1 bg-slate-200 dark:bg-white/[0.06]" />
-          <span className="text-sm font-semibold text-slate-500 dark:text-white/30">Simple, secure, and fast</span>
+          <span className="font-display text-sm font-semibold text-slate-500 dark:text-white/30">Simple, secure, and fast</span>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -393,14 +412,14 @@ function CtaSection() {
             <BookOpen className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="text-[1.7rem] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[2.2rem]">Ready to run better meetings?</h2>
+            <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[2.2rem]">Ready to run better meetings?</h2>
             <p className="mt-1 text-[0.98rem] text-slate-500 dark:text-white/40">
               Create a room, invite your team, and let captions and AI summaries handle the heavy lifting.
             </p>
           </div>
           <Link
             href="/sign-up"
-            className="group inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:from-brand-500 hover:to-violet-500 active:scale-[0.97]"
+            className="font-display group inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand-500/25 transition-all hover:-translate-y-0.5 hover:from-brand-500 hover:to-violet-500 active:scale-[0.97]"
           >
             Start a meeting
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -408,6 +427,50 @@ function CtaSection() {
         </div>
       </div>
     </div>
+  );
+}
+
+function FooterSection() {
+  return (
+    <footer className="px-5 pb-14 pt-2 sm:px-8">
+      <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200/80 bg-white/75 px-6 py-8 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.03]">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-md">
+            <div className="font-display text-[1.05rem] font-bold uppercase tracking-[0.22em] text-slate-900 dark:text-white">Meetme</div>
+            <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-white/45">
+              Secure rooms, live captions, AI notes, and clean follow-ups in one focused meeting workspace.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/sign-up"
+              className="font-display inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+            >
+              Create room
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              href="#features"
+              className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/65 dark:hover:bg-white/[0.05]"
+            >
+              Features
+            </Link>
+            <Link
+              href="#pricing"
+              className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-white/65 dark:hover:bg-white/[0.05]"
+            >
+              Workflow
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 border-t border-slate-200/80 pt-5 text-sm text-slate-500 dark:border-white/[0.08] dark:text-white/35 sm:flex-row sm:items-center sm:justify-between">
+          <span>© 2026 Meetme. Built for secure, AI-assisted meetings.</span>
+          <span className="font-display uppercase tracking-[0.18em] text-[11px] text-slate-400 dark:text-white/25">Private by design</span>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -421,11 +484,14 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="-mt-16 min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.1),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.18),transparent_28%),linear-gradient(180deg,#020617_0%,#0b1022_100%)] dark:text-white">
-      <HeroSection />
-      <FeaturesSection />
-      <StepsStrip />
-      <CtaSection />
+    <div className="relative isolate -mt-16 min-h-screen overflow-hidden bg-transparent text-slate-900 dark:text-white">
+      <div className="relative z-10">
+        <HeroSection />
+        <FeaturesSection />
+        <StepsStrip />
+        <CtaSection />
+        <FooterSection />
+      </div>
     </div>
   );
 }

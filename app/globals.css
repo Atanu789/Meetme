@@ -15,7 +15,7 @@
   --aceternity-sun: #f59e0b;
   --aceternity-sand: #fde68a;
   --aceternity-cloud: #f8fafc;
-  --font-sans: 'Orbitron', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Orbitron', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -272,8 +272,237 @@ body::before {
   z-index: 1;
 }
 
+body.landing-page {
+  background: #f8fafc;
+}
+
 body.landing-page::before {
-  opacity: 0;
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.18) 1px, transparent 1px),
+    radial-gradient(circle at 20% 18%, rgba(79, 70, 229, 0.12), transparent 26%),
+    radial-gradient(circle at 82% 20%, rgba(14, 165, 233, 0.1), transparent 24%),
+    radial-gradient(circle at 55% 82%, rgba(168, 85, 247, 0.08), transparent 28%);
+  background-size: 64px 64px, 64px 64px, 100% 100%, 100% 100%, 100% 100%;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.82), transparent 96%);
+  opacity: 1;
+}
+
+body.landing-page::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at center, transparent 58%, rgba(15, 23, 42, 0.05) 100%);
+  opacity: 1;
+}
+
+.landing-doodle-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.12) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.08) 0 1px, transparent 1.8px);
+  background-position: 0 0, 24px 24px;
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.88), transparent 90%);
+  opacity: 0.4;
+}
+
+.landing-doodle-haze {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(36px);
+  mix-blend-mode: screen;
+  opacity: 0.6;
+  animation: landing-doodle-haze 18s ease-in-out infinite;
+}
+
+.landing-doodle-haze--one {
+  width: 28rem;
+  height: 28rem;
+  left: -4rem;
+  top: 7rem;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.28), rgba(99, 102, 241, 0.03) 68%, transparent 72%);
+}
+
+.landing-doodle-haze--two {
+  width: 30rem;
+  height: 30rem;
+  right: -5rem;
+  bottom: 3rem;
+  animation-delay: -7s;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.24), rgba(14, 165, 233, 0.02) 68%, transparent 72%);
+}
+
+
+.landing-doodle-node {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.45rem;
+  transform: translate(-50%, -50%);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  will-change: transform;
+}
+
+.landing-node-a {
+  animation-name: landing-doodle-node-a;
+  animation-duration: 18s;
+}
+
+.landing-node-b {
+  animation-name: landing-doodle-node-b;
+  animation-duration: 20s;
+}
+
+.landing-node-c {
+  animation-name: landing-doodle-node-c;
+  animation-duration: 22s;
+}
+
+.landing-node-d {
+  animation-name: landing-doodle-node-d;
+  animation-duration: 24s;
+}
+
+.landing-doodle-node__ring {
+  position: absolute;
+  inset: -0.55rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.14), inset 0 0 18px rgba(99, 102, 241, 0.08);
+  opacity: 0.9;
+  animation: landing-doodle-ring 4.8s linear infinite;
+}
+
+.landing-doodle-node__pulse {
+  position: absolute;
+  inset: -1.05rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.24), rgba(99, 102, 241, 0.08) 42%, transparent 70%);
+  filter: blur(3px);
+  opacity: 0.9;
+  animation: landing-doodle-node-pulse 3.4s ease-in-out infinite;
+}
+
+.landing-doodle-node__core {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(125, 211, 252, 0.55);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(224, 242, 254, 0.7));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 18px 40px rgba(15, 23, 42, 0.12), 0 0 22px rgba(34, 211, 238, 0.22);
+  backdrop-filter: blur(12px);
+}
+
+html.dark .landing-doodle-node__core {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.72));
+  border-color: rgba(125, 211, 252, 0.52);
+  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.08), 0 18px 42px rgba(2, 6, 23, 0.28), 0 0 26px rgba(34, 211, 238, 0.2);
+}
+
+.landing-doodle-node__label {
+  padding: 0.18rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+  color: rgba(15, 23, 42, 0.8);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.08);
+}
+
+html.dark .landing-doodle-node__label {
+  background: rgba(15, 23, 42, 0.72);
+  color: rgba(226, 232, 240, 0.88);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.1);
+}
+
+.landing-doodle-caption-card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08), 0 0 18px rgba(34, 211, 238, 0.08);
+  backdrop-filter: blur(14px);
+  animation: landing-doodle-card 8s ease-in-out infinite;
+}
+
+html.dark .landing-doodle-caption-card {
+  background: rgba(15, 23, 42, 0.62);
+  box-shadow: 0 16px 44px rgba(2, 6, 23, 0.24), 0 0 20px rgba(34, 211, 238, 0.06);
+}
+
+.landing-doodle-caption-card--top {
+  left: 14%;
+  top: 26%;
+}
+
+.landing-doodle-caption-card--bottom {
+  right: 12%;
+  bottom: 18%;
+  animation-delay: -3s;
+}
+
+.landing-doodle-caption-card__chip {
+  padding: 0.18rem 0.48rem;
+  border-radius: 9999px;
+  background: rgba(14, 165, 233, 0.16);
+  color: rgba(8, 145, 178, 1);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-doodle-caption-card__chip--accent {
+  background: rgba(99, 102, 241, 0.16);
+  color: rgba(67, 56, 202, 1);
+}
+
+.landing-doodle-caption-card__line {
+  width: 4.8rem;
+  height: 0.32rem;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 1), rgba(34, 211, 238, 0.65));
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.2);
+}
+
+.landing-doodle-caption-card__line--soft {
+  width: 3.6rem;
+  opacity: 0.55;
+}
+
+html.dark .landing-doodle-caption-card__chip {
+  color: rgba(186, 230, 253, 0.95);
+}
+
+html.dark .landing-doodle-caption-card__chip--accent {
+  color: rgba(199, 210, 254, 0.95);
+}
+
+html.dark .landing-doodle-caption-card__line {
+  background: linear-gradient(90deg, rgba(129, 140, 248, 1), rgba(34, 211, 238, 0.72));
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.22);
 }
 
 .app-main {
@@ -332,6 +561,262 @@ body.landing-page::before {
   }
 }
 
+@keyframes landing-doodle-haze {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.06);
+  }
+}
+
+@keyframes landing-doodle-ring {
+  from {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+}
+
+@keyframes landing-doodle-node-pulse {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.48;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.96;
+  }
+}
+
+@keyframes landing-doodle-card {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+@keyframes landing-doodle-meter {
+  0%,
+  100% {
+    transform: scaleX(0.72);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes landing-doodle-node-a {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate3d(10px, -12px, 0);
+  }
+}
+
+@keyframes landing-doodle-node-b {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate3d(-12px, 8px, 0);
+  }
+}
+
+@keyframes landing-doodle-node-c {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate3d(10px, 10px, 0);
+  }
+}
+
+@keyframes landing-doodle-node-d {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate3d(-8px, -10px, 0);
+  }
+}
+
+@keyframes landing-doodle-draw {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -320;
+  }
+}
+
+.features-doodle-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.08) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.06) 0 1px, transparent 1.6px);
+  background-position: 0 0, 32px 32px;
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.12) 80%, transparent 100%);
+  opacity: 0.35;
+}
+
+.features-doodle-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(38px);
+  mix-blend-mode: screen;
+  opacity: 0.3;
+  animation: features-doodle-float 16s ease-in-out infinite;
+}
+
+.features-doodle-orb--one {
+  width: 24rem;
+  height: 24rem;
+  left: -8rem;
+  top: -4rem;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0.02) 68%, transparent 72%);
+}
+
+.features-doodle-orb--two {
+  width: 28rem;
+  height: 28rem;
+  right: -10rem;
+  top: 8rem;
+  animation-delay: -5s;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.2), rgba(14, 165, 233, 0.01) 68%, transparent 72%);
+}
+
+.features-doodle-orb--three {
+  width: 22rem;
+  height: 22rem;
+  right: 6rem;
+  bottom: -6rem;
+  animation-delay: -10s;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.18), rgba(168, 85, 247, 0.01) 68%, transparent 72%);
+}
+
+.features-doodle-paths {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.6;
+}
+
+.features-doodle-path {
+  stroke: rgba(99, 102, 241, 0.14);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 8 16;
+  animation: features-doodle-draw 22s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.06));
+}
+
+.features-doodle-path--delayed {
+  stroke: rgba(14, 165, 233, 0.12);
+  animation-delay: -8s;
+}
+
+.features-card {
+  animation: features-card-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.4s ease;
+}
+
+.features-card:hover {
+  animation: features-card-hover 0.5s ease forwards;
+}
+
+.features-icon-pulse {
+  animation: features-icon-pulse 2s ease-in-out infinite;
+}
+
+.features-icon-animate {
+  animation: features-icon-spin 6s linear infinite;
+}
+
+.features-card:hover .features-icon-animate {
+  animation: features-icon-spin 2s linear infinite;
+}
+
+@keyframes features-doodle-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0) scale(1.04);
+  }
+}
+
+@keyframes features-doodle-draw {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+@keyframes features-card-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes features-card-hover {
+  from {
+    transform: translateY(0) rotateX(0deg);
+  }
+  to {
+    transform: translateY(-6px) rotateX(2deg);
+  }
+}
+
+@keyframes features-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes features-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-background__orb {
     animation: none;
@@ -341,6 +826,22 @@ body.landing-page::before {
   .app-background__vortex-core,
   .app-background__vortex-ring,
   .app-background__vortex-sweep {
+    animation: none;
+  }
+
+  .landing-doodle,
+  .landing-doodle-node,
+  .landing-doodle-node__pulse,
+  .landing-doodle-caption-card,
+  .landing-doodle-haze {
+    animation: none;
+  }
+
+  .features-doodle-orb,
+  .features-doodle-path,
+  .features-card,
+  .features-icon-pulse,
+  .features-icon-animate {
     animation: none;
   }
 }
