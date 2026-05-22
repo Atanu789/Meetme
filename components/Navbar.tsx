@@ -22,7 +22,7 @@ export function Navbar() {
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
   const currentUrl = pathname ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}` : '/';
-  const signInHref = `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
+  const signInHref = status === 'authenticated' ? '/dashboard' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
   useEffect(() => {
     setIsFilesOpen(false);
@@ -152,7 +152,7 @@ export function Navbar() {
               <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-9 sm:w-9">
                 <span className="font-display text-base font-semibold">M</span>
               </div>
-              <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950">
+              <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950 dark:text-white">
                 Melanam
               </span>
             </Link>
@@ -289,10 +289,28 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link href={signInHref} className="inline-flex items-center rounded-full border border-cyan-200/70 bg-cyan-50/80 px-3 py-2 text-xs font-semibold text-cyan-700 shadow-[0_8px_20px_rgba(6,182,212,0.12)] transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20 sm:px-4 sm:text-sm">
+                <Link
+                  href={signInHref}
+                  onClick={(e) => {
+                    if (status === 'authenticated') {
+                      e.preventDefault();
+                      router.push('/dashboard');
+                    }
+                  }}
+                  className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
+                >
                   Sign In
                 </Link>
-                <Link href={signInHref} className="button-primary px-3 py-2 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                <Link
+                  href={signInHref}
+                  onClick={(e) => {
+                    if (status === 'authenticated') {
+                      e.preventDefault();
+                      router.push('/dashboard');
+                    }
+                  }}
+                  className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-emerald-400 active:scale-[0.97]"
+                >
                   Get Started
                 </Link>
               </div>

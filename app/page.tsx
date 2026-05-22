@@ -135,82 +135,7 @@ const STEPS = [
   { n: '04', icon: Download, title: 'Follow up', desc: 'Share recordings, transcripts, and next steps after the call.' },
 ] as const;
 
-const MEETING_NODES = [
-  { icon: ScanText, label: 'Live captions', left: '12%', top: '18%', delay: '-2s', pulse: 'landing-node-a' },
-  { icon: ShieldCheck, label: 'Secure rooms', left: '84%', top: '16%', delay: '-6s', pulse: 'landing-node-b' },
-  { icon: Brain, label: 'AI recap', left: '88%', top: '44%', delay: '-1s', pulse: 'landing-node-c' },
-  { icon: FileText, label: 'Meeting notes', left: '80%', top: '82%', delay: '-8s', pulse: 'landing-node-d' },
-  { icon: Upload, label: 'File share', left: '20%', top: '84%', delay: '-5s', pulse: 'landing-node-b' },
-  { icon: Mic2, label: 'Audio sync', left: '10%', top: '54%', delay: '-10s', pulse: 'landing-node-c' },
-] as const;
-
-function FloatingDoodles() {
-  const [nodeOffsets, setNodeOffsets] = useState<Record<string, { x: number; y: number; duration: number; delay: number }>>({});
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setIsHydrated(true);
-    const offsets: typeof nodeOffsets = {};
-    MEETING_NODES.forEach(({ label }) => {
-      offsets[label] = {
-        x: (Math.random() - 0.5) * 40,
-        y: (Math.random() - 0.5) * 40,
-        duration: 18 + Math.random() * 10,
-        delay: Math.random() * -20,
-      };
-    });
-    setNodeOffsets(offsets);
-  }, []);
-
-  if (!isHydrated) return null;
-
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-visible">
-      <div className="landing-doodle-grid" />
-      <div className="landing-doodle-haze landing-doodle-haze--one" />
-      <div className="landing-doodle-haze landing-doodle-haze--two" />
-
-      {MEETING_NODES.map(({ icon: Icon, label, left, top, delay }) => {
-        const offset = nodeOffsets[label];
-        const animationDuration = offset ? `${offset.duration}s` : '24s';
-        const animationDelay = offset ? `${offset.delay}s` : '0s';
-        
-        return (
-          <span
-            key={label}
-            className="landing-doodle-node landing-doodle-node--float"
-            style={{
-              left,
-              top,
-              zIndex: 3,
-              animationDelay,
-              animationDuration,
-            }}
-          >
-            <span className="landing-doodle-node__ring" />
-            <span className="landing-doodle-node__pulse" />
-            <span className="landing-doodle-node__core">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span className="landing-doodle-node__label">{label}</span>
-          </span>
-        );
-      })}
-
-      <div className="landing-doodle-caption-card landing-doodle-caption-card--top" style={{ zIndex: 2 }}>
-        <span className="landing-doodle-caption-card__chip">AI recap</span>
-        <span className="landing-doodle-caption-card__line" />
-        <span className="landing-doodle-caption-card__line landing-doodle-caption-card__line--soft" />
-      </div>
-
-      <div className="landing-doodle-caption-card landing-doodle-caption-card--bottom" style={{ zIndex: 2 }}>
-        <span className="landing-doodle-caption-card__chip landing-doodle-caption-card__chip--accent">Private room</span>
-        <span className="landing-doodle-caption-card__line" />
-        <span className="landing-doodle-caption-card__line landing-doodle-caption-card__line--soft" />
-      </div>
-    </div>
-  );
-}
+// Decorative doodles removed to simplify landing visuals.
 
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
   const [displayValue, setDisplayValue] = useState(0);
@@ -262,8 +187,6 @@ function GlowCard({ className, children }: { className?: string; children: React
 function HeroSection() {
   return (
     <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-visible px-5 pb-4 pt-16 sm:pt-18">
-      <FloatingDoodles />
-
       <div className="relative z-10 mx-auto max-w-4xl text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-200/80 bg-brand-50/90 px-3 py-1 backdrop-blur-sm dark:border-brand-500/20 dark:bg-brand-500/10 font-display">
           <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600">
@@ -275,7 +198,14 @@ function HeroSection() {
 
         <h1 className="font-display text-[2.9rem] font-extrabold leading-[1.04] tracking-tight text-slate-900 dark:text-white sm:text-[4.15rem] lg:text-[5.3rem]">
           Meet. Capture.{' '}
-          <span className="bg-[length:200%_auto] bg-gradient-to-r from-brand-600 via-violet-500 to-sky-400 bg-clip-text text-transparent animate-[gradient-x_4s_ease_infinite]">
+          <span
+            style={{
+              background: 'linear-gradient(90deg, var(--aceternity-sky), var(--aceternity-mint))',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
             Ship.
           </span>
         </h1>
@@ -289,7 +219,7 @@ function HeroSection() {
             href="/sign-up"
             className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-5.5 py-3 text-[0.95rem] font-semibold text-white shadow-lg shadow-cyan-500/25 transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-emerald-400 hover:shadow-cyan-500/35 active:scale-[0.97]"
           >
-            Start a meeting
+            START
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
           <a
@@ -324,20 +254,9 @@ function HeroSection() {
 }
 
 function FeaturesSection() {
+
   return (
     <section id="features" className="relative overflow-hidden px-5 pb-10 pt-0 sm:px-8 sm:pt-0">
-      <div className="absolute inset-0 pointer-events-none z-0">
-        <div className="features-doodle-grid" />
-        <div className="features-doodle-orb features-doodle-orb--one" />
-        <div className="features-doodle-orb features-doodle-orb--two" />
-        <div className="features-doodle-orb features-doodle-orb--three" />
-        
-        <svg className="features-doodle-paths" viewBox="0 0 1440 600" fill="none" preserveAspectRatio="none">
-          <path className="features-doodle-path" d="M0 300C240 200 480 400 720 300C960 200 1200 400 1440 300" />
-          <path className="features-doodle-path features-doodle-path--delayed" d="M0 200C300 100 600 350 900 200C1100 100 1300 300 1440 200" />
-        </svg>
-      </div>
-
       <div className="mx-auto max-w-6xl relative z-10">
         <div className="mb-2.5 flex items-center gap-3 sm:mb-3">
           <div className="flex items-center gap-1.5">
@@ -483,8 +402,8 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="relative isolate -mt-16 min-h-screen overflow-hidden bg-transparent text-slate-900 dark:text-white">
-      <div className="relative z-10">
+    <div className="relative isolate -mt-16 min-h-screen overflow-hidden bg-transparent text-slate-900 dark:text-white flex flex-col">
+      <div className="relative z-10 flex-1">
         <HeroSection />
         <FeaturesSection />
         <StepsStrip />

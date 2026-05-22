@@ -307,6 +307,20 @@ body.landing-page::after {
   animation: landing-color-flow 20s ease-in-out infinite alternate;
 }
 
+/* Disable landing and feature doodles (removed) */
+.landing-doodle-grid,
+.landing-doodle-haze,
+.landing-doodle-node,
+.landing-doodle-caption-card,
+.landing-doodle-connectors,
+.landing-doodle-link,
+.features-doodle-grid,
+.features-doodle-orb,
+.features-doodle-paths,
+.features-doodle-path {
+  display: none !important;
+}
+
 html.dark body.landing-page::after {
   background:
     radial-gradient(circle at 14% 22%, rgba(34, 211, 238, 0.24), transparent 34%),
@@ -325,6 +339,7 @@ html.dark body.landing-page::after {
   filter: blur(18px);
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), transparent 90%);
   opacity: 0.7;
+  animation: landing-doodle-grid-float 26s ease-in-out infinite;
 }
 
 .landing-doodle-haze {
@@ -342,6 +357,7 @@ html.dark body.landing-page::after {
   left: -4rem;
   top: 7rem;
   background: radial-gradient(circle, rgba(99, 102, 241, 0.28), rgba(99, 102, 241, 0.03) 68%, transparent 72%);
+  animation-name: landing-doodle-haze-a;
 }
 
 .landing-doodle-haze--two {
@@ -351,6 +367,7 @@ html.dark body.landing-page::after {
   bottom: 3rem;
   animation-delay: -7s;
   background: radial-gradient(circle, rgba(14, 165, 233, 0.24), rgba(14, 165, 233, 0.02) 68%, transparent 72%);
+  animation-name: landing-doodle-haze-b;
 }
 
 
@@ -450,12 +467,14 @@ html.dark .landing-doodle-caption-card {
 .landing-doodle-caption-card--top {
   left: 14%;
   top: 26%;
+  animation-name: landing-doodle-card-a;
 }
 
 .landing-doodle-caption-card--bottom {
   right: 12%;
   bottom: 18%;
   animation-delay: -3s;
+  animation-name: landing-doodle-card-b;
 }
 
 .landing-doodle-caption-card__chip {
@@ -551,13 +570,13 @@ html.dark .landing-doodle-caption-card__line {
     transform: translate(-50%, -50%) translate3d(0, 0, 0);
   }
   25% {
-    transform: translate(-50%, -50%) translate3d(12px, -16px, 0);
+    transform: translate(-50%, -50%) translate3d(var(--float-x1, 12px), var(--float-y1, -16px), 0);
   }
   50% {
-    transform: translate(-50%, -50%) translate3d(-10px, 18px, 0);
+    transform: translate(-50%, -50%) translate3d(var(--float-x2, -10px), var(--float-y2, 18px), 0);
   }
   75% {
-    transform: translate(-50%, -50%) translate3d(14px, 8px, 0);
+    transform: translate(-50%, -50%) translate3d(calc(var(--float-x1, 12px) * -0.65), calc(var(--float-y2, 18px) * -0.45), 0);
   }
 }
 
@@ -632,7 +651,33 @@ html.dark .landing-doodle-link--signal {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(0, -18px, 0) scale(1.06);
+    transform: translate3d(var(--float-x1, 0px), var(--float-y1, -18px), 0) scale(1.06);
+  }
+}
+
+@keyframes landing-doodle-haze-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  30% {
+    transform: translate3d(16px, -20px, 0) scale(1.08);
+  }
+  65% {
+    transform: translate3d(-14px, 10px, 0) scale(1.04);
+  }
+}
+
+@keyframes landing-doodle-haze-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  35% {
+    transform: translate3d(-18px, -12px, 0) scale(1.1);
+  }
+  70% {
+    transform: translate3d(12px, 14px, 0) scale(1.03);
   }
 }
 
@@ -669,7 +714,43 @@ html.dark .landing-doodle-link--signal {
     transform: translateY(0) rotate(-1deg);
   }
   50% {
-    transform: translateY(-8px) rotate(1deg);
+    transform: translate3d(var(--float-x1, 0px), var(--float-y1, -8px), 0) rotate(1deg);
+  }
+}
+
+@keyframes landing-doodle-card-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-1deg);
+  }
+  35% {
+    transform: translate3d(var(--float-x1, 10px), var(--float-y1, -9px), 0) rotate(1deg);
+  }
+  70% {
+    transform: translate3d(var(--float-x2, -8px), var(--float-y2, 8px), 0) rotate(-0.5deg);
+  }
+}
+
+@keyframes landing-doodle-card-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(1deg);
+  }
+  40% {
+    transform: translate3d(var(--float-x1, -11px), var(--float-y1, -10px), 0) rotate(-1deg);
+  }
+  75% {
+    transform: translate3d(var(--float-x2, 9px), var(--float-y2, 7px), 0) rotate(0.5deg);
+  }
+}
+
+@keyframes landing-doodle-grid-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(var(--float-x1, 1.5%), var(--float-y1, -1.5%), 0) scale(1.03);
   }
 }
 
@@ -716,6 +797,7 @@ html.dark .landing-doodle-link--signal {
   filter: blur(16px);
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.12) 80%, transparent 100%);
   opacity: 0.46;
+  animation: features-doodle-grid-float 24s ease-in-out infinite;
 }
 
 .features-doodle-orb {
@@ -759,6 +841,7 @@ html.dark .landing-doodle-link--signal {
   width: 100%;
   height: 100%;
   opacity: 0.6;
+  animation: features-doodle-paths-float 20s ease-in-out infinite;
 }
 
 .features-doodle-path {
@@ -819,7 +902,27 @@ html.dark .features-card:hover {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(0, -12px, 0) scale(1.04);
+    transform: translate3d(var(--float-x1, 0px), var(--float-y1, -12px), 0) scale(1.04);
+  }
+}
+
+@keyframes features-doodle-grid-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(var(--float-x1, -1.2%), var(--float-y1, 1.8%), 0) scale(1.04);
+  }
+}
+
+@keyframes features-doodle-paths-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(var(--float-x1, 1.4%), var(--float-y1, -1.4%), 0);
   }
 }
 
