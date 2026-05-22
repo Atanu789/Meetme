@@ -105,6 +105,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const htmlEl = document.documentElement;
+    const hadDarkMode = htmlEl.classList.contains('dark');
+
+    htmlEl.classList.add('dark');
+    document.body.classList.add('landing-page');
+
+    return () => {
+      if (!hadDarkMode) {
+        htmlEl.classList.remove('dark');
+      }
+      document.body.classList.remove('landing-page');
+    };
+  }, []);
+
+  useEffect(() => {
     if (searchParams.get('create') === '1') {
       setIsCreateModalOpen(true);
     }
@@ -234,7 +249,7 @@ export default function Dashboard() {
                 transition={{ duration: 0.5 }}
                 className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500"
               >
-                Aceternity-inspired workspace
+                Meeting workspace
               </motion.p>
               <motion.h1
                 initial={{ opacity: 0, y: 12 }}
