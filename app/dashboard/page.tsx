@@ -105,16 +105,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const htmlEl = document.documentElement;
-    const hadDarkMode = htmlEl.classList.contains('dark');
-
-    htmlEl.classList.add('dark');
     document.body.classList.add('landing-page');
 
     return () => {
-      if (!hadDarkMode) {
-        htmlEl.classList.remove('dark');
-      }
       document.body.classList.remove('landing-page');
     };
   }, []);

@@ -7,6 +7,9 @@ import { useEffect, useRef, useState } from 'react';
 import UploadMedia from './UploadMedia';
 import AIAssistant from './AIAssistant';
 import Whiteboard from './Whiteboard';
+import { YouTubeStreamModal } from './YouTubeStreamModal';
+import { useRecording } from '@/hooks/useRecording';
+import { useLivestream } from '@/hooks/useLivestream';
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -17,6 +20,7 @@ export function Navbar() {
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
@@ -24,11 +28,16 @@ export function Navbar() {
   const currentUrl = pathname ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}` : '/';
   const signInHref = status === 'authenticated' ? '/dashboard' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
+  // Initialize recording and livestream hooks
+  const { isRecording, startRecording, stopRecording, loading: recordingLoading, error: recordingError, clearError: clearRecordingError } = useRecording(roomMeetingId);
+  const { isStreaming, startLivestream, stopLivestream, loading: livestreamLoading, error: livestreamError, clearError: clearLivestreamError } = useLivestream(roomMeetingId);
+
   useEffect(() => {
     setIsFilesOpen(false);
     setIsProductsOpen(false);
     setIsDropdownOpen(false);
     setIsWhiteboardOpen(false);
+    setIsYouTubeModalOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -142,17 +151,21 @@ export function Navbar() {
     'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]';
   const whiteboardHoverClass =
     'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:text-amber-950 hover:shadow-[0_14px_30px_rgba(245,158,11,0.22)]';
+  const recordingHoverClass =
+    'hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-100 hover:text-red-950 hover:shadow-[0_14px_30px_rgba(239,68,68,0.2)]';
+  const livestreamHoverClass =
+    'hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-950 hover:shadow-[0_14px_30px_rgba(244,63,94,0.2)]';
 
   return (
     <nav className="fixed top-3 left-0 right-0 z-50 px-3 sm:px-5">
-      <div className="mx-auto max-w-7xl rounded-2xl border border-white/45 bg-white/42 shadow-[0_22px_70px_rgba(15,23,42,0.18)] backdrop-blur-[45px] supports-[backdrop-filter]:bg-white/42 dark:border-white/15 dark:bg-slate-950/40 dark:shadow-[0_28px_90px_rgba(2,6,23,0.55)]">
+      <div className="mx-auto max-w-7xl rounded-2xl border border-white/45 bg-white/42 shadow-[0_22px_70px_rgba(15,23,42,0.18)] backdrop-blur-[45px] supports-[backdrop-filter]:bg-white/42">
         <div className="flex h-16 items-center justify-between gap-3 px-3 sm:px-5">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-9 sm:w-9">
                 <span className="font-display text-base font-semibold">M</span>
               </div>
-              <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950 dark:text-white">
+              <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950">
                 Melanam
               </span>
             </Link>
@@ -216,6 +229,48 @@ export function Navbar() {
                   </div>
                 </button>
                 <AIAssistant meetingId={roomMeetingId} />
+                <button
+                  onClick={() => {
+                    if (isRecording) {
+                      stopRecording(roomMeetingId);
+                    } else {
+                      startRecording(roomMeetingId);
+                    }
+                  }}
+                  disabled={recordingLoading}
+                  className={`${navActionBoxClass} ${
+                    isRecording
+                      ? 'border-red-200 bg-red-50/85 text-red-950 shadow-[0_10px_24px_rgba(239,68,68,0.12)]'
+                      : recordingHoverClass
+                  } disabled:opacity-50`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">
+                      {isRecording ? '⏹ Recording' : '⏺ Record'}
+                    </div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    if (isStreaming) {
+                      stopLivestream(roomMeetingId);
+                    } else {
+                      setIsYouTubeModalOpen(true);
+                    }
+                  }}
+                  disabled={livestreamLoading}
+                  className={`${navActionBoxClass} ${
+                    isStreaming
+                      ? 'border-rose-200 bg-rose-50/85 text-rose-950 shadow-[0_10px_24px_rgba(244,63,94,0.12)]'
+                      : livestreamHoverClass
+                  } disabled:opacity-50`}
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">
+                      {isStreaming ? '🔴 Live' : '📺 YouTube'}
+                    </div>
+                  </div>
+                </button>
                 <button
                   onClick={() => setIsWhiteboardOpen((prev) => !prev)}
                   className={`${navActionBoxClass} ${
@@ -297,7 +352,7 @@ export function Navbar() {
                       router.push('/dashboard');
                     }
                   }}
-                  className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
+                  className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900"
                 >
                   Sign In
                 </Link>
@@ -323,6 +378,28 @@ export function Navbar() {
           {copyStatus}
         </div>
       )}
+      {recordingError && (
+        <div className="fixed top-20 right-4 z-[60] rounded-lg bg-red-500/90 px-4 py-2 text-white shadow-lg flex items-center justify-between gap-3">
+          <span>{recordingError}</span>
+          <button
+            onClick={clearRecordingError}
+            className="text-white hover:text-red-100 transition"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {livestreamError && (
+        <div className="fixed top-20 right-4 z-[60] rounded-lg bg-red-500/90 px-4 py-2 text-white shadow-lg flex items-center justify-between gap-3">
+          <span>{livestreamError}</span>
+          <button
+            onClick={clearLivestreamError}
+            className="text-white hover:text-red-100 transition"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {isWhiteboardOpen && roomMeetingId && (
         <div className="fixed inset-0 z-[70]">
           <button
@@ -335,6 +412,12 @@ export function Navbar() {
           </div>
         </div>
       )}
+      <YouTubeStreamModal
+        isOpen={isYouTubeModalOpen}
+        onClose={() => setIsYouTubeModalOpen(false)}
+        onSubmit={(streamUrl) => startLivestream(roomMeetingId, streamUrl)}
+        loading={livestreamLoading}
+      />
     </nav>
   );
 }

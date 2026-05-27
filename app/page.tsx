@@ -387,22 +387,15 @@ function CtaSection() {
 
 export default function LandingPage() {
   useEffect(() => {
-    const htmlEl = document.documentElement;
-    const hadDarkMode = htmlEl.classList.contains('dark');
-
-    htmlEl.classList.add('dark');
     document.body.classList.add('landing-page');
 
     return () => {
-      if (!hadDarkMode) {
-        htmlEl.classList.remove('dark');
-      }
       document.body.classList.remove('landing-page');
     };
   }, []);
 
   return (
-    <div className="relative isolate -mt-16 min-h-screen overflow-hidden bg-transparent text-slate-900 dark:text-white flex flex-col">
+    <div className="relative isolate -mt-16 min-h-screen overflow-hidden bg-transparent text-slate-900 flex flex-col">
       <div className="relative z-10 flex-1">
         <HeroSection />
         <FeaturesSection />
