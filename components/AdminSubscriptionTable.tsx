@@ -26,6 +26,11 @@ export default function AdminSubscriptionTable() {
     setError('');
     try {
       const response = await fetch('/api/admin/subscriptions');
+      if (response.status === 403) {
+        // not authorized as admin - redirect to admin login
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to load subscriptions');
@@ -50,6 +55,10 @@ export default function AdminSubscriptionTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscriptionId, ...updates }),
       });
+      if (response.status === 403) {
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update subscription');
@@ -69,6 +78,10 @@ export default function AdminSubscriptionTable() {
       const response = await fetch(`/api/admin/subscriptions?subscriptionId=${encodeURIComponent(subscriptionId)}`, {
         method: 'DELETE',
       });
+      if (response.status === 403) {
+        window.location.href = '/admin/login';
+        return;
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to cancel subscription');

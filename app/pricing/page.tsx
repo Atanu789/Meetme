@@ -1,7 +1,9 @@
-'use client';
+"use client";
 
 import Script from 'next/script';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowRight, Check, CreditCard, ShieldCheck, Sparkles } from 'lucide-react';
 import { BILLING_PLANS, getPlanPrice, type BillingCycle, type PlanKey } from '../../lib/billing-plans';
@@ -142,8 +144,20 @@ function BillingCard({ planKey, cycle, currency }: { planKey: PlanKey; cycle: Bi
 export default function PricingPage() {
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [currency, setCurrency] = useState<'usd' | 'inr'>('usd');
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Require authentication for checkout/pricing details. Redirect to sign-in when unauthenticated.
+    if (status === 'unauthenticated') {
+      const currentUrl = `/pricing`;
+      router.push(`/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`);
+    }
+  }, [status, router]);
 
   const pricePlans = useMemo(() => BILLING_PLANS.filter((plan) => plan.key !== 'enterprise'), []);
+
+  if (status === 'loading') return null;
 
   return (
     <div className="page-shell-wide space-y-10 pb-16">

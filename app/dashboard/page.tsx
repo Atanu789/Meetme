@@ -103,6 +103,7 @@ export default function Dashboard() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any | null>(null);
 
   useEffect(() => {
     document.body.classList.add('landing-page');
@@ -132,6 +133,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (status === 'authenticated') {
       void fetchDashboardData();
+      void fetchSubscription();
     }
   }, [status]);
 
@@ -155,6 +157,17 @@ export default function Dashboard() {
       setActivity([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubscription = async () => {
+    try {
+      const res = await fetch('/api/billing/subscription');
+      if (!res.ok) return;
+      const d = await res.json();
+      setSubscription(d.subscription || null);
+    } catch (err) {
+      console.error('Failed to load subscription', err);
     }
   };
 
@@ -303,7 +316,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-center">
                 <GithubGlobe className="w-full max-w-[460px]" />
               </div>
-              <GlowCard className="p-6">
+                <GlowCard className="p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Latest room</p>
                 <h2 className="mt-3 font-display text-2xl font-semibold text-slate-950">
                   {latestMeeting ? latestMeeting.title || 'Untitled room' : 'Nothing scheduled yet'}
@@ -316,7 +329,21 @@ export default function Dashboard() {
                 <p className="mt-2 text-sm text-slate-500">
                   Last session: {formatRoomTime(latestMeeting?.lastSessionAt || latestMeeting?.createdAt)}
                 </p>
-              </GlowCard>
+                </GlowCard>
+                {subscription ? (
+                  <GlowCard className="p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Subscription</p>
+                    <h2 className="mt-3 font-display text-2xl font-semibold text-slate-950">{subscription.plan?.toUpperCase() || 'Free'}</h2>
+                    <p className="mt-2 text-sm text-slate-600">{subscription.status === 'active' ? 'Active' : subscription.status}</p>
+                    <p className="mt-3 text-sm text-slate-500">Billing: {subscription.billingCycle} • {subscription.amount} {subscription.currency}</p>
+                  </GlowCard>
+                ) : (
+                  <GlowCard className="p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Subscription</p>
+                    <p className="mt-3 text-sm text-slate-600">No active subscription</p>
+                    <GradientBorderLink href="/pricing" variant="create">View plans</GradientBorderLink>
+                  </GlowCard>
+                )}
             </div>
           </div>
 
