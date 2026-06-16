@@ -3,6 +3,9 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { CaptionOverlay } from '../../../components/CaptionOverlay';
+import AIResultsDisplay from '../../../components/AIResultsDisplay';
+import TaskList from '../../../components/TaskList';
+import Polls from '../../../components/Polls';
 import { Loader } from '../../../components/Loader';
 import { JitsiMeeting } from '../../../components/JitsiMeeting';
 import { useSession } from 'next-auth/react';
@@ -31,6 +34,8 @@ export default function RoomPage() {
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [jwt, setJwt] = useState<string | null>(null);
   const [hasJoinedConference, setHasJoinedConference] = useState(false);
+  const [showAiResults, setShowAiResults] = useState(false);
+  const [aiResults, setAiResults] = useState<any | null>(null);
   const apiRef = useRef<any>(null);
   const joinedLoggedRef = useRef(false);
 
@@ -165,6 +170,33 @@ export default function RoomPage() {
     triggerBot();
   }, [hasJoinedConference, jwt, jitsiRoomName, meeting, nameReady, meetingId]);
 
+  // Open AI results panel when caption overlay dispatches event
+  useEffect(() => {
+    const handler = async (e: any) => {
+      try {
+        const detailMeetingId = e?.detail?.meetingId || meetingId;
+        if (!detailMeetingId) return;
+
+        // Fetch meeting details (includes summary, keyDecisions, actionItems, transcript)
+        const resp = await fetch(`/api/get-meeting?id=${encodeURIComponent(detailMeetingId)}`);
+        if (!resp.ok) {
+          console.warn('[AI panel] failed to fetch meeting data');
+          return;
+        }
+
+        const body = await resp.json();
+        const m = body.meeting || null;
+        setAiResults(m);
+        setShowAiResults(true);
+      } catch (err) {
+        console.error('[AI panel] error opening AI results', err);
+      }
+    };
+
+    window.addEventListener('open-ai-summary', handler as EventListener);
+    return () => window.removeEventListener('open-ai-summary', handler as EventListener);
+  }, [meetingId]);
+
   const handleApiReady = (api: any) => {
     apiRef.current = api;
 
@@ -239,6 +271,34 @@ export default function RoomPage() {
           </div>
 
           <CaptionOverlay meetingId={meetingId} />
+          {showAiResults && aiResults && (
+            <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto bg-white/95 dark:bg-slate-900/95 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
+              <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-semibold">AI Meeting Results</h3>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowAiResults(false)} className="text-sm text-slate-600 dark:text-slate-300">Close</button>
+                </div>
+              </div>
+              <div className="p-4">
+                <AIResultsDisplay
+                  meetingId={meetingId}
+                  summary={aiResults?.summary}
+                  keyDecisions={aiResults?.keyDecisions || []}
+                  actionItems={aiResults?.actionItems || []}
+                  transcript={aiResults?.transcript || []}
+                  speakerLabels={aiResults?.speakerLabels || []}
+                />
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium mb-2">Tasks from this meeting</h4>
+                  <TaskList meetingId={meetingId} />
+                </div>
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium mb-2">Live Polls</h4>
+                  <Polls meetingId={meetingId} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

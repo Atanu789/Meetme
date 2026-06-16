@@ -1,9 +1,14 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-interface IUser extends Document {
-  name: string;
+export interface IUser extends Document {
+  name?: string;
   email: string;
-  firebaseId: string;
+  firebaseId?: string;
+  role: 'user' | 'admin' | 'enterprise_admin';
+  organizationId: string | null;
+  status: 'active' | 'disabled';
+  emailVerified?: Date | null;
+  image?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -12,7 +17,7 @@ const UserSchema = new Schema<IUser>(
   {
     name: {
       type: String,
-      required: true,
+      default: '',
     },
     email: {
       type: String,
@@ -22,8 +27,31 @@ const UserSchema = new Schema<IUser>(
     },
     firebaseId: {
       type: String,
-      required: true,
-      unique: true,
+      required: false,
+      sparse: true,
+    },
+    role: {
+      type: String,
+      enum: ['user', 'admin', 'enterprise_admin'],
+      default: 'user',
+    },
+    organizationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'disabled'],
+      default: 'active',
+    },
+    emailVerified: {
+      type: Date,
+      default: null,
+    },
+    image: {
+      type: String,
+      default: null,
     },
     createdAt: {
       type: Date,

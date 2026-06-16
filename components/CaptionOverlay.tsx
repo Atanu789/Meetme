@@ -192,6 +192,8 @@ function captionReducer(state: Caption[], action: any): Caption[] {
 export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
+  const [meetingSummary, setMeetingSummary] = useState<string | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
   const captionsEnabled = true;
   const [lastSpeakerId, setLastSpeakerId] = useState<string | null>(null);
 
@@ -237,6 +239,21 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
     socket.addEventListener('message', (event) => {
       try {
         const payload = JSON.parse(event.data) as CaptionMessage;
+
+        // Handle summary broadcasts from the server
+        if (payload.type === 'summary') {
+          try {
+            // payload.summary may be string or object
+            const summaryText = typeof payload.summary === 'string' ? payload.summary : (payload.summary && payload.summary.summary) ? payload.summary.summary : JSON.stringify(payload.summary || '');
+            setMeetingSummary(String(summaryText || '').trim());
+            setShowSummary(true);
+            // Auto-hide after 20s
+            setTimeout(() => setShowSummary(false), 20000);
+          } catch (err) {
+            console.error('[captions] Error processing summary payload', err);
+          }
+          return;
+        }
 
         if (payload.type === 'connected') {
           console.log('[captions] ✅ Server confirmed connection for:', meetingId);
@@ -379,6 +396,37 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
         paddingBottom: typeof window !== 'undefined' && window.innerWidth < 640 ? '72px' : '24px'
       }}
     >
+      {/* Summary toast (transient) */}
+      {showSummary && meetingSummary && (
+        <div className="fixed top-6 right-6 z-50 pointer-events-auto max-w-md">
+          <div className="rounded-lg bg-white/95 dark:bg-gray-900/95 shadow-xl border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-sm text-gray-900 dark:text-gray-100 leading-snug">
+                <div className="font-semibold mb-1">Live Summary</div>
+                <div className="text-xs text-gray-700 dark:text-gray-300 max-h-32 overflow-y-auto">{meetingSummary}</div>
+              </div>
+              <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                <button onClick={() => setShowSummary(false)} className="text-sm text-slate-500 hover:text-slate-700">Close</button>
+                <button
+                  onClick={() => {
+                    try {
+                      // Dispatch a global event so the meeting page can open the AI results panel
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('open-ai-summary', { detail: { meetingId } }));
+                      }
+                    } catch (err) {
+                      console.error('[captions] failed to dispatch open-ai-summary', err);
+                    }
+                  }}
+                  className="text-sm bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700"
+                >
+                  View full summary
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Caption queue: max 2 items */}
       <div className="space-y-3 w-full flex flex-col items-center px-4">
         {captions.map((caption) => (

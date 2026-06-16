@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
 
 const liveblocks = new Liveblocks({
-  secret: process.env.LIVEBLOCKS_SECRET_KEY || '',
+  secret: process.env.LIVEBLOCKS_SECRET_KEY || 'sk_dummy_key_for_build',
 });
 
 export async function POST(req: Request) {

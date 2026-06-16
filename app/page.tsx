@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
+  Check,
   ChevronRight,
   Download,
   FileOutput,
@@ -17,16 +18,38 @@ import {
   Sparkles,
   Star,
   Upload,
+  BarChart3,
+  MessageCircleQuestion,
+  Shield,
+  Workflow,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/ui/footer';
 
-const STATS = [
-  { value: 1000, suffix: '+', label: 'Private rooms' },
-  { value: 24, suffix: '/7', label: 'Always on support' },
-  { value: 99.9, suffix: '%', label: 'Meeting uptime', decimals: 1 },
-  { value: 4, suffix: '', label: 'Core workflows' },
+const STATS: Array<{ value: number; suffix: string; label: string; decimals?: number }> = [
+  { value: 1000, suffix: '+', label: 'Rooms created' },
+  { value: 3, suffix: '', label: 'Clicks to start' },
+  { value: 5, suffix: '', label: 'Built-in workflows' },
+  { value: 1, suffix: '', label: 'Meeting → knowledge hub' },
 ];
+
+const COMPETITORS = ['Melanam', 'Zoom', 'Google Meet', 'Microsoft Teams'] as const;
+
+const COMPARISON_ROWS = [
+  { label: 'Live captions', values: ['Yes', 'Often add-on', 'Limited', 'Yes'] },
+  { label: 'AI summary', values: ['Built in', 'Add-on / plan-based', 'Limited', 'Add-on / plan-based'] },
+  { label: 'Meeting → tasks', values: ['Built in', 'Manual', 'Manual', 'Manual'] },
+  { label: 'Files inside the room', values: ['Yes', 'Limited', 'Limited', 'Yes'] },
+  { label: 'Recording history', values: ['One page', 'Separate tools', 'Separate tools', 'Separate tools'] },
+  { label: 'Silent feedback', values: ['Yes', 'No', 'No', 'No'] },
+] as const;
+
+const INSIGHTS = [
+  { icon: Workflow, title: 'Meeting → tasks', desc: 'Turn decisions into tasks without leaving the call.', accent: 'from-cyan-500 to-blue-500' },
+  { icon: BarChart3, title: 'Participation insights', desc: 'See who spoke, for how long, and how the room engaged.', accent: 'from-emerald-500 to-teal-500' },
+  { icon: MessageCircleQuestion, title: 'Silent feedback', desc: 'Agree, confused, repeat, or interesting without interrupting flow.', accent: 'from-amber-500 to-orange-500' },
+  { icon: Shield, title: 'Private by default', desc: 'Secure rooms and controlled access keep calls focused.', accent: 'from-violet-500 to-fuchsia-500' },
+] as const;
 
 const FEATURE_COLOR_MAP = {
   violet: {
@@ -187,31 +210,25 @@ function GlowCard({ className, children }: { className?: string; children: React
 function HeroSection() {
   return (
     <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-visible px-5 pb-4 pt-16 sm:pt-18">
-      <div className="relative z-10 mx-auto max-w-4xl text-center">
+      <div className="relative z-10 mx-auto max-w-6xl text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-brand-200/80 bg-brand-50/90 px-3 py-1 backdrop-blur-sm dark:border-brand-500/20 dark:bg-brand-500/10 font-display">
           <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600">
             <Sparkles className="h-2 w-2 text-white" />
           </span>
-          <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400">Secure meetings, live captions, and AI recaps</span>
+          <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400">Meeting platform built for action, not just calls</span>
           <ChevronRight className="h-3 w-3 text-brand-400" />
         </div>
 
-        <h1 className="font-display text-[2.9rem] font-extrabold leading-[1.04] tracking-tight text-slate-900 dark:text-white sm:text-[4.15rem] lg:text-[5.3rem]">
-          Meet. Capture.{' '}
-          <span
-            style={{
-              background: 'linear-gradient(90deg, var(--aceternity-sky), var(--aceternity-mint))',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-            }}
-          >
-            Ship.
+        <h1 className="font-display text-[2.8rem] font-extrabold leading-[1.02] tracking-tight text-slate-900 dark:text-white sm:text-[4.3rem] lg:text-[5.8rem]">
+          Meetings that turn into{' '}
+          <span style={{ background: 'linear-gradient(90deg, var(--aceternity-sky), var(--aceternity-mint))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+            clear next steps
           </span>
+          .
         </h1>
 
-        <p className="mx-auto mt-5 max-w-2xl text-[1.02rem] leading-relaxed text-slate-500 dark:text-white/45 sm:text-[1.08rem]">
-          Melanam brings private video rooms, realtime captions, AI meeting notes, and follow-up summaries into one calm workspace.
+        <p className="mx-auto mt-5 max-w-3xl text-[1.01rem] leading-relaxed text-slate-500 dark:text-white/45 sm:text-[1.08rem]">
+          Melanam combines video, captions, summary, tasks, polls, files, and participation analytics in one place so teams spend less time switching tools.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -223,11 +240,17 @@ function HeroSection() {
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
           <a
-            href="#features"
+            href="#compare"
             className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-5 py-3 text-[0.95rem] font-semibold text-cyan-700 transition-all hover:border-cyan-300 hover:bg-cyan-100/80 dark:border-cyan-300/20 dark:bg-cyan-400/10 dark:text-cyan-200 dark:hover:bg-cyan-300/15"
           >
-            See features
+            Compare plans
           </a>
+          <Link
+            href="/pricing"
+            className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/85 px-5 py-3 text-[0.95rem] font-semibold text-slate-800 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+          >
+            Pricing
+          </Link>
         </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-5 border-y border-slate-100 py-4 dark:border-white/[0.06]">
@@ -253,57 +276,107 @@ function HeroSection() {
   );
 }
 
-function FeaturesSection() {
-
+function ComparisonSection() {
   return (
-    <section id="features" className="relative overflow-hidden px-5 pb-10 pt-0 sm:px-8 sm:pt-0">
+    <section id="compare" className="relative overflow-hidden px-5 pb-10 pt-0 sm:px-8 sm:pt-0">
       <div className="mx-auto max-w-6xl relative z-10">
-        <div className="mb-2.5 flex items-center gap-3 sm:mb-3">
+        <div className="mb-3 flex items-center gap-3 sm:mb-4">
           <div className="flex items-center gap-1.5">
             <LayoutGrid className="h-4 w-4 text-brand-500" />
-            <span className="text-[11px] font-bold uppercase tracking-widest text-brand-500 dark:text-brand-400">Platform</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-brand-500 dark:text-brand-400">Comparison</span>
           </div>
           <div className="h-px flex-1 bg-slate-200 dark:bg-white/[0.06]" />
-          <h2 className="font-display text-sm font-semibold text-slate-500 dark:text-white/30">Everything in one meeting flow</h2>
+          <h2 className="font-display text-sm font-semibold text-slate-500 dark:text-white/30">Why Melanam feels lighter for the same meeting job</h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((feature) => {
-            const colors = FEATURE_COLOR_MAP[feature.color];
-
-            return (
-              <GlowCard key={feature.title} className={cn('p-6 sm:p-6 features-card', feature.size === 'large' && 'lg:col-span-2')}>
-                <div className={cn('mb-3.5 inline-flex h-10 w-10 items-center justify-center rounded-xl features-icon-pulse', colors.pill)}>
-                  <feature.icon className={cn('h-4 w-4 features-icon-animate', colors.icon)} />
-                </div>
-
-                <h3 className="font-display text-[17px] font-semibold text-slate-900 dark:text-white sm:text-[1.1rem]">{feature.title}</h3>
-
-                <p className="mt-1.5 text-[14px] leading-relaxed text-slate-500 dark:text-white/40 sm:text-[0.98rem]">{feature.description}</p>
-
-                {feature.badges && (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {feature.badges.map((badge) => {
-                      const badgeLabel = typeof badge === 'string' ? badge : badge.label;
-
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+          <GlowCard className="p-4 sm:p-5">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-white/[0.08] dark:bg-slate-950/70">
+              <div className="grid grid-cols-4 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-white/[0.04] dark:text-white/35">
+                {COMPETITORS.map((item, index) => (
+                  <div key={item} className={cn('px-3 py-3 text-center', index === 0 && 'bg-cyan-50/90 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300')}>
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className="divide-y divide-slate-200 dark:divide-white/[0.06]">
+                {COMPARISON_ROWS.map((row) => (
+                  <div key={row.label} className="grid grid-cols-4 text-sm">
+                    <div className="px-3 py-3 font-medium text-slate-700 dark:text-white/80">{row.label}</div>
+                    {row.values.map((value, index) => {
+                      const isMelanam = index === 0;
+                      const isYes = value.toLowerCase().includes('yes') || value.toLowerCase().includes('built in') || value.toLowerCase().includes('one page');
                       return (
-                        <span key={badgeLabel} className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-medium', colors.badge)}>
-                          {badgeLabel}
-                        </span>
+                        <div
+                          key={`${row.label}-${value}-${index}`}
+                          className={cn(
+                            'flex items-center justify-center px-3 py-3 text-center text-xs font-semibold sm:text-sm',
+                            isMelanam
+                              ? 'bg-cyan-50/70 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-200'
+                              : isYes
+                                ? 'text-emerald-700 dark:text-emerald-300'
+                                : 'text-slate-400 dark:text-white/25'
+                          )}
+                        >
+                          {isYes ? <Check className={cn('mr-1 h-3.5 w-3.5', isMelanam ? 'text-cyan-600' : 'text-emerald-500')} /> : null}
+                          <span>{value}</span>
+                        </div>
                       );
                     })}
                   </div>
-                )}
+                ))}
+              </div>
+            </div>
+          </GlowCard>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {INSIGHTS.map(({ icon: Icon, title, desc, accent }) => (
+              <GlowCard key={title} className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg', accent)}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-[17px] font-semibold text-slate-900 dark:text-white">{title}</h3>
+                    <p className="mt-1 text-[14px] leading-relaxed text-slate-500 dark:text-white/40">{desc}</p>
+                  </div>
+                </div>
               </GlowCard>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function StepsStrip() {
+function FeatureInfographic() {
+  return (
+    <div className="mx-auto max-w-6xl px-5 pb-10 sm:px-8">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {INSIGHTS.map(({ icon: Icon, title, desc, accent }, index) => (
+          <GlowCard key={title} className="p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg', accent)}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-white/25">0{index + 1}</div>
+                  <h3 className="font-display text-[16px] font-semibold text-slate-900 dark:text-white">{title}</h3>
+                </div>
+              </div>
+              <div className="text-xs font-semibold text-slate-400 dark:text-white/20">{index === 0 ? 'Core' : 'New'}</div>
+            </div>
+            <p className="mt-3 text-[13px] leading-relaxed text-slate-500 dark:text-white/35">{desc}</p>
+          </GlowCard>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowStrip() {
   return (
     <div className="mx-auto max-w-6xl px-5 pb-10 sm:px-8">
       <div className="overflow-hidden rounded-2xl border border-slate-300/80 bg-white/85 shadow-[0_18px_42px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-white/[0.05] dark:shadow-[0_20px_46px_rgba(2,6,23,0.4)]">
@@ -367,9 +440,9 @@ function CtaSection() {
             <BookOpen className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1">
-            <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[2.2rem]">Ready to run better meetings?</h2>
+            <h2 className="font-display text-[1.7rem] font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-[2.2rem]">Ready to replace scattered meeting tools?</h2>
             <p className="mt-1 text-[0.98rem] text-slate-500 dark:text-white/40">
-              Create a room, invite your team, and let captions and AI summaries handle the heavy lifting.
+              Create a room, compare it against the usual stack, and let Melanam handle the meeting-to-knowledge flow.
             </p>
           </div>
           <Link
@@ -398,8 +471,9 @@ export default function LandingPage() {
     <div className="relative isolate -mt-16 min-h-screen overflow-hidden bg-transparent text-slate-900 flex flex-col">
       <div className="relative z-10 flex-1">
         <HeroSection />
-        <FeaturesSection />
-        <StepsStrip />
+        <ComparisonSection />
+        <FeatureInfographic />
+        <WorkflowStrip />
         <CtaSection />
       </div>
       <Footer />

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { BackgroundGradientAnimation } from './BackgroundGradientAnimation';
 import { Navbar } from './Navbar';
@@ -15,7 +16,9 @@ export function AppChrome() {
   return (
     <>
       <BackgroundGradientAnimation />
-      <Navbar />
+      <Suspense fallback={null}>
+        <Navbar />
+      </Suspense>
     </>
   );
 }

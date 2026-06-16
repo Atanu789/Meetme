@@ -74,6 +74,20 @@ export function AIAssistant({ meetingId, onAIToggle }: AIAssistantProps) {
           { method: 'DELETE' }
         );
         if (response.ok) {
+          // Ask caption backend to flush any pending summarization for this meeting
+          try {
+            if (typeof window !== 'undefined') {
+              const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
+              const host = window.location.hostname;
+              const port = process.env.NEXT_PUBLIC_MEETING_AI_PORT || '4010';
+              const flushUrl = `${proto}//${host}:${port}/api/rooms/${encodeURIComponent(meetingId)}/flush`;
+              await fetch(flushUrl, { method: 'POST' }).catch(() => {});
+            }
+          } catch (err) {
+            // ignore flush errors; summarizer will run on timer as fallback
+            console.warn('[AI] flush request failed', err);
+          }
+
           setAiEnabled(false);
           setStatus('idle');
           setCaptions([]);

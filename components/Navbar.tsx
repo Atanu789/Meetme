@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -102,6 +102,22 @@ export function Navbar() {
 
   const productLinks = [
     {
+      name: 'Pricing',
+      href: '/pricing',
+      tag: 'Plan',
+      description: 'Compare Free, Pro, Business, and Enterprise.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]',
+      tagClass: 'bg-cyan-500/15 text-cyan-800 ring-cyan-500/20',
+    },
+    {
+      name: 'Admin',
+      href: '/admin/login',
+      tag: 'Ops',
+      description: 'Manage subscriptions and user billing.',
+      hoverClass: 'hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-100 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]',
+      tagClass: 'bg-slate-500/15 text-slate-800 ring-slate-500/20',
+    },
+    {
       name: 'Meetings',
       href: '/dashboard',
       tag: 'Live',
@@ -186,6 +202,18 @@ export function Navbar() {
               >
                 Products
               </button>
+              <Link
+                href="/pricing"
+                className="ml-2 inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-950 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]"
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/admin/login"
+                className="ml-2 inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-200 hover:text-slate-950 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]"
+              >
+                Admin
+              </Link>
               {isProductsOpen && (
                 <div
                   className="absolute left-0 mt-2 w-[22rem] overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white/95 p-2.5 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl"
@@ -332,9 +360,25 @@ export function Navbar() {
                       >
                         Dashboard
                       </Link>
+                      {(session?.user as any)?.role === 'admin' && (
+                        <Link
+                          href="/admin"
+                          className="block px-4 py-3 text-sm text-cyan-700 hover:bg-slate-50 transition font-medium"
+                        >
+                          🛡️ Admin Panel
+                        </Link>
+                      )}
+                      {((session?.user as any)?.role === 'enterprise_admin' || (session?.user as any)?.role === 'admin') && (
+                        <Link
+                          href="/enterprise"
+                          className="block px-4 py-3 text-sm text-emerald-700 hover:bg-slate-50 transition font-medium"
+                        >
+                          🏢 Enterprise Portal
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
+                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition border-t border-slate-100"
                       >
                         Logout
                       </button>
@@ -346,24 +390,12 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href={signInHref}
-                  onClick={(e) => {
-                    if (status === 'authenticated') {
-                      e.preventDefault();
-                      router.push('/dashboard');
-                    }
-                  }}
                   className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900"
                 >
                   Sign In
                 </Link>
                 <Link
                   href={signInHref}
-                  onClick={(e) => {
-                    if (status === 'authenticated') {
-                      e.preventDefault();
-                      router.push('/dashboard');
-                    }
-                  }}
                   className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-emerald-400 active:scale-[0.97]"
                 >
                   Get Started

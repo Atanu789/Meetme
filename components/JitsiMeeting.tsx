@@ -1,6 +1,9 @@
 ﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import React from 'react';
+import dynamic from 'next/dynamic';
+const FeedbackButtons = dynamic(() => import('./FeedbackButtons'), { ssr: false });
 
 const DEFAULT_TOOLBAR_BUTTONS = [
   'microphone',
@@ -393,6 +396,20 @@ export function JitsiMeeting({
         ref={containerRef}
         style={{ height: '100%', width: '100%' }}
       />
+
+      {/* Feedback buttons overlay */}
+      <div className="pointer-events-none">
+        <div className="pointer-events-auto">
+          {/* Render FeedbackButtons if meeting info available */}
+          {roomName && (
+            // lazy-load component to avoid SSR issues
+            // eslint-disable-next-line @next/next/no-img-element
+            <React.Suspense fallback={null}>
+              <FeedbackButtons meetingId={roomName} userName={displayName} userEmail={userEmail || ''} />
+            </React.Suspense>
+          )}
+        </div>
+      </div>
 
       {(scriptLoading || loading) && (
         <div className="absolute inset-0 z-20 w-full flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">

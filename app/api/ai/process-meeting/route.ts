@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Meeting from '@/models/Meeting';
+import Task from '@/models/Task';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getAssemblyAIService } from '@/lib/assemblyai';
@@ -130,6 +131,23 @@ export async function POST(request: Request) {
     meeting.summary = summary;
     meeting.keyDecisions = keyDecisions;
     meeting.actionItems = actionItems;
+    // Best-effort: persist action items as tasks so they appear in Task Workspace
+    try {
+      for (const ai of actionItems) {
+        let title = '';
+        let ownerName = '';
+        if (typeof ai === 'string') title = ai;
+        else if (ai && typeof ai === 'object') {
+          title = ai.item || ai.text || ai.title || JSON.stringify(ai);
+          ownerName = ai.owner || ai.assignee || ai.assignedTo || '';
+        }
+        if (!title) continue;
+        // create task; ownerEmail left null (best-effort assignment)
+        await Task.create({ meetingId: meetingId, title, ownerName });
+      }
+    } catch (taskErr) {
+      console.error('Failed creating tasks from actionItems', taskErr);
+    }
     meeting.speakerLabels = speakerLabels;
 
     await meeting.save();

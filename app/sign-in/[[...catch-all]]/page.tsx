@@ -30,9 +30,9 @@ export default function Page() {
     });
 
     if (result?.error) {
-      setMessage('Failed to send login link. Please try again.');
+      setMessage('Failed to send login link. Check your SMTP settings or use EMAIL_TRANSPORT=console for local testing.');
     } else {
-      setMessage('Magic link sent. Check your email inbox.');
+      setMessage('Magic link sent. Check your email inbox or the server console in development.');
     }
 
     setLoading(false);

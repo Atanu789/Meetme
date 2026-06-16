@@ -162,10 +162,32 @@ async function addCaption(meetingId, payload) {
   }
 }
 
-module.exports = { addCaption };
+async function flushMeeting(meetingId) {
+  try {
+    const buf = ensureBuffer(meetingId);
+    if (!buf || !buf.captions || buf.captions.length === 0) {
+      return getLastSummary(meetingId) || null;
+    }
+
+    // Pull out all pending captions
+    const captions = buf.captions.splice(0, buf.captions.length);
+
+    // If there was a scheduled timer, clear it
+    if (buf.timer) {
+      clearTimeout(buf.timer);
+      buf.timer = null;
+    }
+
+    await summarizeMeeting(meetingId, captions);
+    return getLastSummary(meetingId) || null;
+  } catch (err) {
+    console.error('[summarizer] flushMeeting error', err && err.message ? err.message : err);
+    throw err;
+  }
+}
 
 function getLastSummary(meetingId) {
   return lastSummaries.get(meetingId) || null;
 }
 
-module.exports = { addCaption, getLastSummary };
+module.exports = { addCaption, getLastSummary, flushMeeting };

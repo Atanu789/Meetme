@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const { spawn } = require('child_process');
 const path = require('path');
 const { broadcast, joinRoom, leaveRoom } = require('../ws/roomHub');
-const { addCaption, getLastSummary } = require('../summarizer');
+const { addCaption, getLastSummary, flushMeeting } = require('../summarizer');
 const { addParticipant, removeParticipant, resolveSpeaker } = require('../participants');
 
 // Track active bot processes
@@ -177,6 +177,20 @@ function createServer() {
         } catch (err) {
           response.writeHead(500, { 'Content-Type': 'application/json' });
           response.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Failed' }));
+        }
+
+        return;
+      }
+
+      // POST /api/rooms/:id/flush -> force summarizer to flush buffered captions immediately
+      if (request.method === 'POST' && action === 'flush') {
+        try {
+          const result = await flushMeeting(meetingId);
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ ok: true, summary: result }));
+        } catch (err) {
+          response.writeHead(500, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Failed to flush' }));
         }
 
         return;
