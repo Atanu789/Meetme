@@ -3,20 +3,27 @@ import React, { useEffect, useState } from 'react'
 
 export default function FileShare({
   meetingId,
+  scopeId,
+  scopeType = 'meeting',
+  title = 'Meeting Files',
   className,
 }: {
-  meetingId: string
+  meetingId?: string
+  scopeId?: string
+  scopeType?: 'meeting' | 'course'
+  title?: string
   className?: string
 }) {
   const [files, setFiles] = useState<Array<{ name: string; path: string }>>([])
   const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const resolvedScopeId = scopeId || meetingId || ''
 
   const fetchFiles = async () => {
-    if (!meetingId) return
+    if (!resolvedScopeId) return
     try {
-      const res = await fetch(`/api/files/list?meetingId=${encodeURIComponent(meetingId)}`)
+      const res = await fetch(`/api/files/list?scopeType=${encodeURIComponent(scopeType)}&scopeId=${encodeURIComponent(resolvedScopeId)}`)
       const data = await res.json()
       setFiles(data.files || [])
 
@@ -41,25 +48,27 @@ export default function FileShare({
 
   useEffect(() => {
     fetchFiles()
-  }, [meetingId])
+  }, [resolvedScopeId, scopeType])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setSelected(e.target.files[0])
   }
 
   const handleUpload = async () => {
-    if (!selected || !meetingId) {
-      console.log('[FileShare] Missing selected or meetingId', { selected, meetingId })
-      alert('No file selected or meeting ID missing')
+    if (!selected || !resolvedScopeId) {
+      console.log('[FileShare] Missing selected or scopeId', { selected, resolvedScopeId })
+      alert('No file selected or resource scope missing')
       return
     }
     setUploading(true)
     const formData = new FormData()
-    formData.append('meetingId', meetingId)
+    formData.append('scopeType', scopeType)
+    formData.append('scopeId', resolvedScopeId)
     formData.append('file', selected)
 
     console.log('[FileShare] Uploading file:', {
-      meetingId,
+      scopeType,
+      scopeId: resolvedScopeId,
       fileName: selected.name,
       fileSize: selected.size,
       fileType: selected.type,
@@ -103,7 +112,7 @@ export default function FileShare({
 
   return (
     <div className={className || 'p-2 border rounded bg-white/80'}>
-      <div className="mb-2 font-medium">Meeting Files</div>
+      <div className="mb-2 font-medium">{title}</div>
       <div className="flex gap-2 items-center mb-3">
         <input type="file" onChange={handleChange} />
         <button onClick={handleUpload} disabled={!selected || uploading} className="px-3 py-1 bg-sky-600 text-white rounded">

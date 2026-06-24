@@ -5,20 +5,15 @@ import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
-type RoleType = 'user' | 'enterprise_admin' | 'admin';
+type RoleType = 'student' | 'instructor' | 'admin';
 
 export default function Page() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<RoleType>('user');
-  
-  // Enterprise fields
-  const [companyName, setCompanyName] = useState('');
-  const [companyDomain, setCompanyDomain] = useState('');
-  
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = searchParams.get('callbackUrl') || '/lms';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,24 +23,17 @@ export default function Page() {
       return;
     }
 
-    if (role === 'enterprise_admin' && !companyName.trim()) {
-      setMessage({ text: 'Please enter your company/organization name.', type: 'error' });
-      return;
-    }
-
     setLoading(true);
     setMessage(null);
 
     try {
-      // Step 1: Pre-register the user & organization metadata
+      // Step 1: Pre-register the user so sign-in only works for known accounts.
       const regResponse = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
           role,
-          companyName: role === 'enterprise_admin' ? companyName.trim() : undefined,
-          companyDomain: role === 'enterprise_admin' && companyDomain.trim() ? companyDomain.trim() : undefined,
         }),
       });
 
@@ -88,10 +76,10 @@ export default function Page() {
         <div className="space-y-4 sm:space-y-5">
           <p className="section-kicker">Get started today</p>
           <h1 className="section-title font-display text-3xl font-semibold text-slate-950 sm:text-5xl">
-            Create your custom workspace.
+            Start fresh with a new Melanam account.
           </h1>
           <p className="max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            Whether hosting personal calls, setting up a corporate SSO portal, or managing a system console, get fully tailored features automatically.
+            Choose Student, Instructor, or Admin. Sign in only works after the account has been created.
           </p>
         </div>
 
@@ -109,47 +97,44 @@ export default function Page() {
               {/* Account Type Selector Cards */}
               <div className="space-y-2.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Select Account Type
+                  Select Role
                 </label>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  
-                  {/* User Account */}
+
                   <div
-                    onClick={() => setRole('user')}
+                    onClick={() => setRole('student')}
                     className={`cursor-pointer rounded-2xl border p-4 transition flex flex-col justify-between ${
-                      role === 'user'
+                      role === 'student'
                         ? 'border-cyan-500 bg-cyan-50/40 shadow-sm ring-1 ring-cyan-500'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div>
-                      <span className="text-xl">👤</span>
-                      <h4 className="mt-2 font-bold text-sm text-slate-900">Personal</h4>
+                      <span className="text-xl">🎓</span>
+                      <h4 className="mt-2 font-bold text-sm text-slate-900">Student</h4>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 leading-4">
-                      Simple private video calls & text chats.
+                      Join courses, attend classes, and submit assignments.
                     </p>
                   </div>
 
-                  {/* Enterprise Account */}
                   <div
-                    onClick={() => setRole('enterprise_admin')}
+                    onClick={() => setRole('instructor')}
                     className={`cursor-pointer rounded-2xl border p-4 transition flex flex-col justify-between ${
-                      role === 'enterprise_admin'
+                      role === 'instructor'
                         ? 'border-emerald-500 bg-emerald-50/40 shadow-sm ring-1 ring-emerald-500'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div>
-                      <span className="text-xl">🏢</span>
-                      <h4 className="mt-2 font-bold text-sm text-slate-900">Enterprise</h4>
+                      <span className="text-xl">👨‍🏫</span>
+                      <h4 className="mt-2 font-bold text-sm text-slate-900">Instructor</h4>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 leading-4">
-                      Central policies, SSO, and member roster.
+                      Create courses, run classes, and grade assignments.
                     </p>
                   </div>
 
-                  {/* System Admin */}
                   <div
                     onClick={() => setRole('admin')}
                     className={`cursor-pointer rounded-2xl border p-4 transition flex flex-col justify-between ${
@@ -160,10 +145,10 @@ export default function Page() {
                   >
                     <div>
                       <span className="text-xl">🛡️</span>
-                      <h4 className="mt-2 font-bold text-sm text-slate-900">Sys Admin</h4>
+                      <h4 className="mt-2 font-bold text-sm text-slate-900">Admin</h4>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 leading-4">
-                      Super console to monitor rooms & users.
+                      Full access to user and course administration.
                     </p>
                   </div>
 
@@ -186,53 +171,12 @@ export default function Page() {
                 />
               </div>
 
-              {/* Conditional Enterprise Fields */}
-              {role === 'enterprise_admin' && (
-                <div className="space-y-4 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/10 p-4 animate-fadeIn">
-                  <h4 className="font-semibold text-emerald-800 text-xs uppercase tracking-wider">
-                    Company Configuration
-                  </h4>
-                  
-                  <div className="space-y-1.5">
-                    <label htmlFor="companyName" className="block text-xs text-slate-600 font-medium">
-                      Company Name *
-                    </label>
-                    <input
-                      id="companyName"
-                      type="text"
-                      required
-                      value={companyName}
-                      onChange={(event) => setCompanyName(event.target.value)}
-                      placeholder="e.g. Acme Corporation"
-                      className="input-modern w-full"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label htmlFor="companyDomain" className="block text-xs text-slate-600 font-medium">
-                      Company Domain (Optional)
-                    </label>
-                    <input
-                      id="companyDomain"
-                      type="text"
-                      value={companyDomain}
-                      onChange={(event) => setCompanyDomain(event.target.value)}
-                      placeholder="e.g. acme.com"
-                      className="input-modern w-full"
-                    />
-                    <span className="text-[10px] text-slate-400 block mt-1">
-                      Enforces auto-joining for new accounts matching this domain.
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
                 className={`button-primary w-full justify-center py-3 text-sm sm:text-base font-semibold flex items-center gap-2 ${
-                  role === 'enterprise_admin'
+                  role === 'instructor'
                     ? 'from-emerald-500 to-teal-500 shadow-emerald-500/20'
                     : role === 'admin'
                     ? 'from-violet-500 to-fuchsia-500 shadow-violet-500/20'

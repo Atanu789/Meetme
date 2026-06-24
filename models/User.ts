@@ -4,7 +4,7 @@ export interface IUser extends Document {
   name?: string;
   email: string;
   firebaseId?: string;
-  role: 'user' | 'admin' | 'enterprise_admin';
+  role: 'student' | 'instructor' | 'admin' | 'user' | 'enterprise_admin';
   organizationId: string | null;
   status: 'active' | 'disabled';
   emailVerified?: Date | null;
@@ -32,8 +32,8 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['user', 'admin', 'enterprise_admin'],
-      default: 'user',
+      enum: ['student', 'instructor', 'admin', 'user', 'enterprise_admin'],
+      default: 'student',
     },
     organizationId: {
       type: String,

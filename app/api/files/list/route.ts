@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '../../../../lib/supabaseServer'
+import { LMS_STORAGE_BUCKET, getLmsStorageRoot } from '../../../../lib/lms-storage'
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const meetingId = url.searchParams.get('meetingId') || ''
-    if (!meetingId) return NextResponse.json({ error: 'missing meetingId' }, { status: 400 })
+    const scopeType = url.searchParams.get('scopeType') === 'course' ? 'course' : 'meeting'
+    const scopeId = url.searchParams.get('scopeId') || url.searchParams.get('meetingId') || ''
+    if (!scopeId) return NextResponse.json({ error: 'missing scopeId' }, { status: 400 })
 
-    const { data, error } = await supabaseServer.storage.from('meeting-files').list(meetingId, { limit: 100 })
+    const folder = getLmsStorageRoot(scopeType, scopeId)
+
+    const { data, error } = await supabaseServer.storage.from(LMS_STORAGE_BUCKET).list(folder, { limit: 100 })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     // list() returns names relative to the folder; attach full storage path for actions.
@@ -15,7 +19,7 @@ export async function GET(req: Request) {
       .filter((f: any) => f && f.name)
       .map((f: any) => ({
         name: f.name,
-        path: `${meetingId}/${f.name}`,
+        path: `${folder}/${f.name}`,
       }))
 
     return NextResponse.json({ files })

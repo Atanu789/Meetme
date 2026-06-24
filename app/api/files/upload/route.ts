@@ -1,32 +1,33 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '../../../../lib/supabaseServer'
+import { LMS_STORAGE_BUCKET, buildLmsStoragePath } from '../../../../lib/lms-storage'
 
 export async function POST(req: Request) {
   try {
     console.log('[API/files/upload] Request received')
 
     const formData = await req.formData()
-    const meetingId = String(formData.get('meetingId') || '')
+    const scopeType = String(formData.get('scopeType') || 'meeting') === 'course' ? 'course' : 'meeting'
+    const scopeId = String(formData.get('scopeId') || formData.get('meetingId') || '')
     const file = formData.get('file') as File | null
 
-    console.log('[API/files/upload] FormData parsed:', { meetingId, hasFile: !!file, fileName: file?.name, fileSize: file?.size })
+    console.log('[API/files/upload] FormData parsed:', { scopeType, scopeId, hasFile: !!file, fileName: file?.name, fileSize: file?.size })
 
-    if (!meetingId) {
-      console.error('[API/files/upload] Missing meetingId')
-      return NextResponse.json({ error: 'missing meetingId' }, { status: 400 })
+    if (!scopeId) {
+      console.error('[API/files/upload] Missing scopeId')
+      return NextResponse.json({ error: 'missing scopeId' }, { status: 400 })
     }
     if (!file) {
       console.error('[API/files/upload] Missing file')
       return NextResponse.json({ error: 'missing file' }, { status: 400 })
     }
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const path = `${meetingId}/${Date.now()}_${safeName}`
+    const path = buildLmsStoragePath(scopeType, scopeId, file.name)
 
     console.log('[API/files/upload] Uploading to Supabase:', { path, contentType: file.type })
 
     const { error } = await supabaseServer.storage
-      .from('meeting-files')
+      .from(LMS_STORAGE_BUCKET)
       .upload(path, file, {
         contentType: file.type || 'application/octet-stream',
         upsert: false,

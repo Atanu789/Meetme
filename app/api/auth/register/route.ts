@@ -3,6 +3,16 @@ import dbConnect from '../../../../lib/db';
 import User from '../../../../models/User';
 import Organization from '../../../../models/Organization';
 
+type SignupRole = 'student' | 'instructor' | 'admin';
+
+function normalizeSignupRole(role: string | undefined | null): SignupRole {
+  const normalized = String(role || '').toLowerCase();
+
+  if (normalized === 'admin') return 'admin';
+  if (normalized === 'instructor' || normalized === 'enterprise_admin') return 'instructor';
+  return 'student';
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -13,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const normalizedRole = (role || 'user').toString();
+  const normalizedRole = normalizeSignupRole(role);
 
     await dbConnect();
 
@@ -23,50 +33,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
     }
 
-    // Enterprise admin flow: require companyName and optionally domain
+    // Keep the legacy organization model available for existing enterprise flows,
+    // but new sign-ups use the fresh LMS role set directly.
     let orgId: string | null = null;
-
-    if (normalizedRole === 'enterprise_admin') {
-      if (!companyName || typeof companyName !== 'string' || !companyName.trim()) {
-        return NextResponse.json({ error: 'Company name is required for enterprise admin' }, { status: 400 });
-      }
-
-      // If domain provided, ensure uniqueness
-      if (companyDomain && typeof companyDomain === 'string') {
-        const domain = companyDomain.trim().toLowerCase();
-        const existingOrg = await Organization.findOne({ domain });
-        if (existingOrg) {
-          return NextResponse.json({ error: 'Company domain is already registered' }, { status: 409 });
-        }
-
-        const org = new Organization({ name: companyName.trim(), domain });
-        await org.save();
-        orgId = org._id.toString();
-      } else {
-        const org = new Organization({ name: companyName.trim() });
-        await org.save();
-        orgId = org._id.toString();
-      }
-    }
-
-    // Normal user joining by domain auto-join
-    if (normalizedRole === 'user') {
-      const parts = normalizedEmail.split('@');
-      if (parts.length === 2) {
-        const domain = parts[1].toLowerCase();
-        // ignore common public providers
-        const publicProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'example.com'];
-        if (!publicProviders.includes(domain)) {
-          const org = await Organization.findOne({ domain });
-          if (org) orgId = org._id.toString();
-        }
-      }
-    }
 
     // Create user record
     const user = new User({
       email: normalizedEmail,
-      role: normalizedRole === 'enterprise_admin' ? 'enterprise_admin' : normalizedRole === 'admin' ? 'admin' : 'user',
+      role: normalizedRole,
       organizationId: orgId,
     });
 

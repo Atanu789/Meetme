@@ -6,6 +6,7 @@ import clientPromise from './mongodb-adapter';
 import dbConnect from './db';
 import User from '../models/User';
 import Organization from '../models/Organization';
+import { normalizeLmsRole } from './lms-role';
 
 const emailFrom = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@localhost';
 
@@ -76,6 +77,10 @@ export const authOptions: NextAuthOptions = {
       await dbConnect();
       
       const dbUser = await User.findOne({ email: user.email.toLowerCase() });
+      if (!dbUser) {
+        return false;
+      }
+
       if (dbUser && dbUser.status === 'disabled') {
         return false; // Block user login if disabled
       }
@@ -95,8 +100,8 @@ export const authOptions: NextAuthOptions = {
           if (dbUser.email === 'admin@example.com' && dbUser.role !== 'admin') {
             dbUser.role = 'admin';
             updated = true;
-          } else if (dbUser.email === 'enterprise@example.com' && dbUser.role !== 'enterprise_admin') {
-            dbUser.role = 'enterprise_admin';
+          } else if (dbUser.email === 'enterprise@example.com' && dbUser.role !== 'instructor') {
+            dbUser.role = 'instructor';
             updated = true;
           } else {
             // Promote first user ever to admin
@@ -126,6 +131,7 @@ export const authOptions: NextAuthOptions = {
           
           token.id = dbUser._id.toString();
           token.role = dbUser.role;
+          token.lmsRole = normalizeLmsRole(dbUser.role);
           token.organizationId = dbUser.organizationId ? dbUser.organizationId.toString() : null;
           token.status = dbUser.status;
         }
@@ -135,7 +141,8 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
-        (session.user as any).role = token.role || 'user';
+        (session.user as any).role = token.role || 'student';
+        (session.user as any).lmsRole = token.lmsRole || normalizeLmsRole(token.role as string | undefined);
         (session.user as any).organizationId = token.organizationId || null;
         (session.user as any).status = token.status || 'active';
       }

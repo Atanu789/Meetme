@@ -10,7 +10,7 @@ export default function Page() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = searchParams.get('callbackUrl') || '/lms';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,7 +30,7 @@ export default function Page() {
     });
 
     if (result?.error) {
-      setMessage('Failed to send login link. Check your SMTP settings or use EMAIL_TRANSPORT=console for local testing.');
+      setMessage('No account was found for this email. Please sign up first, then sign in again.');
     } else {
       setMessage('Magic link sent. Check your email inbox or the server console in development.');
     }
@@ -44,10 +44,10 @@ export default function Page() {
         <div className="space-y-4 sm:space-y-5">
           <p className="section-kicker">Welcome back</p>
           <h1 className="section-title font-display text-3xl font-semibold text-slate-950 sm:text-5xl">
-            Sign in to manage your rooms.
+            Sign in to your Melanam workspace.
           </h1>
           <p className="max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            Use your email to receive a secure magic login link.
+            Only registered student, instructor, and admin accounts can receive a magic login link.
           </p>
         </div>
         <div className="surface-strong rounded-[2rem] p-3 sm:p-6">
@@ -70,7 +70,7 @@ export default function Page() {
             </form>
             {message && <p className="mt-3 text-sm text-slate-600">{message}</p>}
             <p className="mt-4 text-sm text-slate-500">
-              Need an account? Use the same email login flow on the{' '}
+              Need an account? Create one first on the{' '}
               <Link href="/sign-up" className="font-medium text-slate-900 underline">
                 sign up page
               </Link>
