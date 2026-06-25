@@ -15,8 +15,27 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
     // Only users who can view the course should be able to create the meeting here
     // (authorization is enforced by getLmsContext upstream in other routes; keep simple)
 
-    // If session already linked to a Meeting, return it
+    // If session already linked to a Meeting, ensure the Meeting record exists and return it
     if (session.meetingId) {
+      // Check whether a Meeting document exists for this meetingId
+      const existing = await Meeting.findOne({ meetingId: session.meetingId });
+      if (existing) {
+        return json({ success: true, meetingId: session.meetingId });
+      }
+
+      // If the Meeting document is missing (manual sessions), create it using the session's metadata
+      const meeting = new Meeting({
+        meetingId: session.meetingId,
+        hostId: context.userId,
+        hostEmail: context.userEmail,
+        title: session.meetingTitle || `Course session ${session._id}`,
+        description: session.notes || '',
+        isPrivate: false,
+        chatEnabled: true,
+        recordingEnabled: true,
+      });
+
+      await meeting.save();
       return json({ success: true, meetingId: session.meetingId });
     }
 

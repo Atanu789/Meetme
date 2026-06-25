@@ -401,7 +401,7 @@ export function InstructorLmsDashboard() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Notes (optional)</label>
                 <textarea className="min-h-[80px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Add any notes about this class..." value={sessionForm.notes} onChange={(event) => setSessionForm({ ...sessionForm, notes: event.target.value })} />
               </div>
-              <button type="submit" disabled={(dashboard.availableMeetings || []).length === 0} className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed">Schedule Class</button>
+              <button type="submit" className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white">Schedule Class</button>
             </form>
             <div className="mt-4 space-y-2">
               <p className="text-xs font-semibold text-slate-600 mb-2">Scheduled Classes</p>

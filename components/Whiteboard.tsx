@@ -39,7 +39,29 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   const lastSavedSnapshotRef = useRef('');
   const saveInFlightRef = useRef(false);
   const saveQueuedRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
   const excalidrawApiRef = useRef<any>(null);
+
+  const sanitizeAppState = (appState: ExcalidrawInitialDataState['appState']) => {
+    const { collaborators, ...rest } = (appState || {}) as Record<string, unknown>;
+    return rest;
+  };
+
+  const serializeSnapshot = () => JSON.stringify({
+    meetingId,
+    elements: elementsRef.current,
+    appState: sanitizeAppState(appStateRef.current),
+  });
+
+  const schedulePersistScene = () => {
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+
+    saveTimerRef.current = window.setTimeout(() => {
+      void persistScene();
+    }, 500);
+  };
 
   const whiteboardUrl = useMemo(
     () => `/api/whiteboards?meetingId=${encodeURIComponent(meetingId)}`,
@@ -116,11 +138,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       return;
     }
 
-    const snapshot = JSON.stringify({
-      meetingId,
-      elements: elementsRef.current,
-      appState: appStateRef.current,
-    });
+    const snapshot = serializeSnapshot();
 
     if (snapshot === lastSavedSnapshotRef.current) {
       setStatus('Saved');
@@ -182,7 +200,12 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    };
   }, []);
 
   if (!isLoaded) {
@@ -228,6 +251,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
         onChange={(elements, appState) => {
           elementsRef.current = elements;
           appStateRef.current = appState;
+          schedulePersistScene();
         }}
         onApiReady={(api) => {
           excalidrawApiRef.current = api;
@@ -472,6 +496,8 @@ function CollaborativeWhiteboard({
                 appState,
               });
             }
+
+            schedulePersistScene();
           }}
           UIOptions={{
             canvasActions: {
