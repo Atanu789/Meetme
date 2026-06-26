@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconBrain, IconX, IconLoader2 } from '@tabler/icons-react';
 import { motion } from 'motion/react';
+import { resolveMeetingAiHttpUrl } from '@/lib/meeting-ai-client';
 
 interface AIAssistantProps {
   meetingId: string;
@@ -77,10 +78,7 @@ export function AIAssistant({ meetingId, onAIToggle }: AIAssistantProps) {
           // Ask caption backend to flush any pending summarization for this meeting
           try {
             if (typeof window !== 'undefined') {
-              const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
-              const host = window.location.hostname;
-              const port = process.env.NEXT_PUBLIC_MEETING_AI_PORT || '4010';
-              const flushUrl = `${proto}//${host}:${port}/api/rooms/${encodeURIComponent(meetingId)}/flush`;
+              const flushUrl = `${resolveMeetingAiHttpUrl()}/api/rooms/${encodeURIComponent(meetingId)}/flush`;
               await fetch(flushUrl, { method: 'POST' }).catch(() => {});
             }
           } catch (err) {
@@ -139,16 +137,17 @@ export function AIAssistant({ meetingId, onAIToggle }: AIAssistantProps) {
         onClick={() => setIsOpen(!isOpen)}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
           aiEnabled
-            ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            ? 'border-blue-300 bg-blue-100/85 text-blue-700 shadow-[0_10px_24px_rgba(37,99,235,0.16)] dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-300'
+            : 'border-slate-200 bg-slate-100/80 text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-200/80 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600 dark:hover:bg-gray-700'
         }`}
+        aria-label="AI assistant"
         title="AI Assistant"
       >
         <IconBrain size={20} />
         {status === 'recording' && (
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
         )}
       </motion.button>
 

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
+import { Copy, PencilLine, Radio, Upload, Video } from 'lucide-react';
 import UploadMedia from './UploadMedia';
 import AIAssistant from './AIAssistant';
 import Whiteboard from './Whiteboard';
@@ -159,8 +160,8 @@ export function Navbar() {
     },
   ];
 
-  const navActionBoxClass =
-    'group inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
+  const navIconButtonClass =
+    'group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-100/80 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
   const copyInviteHoverClass =
     'hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-950 hover:shadow-[0_14px_30px_rgba(14,165,233,0.2)]';
   const uploadMediaHoverClass =
@@ -250,11 +251,11 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCopyInvite}
-                  className={`${navActionBoxClass} ${copyInviteHoverClass}`}
+                  className={`${navIconButtonClass} ${copyInviteHoverClass}`}
+                  aria-label="Copy invite link"
+                  title="Copy invite link"
                 >
-                  <div className="min-w-0">
-                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">Copy invite</div>
-                  </div>
+                  <Copy className="h-4 w-4" />
                 </button>
                 <AIAssistant meetingId={roomMeetingId} />
                 <button
@@ -266,17 +267,15 @@ export function Navbar() {
                     }
                   }}
                   disabled={recordingLoading}
-                  className={`${navActionBoxClass} ${
+                  className={`${navIconButtonClass} ${
                     isRecording
                       ? 'border-red-200 bg-red-50/85 text-red-950 shadow-[0_10px_24px_rgba(239,68,68,0.12)]'
                       : recordingHoverClass
                   } disabled:opacity-50`}
+                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                  title={isRecording ? 'Stop recording' : 'Start recording'}
                 >
-                  <div className="min-w-0">
-                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">
-                      {isRecording ? '⏹ Recording' : '⏺ Record'}
-                    </div>
-                  </div>
+                  <Radio className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => {
@@ -287,42 +286,40 @@ export function Navbar() {
                     }
                   }}
                   disabled={livestreamLoading}
-                  className={`${navActionBoxClass} ${
+                  className={`${navIconButtonClass} ${
                     isStreaming
                       ? 'border-rose-200 bg-rose-50/85 text-rose-950 shadow-[0_10px_24px_rgba(244,63,94,0.12)]'
                       : livestreamHoverClass
                   } disabled:opacity-50`}
+                  aria-label={isStreaming ? 'Stop livestream' : 'Start livestream'}
+                  title={isStreaming ? 'Stop livestream' : 'Start livestream'}
                 >
-                  <div className="min-w-0">
-                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">
-                      {isStreaming ? '🔴 Live' : '📺 YouTube'}
-                    </div>
-                  </div>
+                  <Video className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setIsWhiteboardOpen((prev) => !prev)}
-                  className={`${navActionBoxClass} ${
+                  className={`${navIconButtonClass} ${
                     isWhiteboardOpen
                       ? 'border-amber-200 bg-amber-50/85 text-amber-950 shadow-[0_10px_24px_rgba(245,158,11,0.12)]'
                       : whiteboardHoverClass
                   }`}
+                  aria-label={isWhiteboardOpen ? 'Close whiteboard' : 'Open whiteboard'}
+                  title={isWhiteboardOpen ? 'Close whiteboard' : 'Open whiteboard'}
                 >
-                  <div className="min-w-0">
-                    <div className="font-medium text-slate-900 transition group-hover:text-slate-950">🖍 Whiteboard</div>
-                  </div>
+                  <PencilLine className="h-4 w-4" />
                 </button>
                 <div ref={filesPopoverRef} className="relative">
                   <button
                     onClick={() => setIsFilesOpen((prev) => !prev)}
-                    className={`${navActionBoxClass} ${
+                    className={`${navIconButtonClass} ${
                       isFilesOpen
                         ? 'border-emerald-200 bg-emerald-50/85 text-emerald-950 shadow-[0_10px_24px_rgba(16,185,129,0.12)]'
                         : uploadMediaHoverClass
                     }`}
+                    aria-label={isFilesOpen ? 'Close upload media' : 'Open upload media'}
+                    title={isFilesOpen ? 'Close upload media' : 'Open upload media'}
                   >
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-900 transition group-hover:text-slate-950">Upload Media</div>
-                    </div>
+                    <Upload className="h-4 w-4" />
                   </button>
                   {isFilesOpen && (
                     <div className="absolute left-0 mt-3 w-[440px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">

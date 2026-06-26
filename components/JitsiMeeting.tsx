@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { resolveMeetingAiHttpUrl } from '@/lib/meeting-ai-client';
 import { useEffect, useRef, useState } from 'react';
 import React from 'react';
 import dynamic from 'next/dynamic';
@@ -103,8 +104,16 @@ export function JitsiMeeting({
   const [error, setError] = useState<string | null>(null);
   const [scriptLoading, setScriptLoading] = useState(true);
   const scriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const joinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onReadyRef = useRef(onReady);
   const onReadyToCloseRef = useRef(onReadyToClose);
+
+  const clearJoinTimeout = () => {
+    if (joinTimeoutRef.current) {
+      clearTimeout(joinTimeoutRef.current);
+      joinTimeoutRef.current = null;
+    }
+  };
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -268,15 +277,24 @@ export function JitsiMeeting({
       console.log('JitsiMeeting: API instance created successfully');
       // Unblock UI as soon as iframe API is mounted.
       setLoading(false);
+      clearJoinTimeout();
+
+      joinTimeoutRef.current = setTimeout(() => {
+        console.warn('JitsiMeeting: join timeout exceeded');
+        setLoading(false);
+        setError('The meeting is taking longer than expected to join. Please refresh and try again.');
+      }, 30000);
 
       jitsiRef.current.addEventListener('videoConferenceJoined', () => {
         console.log('JitsiMeeting: Video conference joined');
         setLoading(false);
+        clearJoinTimeout();
         onReadyRef.current?.();
       });
 
       jitsiRef.current.addEventListener('readyToClose', () => {
         console.log('Meeting ended');
+        clearJoinTimeout();
         onReadyToCloseRef.current?.();
       });
 
@@ -288,10 +306,7 @@ export function JitsiMeeting({
 
           // Post participant mapping to meeting-ai service
           try {
-            const configured = (process.env.NEXT_PUBLIC_MEETING_AI_WS_URL || '').trim();
-            let base = configured.replace(/\/$/, '');
-            if (base.endsWith('/ws')) base = base.slice(0, -3);
-            base = base.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:');
+            const base = resolveMeetingAiHttpUrl();
 
             if (base) {
               fetch(`${base}/api/rooms/${encodeURIComponent(roomName)}/participants`, {
@@ -313,10 +328,7 @@ export function JitsiMeeting({
           const id = participant.getId ? participant.getId() : participant.id || participant.participantId || participant.jid;
           console.log('Participant left:', id);
           try {
-            const configured = (process.env.NEXT_PUBLIC_MEETING_AI_WS_URL || '').trim();
-            let base = configured.replace(/\/$/, '');
-            if (base.endsWith('/ws')) base = base.slice(0, -3);
-            base = base.replace(/^ws:/i, 'http:').replace(/^wss:/i, 'https:');
+            const base = resolveMeetingAiHttpUrl();
 
             if (base) {
               fetch(`${base}/api/rooms/${encodeURIComponent(roomName)}/participants`, {
@@ -345,6 +357,7 @@ export function JitsiMeeting({
     }
 
     return () => {
+      clearJoinTimeout();
       if (jitsiRef.current) {
         try {
           jitsiRef.current.dispose();

@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { resolveMeetingAiSocketUrl } from '@/lib/meeting-ai-client';
 
 /**
  * Caption data model matching Google Meet / Zoom
@@ -19,7 +20,8 @@ type Caption = {
 };
 
 type CaptionMessage = {
-  type?: 'caption' | 'connected' | 'cleared';
+  type?: 'caption' | 'connected' | 'cleared' | 'summary';
+  summary?: string | { summary?: string };
   text?: string;
   speaker?: string;
   speakerId?: string;
@@ -30,36 +32,6 @@ type CaptionMessage = {
 interface CaptionOverlayProps {
   meetingId: string;
   className?: string;
-}
-
-/**
- * Resolve WebSocket URL for caption service
- */
-function resolveCaptionSocketUrl(meetingId: string): string {
-  const configuredUrl = process.env.NEXT_PUBLIC_MEETING_AI_WS_URL?.trim();
-
-  if (configuredUrl) {
-    try {
-      const normalized = configuredUrl.replace(/\/$/, '');
-      const baseUrl = normalized.endsWith('/ws') ? normalized : `${normalized}/ws`;
-
-      if (baseUrl.startsWith('ws://') || baseUrl.startsWith('wss://')) {
-        return `${baseUrl}/${encodeURIComponent(meetingId)}`;
-      }
-
-      return `${baseUrl.replace(/^http/i, 'ws')}/${encodeURIComponent(meetingId)}`;
-    } catch {
-      // Fall through to default
-    }
-  }
-
-  if (typeof window === 'undefined') return '';
-
-  const isSecure = window.location.protocol === 'https:';
-  const wsProtocol = isSecure ? 'wss:' : 'ws:';
-  const hostname = window.location.hostname;
-  
-  return `${wsProtocol}//${hostname}:4010/ws/${encodeURIComponent(meetingId)}`;
 }
 
 /**
@@ -195,9 +167,9 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
   const [meetingSummary, setMeetingSummary] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const captionsEnabled = true;
-  const [lastSpeakerId, setLastSpeakerId] = useState<string | null>(null);
+  const lastSpeakerIdRef = useRef<string | null>(null);
 
-  const socketUrl = useMemo(() => resolveCaptionSocketUrl(meetingId), [meetingId]);
+  const socketUrl = useMemo(() => resolveMeetingAiSocketUrl(meetingId), [meetingId]);
   const [retryTick, setRetryTick] = useState(0);
   const attemptRef = useRef(0);
   const portalElRef = useRef<HTMLElement | null>(null);
@@ -262,6 +234,7 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
 
         if (payload.type === 'cleared') {
           console.log('[captions] 🗑️  Captions cleared');
+          lastSpeakerIdRef.current = null;
           captionDispatchRef.current?.dispatch({ type: 'CLEAR' });
           return;
         }
@@ -289,14 +262,14 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
         lastProcessedIdRef.current = eventId;
 
         // If different speaker is now speaking, finalize previous
-        if (lastSpeakerId !== null && lastSpeakerId !== speakerId) {
+        if (lastSpeakerIdRef.current !== null && lastSpeakerIdRef.current !== speakerId) {
           captionDispatchRef.current?.dispatch({
             type: 'FINALIZE_SPEAKER',
             payload: { speakerId }
           });
         }
 
-        setLastSpeakerId(speakerId);
+        lastSpeakerIdRef.current = speakerId;
 
         // Update caption
         const label = payload.final ? '✅ FINAL' : '🔹 PARTIAL';

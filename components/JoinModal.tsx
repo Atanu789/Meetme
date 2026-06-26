@@ -46,26 +46,37 @@ export function JoinModal({ isOpen, onClose }: JoinModalProps) {
       return;
     }
 
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 10000);
+
     try {
       // Verify meeting exists
       const response = await fetch(
-        `/api/get-meeting?id=${encodeURIComponent(normalizedMeetingId)}`
+        `/api/get-meeting?id=${encodeURIComponent(normalizedMeetingId)}`,
+        {
+          signal: controller.signal,
+        }
       );
+      window.clearTimeout(requestTimeout);
       
       if (!response.ok) {
         setError('Meeting not found');
-        setIsJoining(false);
         return;
       }
 
-      setIsJoining(false);
       router.push(`/room/${encodeURIComponent(normalizedMeetingId)}`);
       setMeetingId('');
       onClose();
     } catch (err) {
-      setError('Failed to join meeting');
-      setIsJoining(false);
+      if ((err as any)?.name === 'AbortError') {
+        setError('Join request timed out. Please try again.');
+      } else {
+        setError('Failed to join meeting');
+      }
       console.error(err);
+    } finally {
+      window.clearTimeout(requestTimeout);
+      setIsJoining(false);
     }
   };
 

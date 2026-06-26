@@ -33,11 +33,9 @@ export default function RoomPage() {
   const [meetingError, setMeetingError] = useState('');
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [jwt, setJwt] = useState<string | null>(null);
-  const [hasJoinedConference, setHasJoinedConference] = useState(false);
   const [showAiResults, setShowAiResults] = useState(false);
   const [aiResults, setAiResults] = useState<any | null>(null);
   const apiRef = useRef<any>(null);
-  const joinedLoggedRef = useRef(false);
 
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
@@ -127,9 +125,10 @@ export default function RoomPage() {
     verifyMeeting();
   }, [fallbackRoute, nameReady, meetingId, router, userDisplayName]);
 
-  // Trigger bot only after the user joins, so host keeps moderator controls.
+  // Start the bot once the room is verified so caption capture does not depend on the
+  // Jitsi join event firing at the right time.
   useEffect(() => {
-    if (!meeting || !nameReady || !hasJoinedConference) {
+    if (!meeting || !nameReady) {
       return;
     }
 
@@ -168,7 +167,7 @@ export default function RoomPage() {
     };
 
     triggerBot();
-  }, [hasJoinedConference, jwt, jitsiRoomName, meeting, nameReady, meetingId]);
+  }, [jwt, jitsiRoomName, meeting, nameReady, meetingId]);
 
   // Open AI results panel when caption overlay dispatches event
   useEffect(() => {
@@ -201,15 +200,8 @@ export default function RoomPage() {
     apiRef.current = api;
 
     api.addEventListener('videoConferenceJoined', () => {
-      if (!joinedLoggedRef.current) {
-        joinedLoggedRef.current = true;
-        setHasJoinedConference(true);
-      }
+      console.log('[meeting] video conference joined');
     });
-  };
-
-  const handleMeetingClose = async () => {
-    router.push(fallbackRoute);
   };
 
   if (status === 'loading' || !nameReady) {
@@ -264,8 +256,10 @@ export default function RoomPage() {
               userEmail={userEmail}
               jwt={jwt || undefined}
               height="100%"
+              prejoinPageEnabled={false}
+              startWithAudioMuted
+              startWithVideoMuted
               onApiReady={handleApiReady}
-              onReadyToClose={handleMeetingClose}
               toolbarButtons={roomToolbarButtons}
             />
           </div>
