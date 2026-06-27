@@ -208,18 +208,6 @@ function supportsWindowsWasapi(ffmpegBin) {
   }
 }
 
-function buildAssemblyAiWsUrl() {
-  const url = new URL(ASSEMBLYAI_WS_URL);
-  url.searchParams.set('speech_model', ASSEMBLYAI_SPEECH_MODEL);
-  url.searchParams.set('sample_rate', String(Number(process.env.ASSEMBLYAI_SAMPLE_RATE || 16000)));
-
-  if (ASSEMBLYAI_TRANSCRIBE_LANGUAGE) {
-    url.searchParams.set('language_code', ASSEMBLYAI_TRANSCRIBE_LANGUAGE);
-  }
-
-  return url.toString();
-}
-
 function normalizeTranscriptText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
@@ -232,6 +220,7 @@ function getRealtimeSpeakerLabel(message) {
 }
 
 async function publishCaption(meetingId, payload) {
+  console.log('[PUBLISH CAPTION]', payload);
   const response = await fetch(`${CAPTION_BACKEND_URL}/api/rooms/${encodeURIComponent(meetingId)}/captions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -252,6 +241,7 @@ function createAssemblyAiTranscriptHandler(meetingId) {
 
     try {
       message = JSON.parse(rawMessage.toString());
+      console.log('[AAI PARSED]', JSON.stringify(message, null, 2));
     } catch {
       return;
     }
@@ -263,6 +253,14 @@ function createAssemblyAiTranscriptHandler(meetingId) {
 
     const messageType = String(message?.type || message?.message_type || '').trim();
     const normalizedType = messageType.toLowerCase();
+
+    const isFinal = Boolean(
+      message?.final ||
+      message?.is_final ||
+      normalizedType === 'turn' && Boolean(message?.end_of_turn) ||
+      normalizedType === 'finaltranscript' ||
+      normalizedType === 'final'
+    );
 
     if (normalizedType === 'begin') {
       console.log('[aai] session began:', message?.id || message?.session_id || 'unknown');
@@ -279,17 +277,19 @@ function createAssemblyAiTranscriptHandler(meetingId) {
     }
 
     const text = normalizeTranscriptText(message?.transcript || message?.text || message?.utterance || '');
+    console.log('[AAI TEXT]', {
+      transcript: message?.transcript,
+      text: message?.text,
+      utterance: message?.utterance,
+      normalized: text,
+      final: isFinal,
+      type: message.type || message.message_type,
+    });
+
     if (!text) {
       return;
     }
 
-    const isFinal = Boolean(
-      message?.final ||
-      message?.is_final ||
-      normalizedType === 'turn' && Boolean(message?.end_of_turn) ||
-      normalizedType === 'finaltranscript' ||
-      normalizedType === 'final'
-    );
     const isPartial = !isFinal;
     const { speakerId, speakerName } = getRealtimeSpeakerLabel(message);
     const lastText = lastBySpeaker.get(speakerId);
@@ -1053,7 +1053,11 @@ function recordAudioWithWindowsDshow(ffmpegBin, filePath, recordDurationSeconds,
 
 function connectAssemblyAiRealtime(meetingId) {
   return new Promise((resolve, reject) => {
-    const aaiWebSocket = new WebSocketModule(buildAssemblyAiWsUrl(), {
+    const aaiUrl = buildAssemblyAiWsUrl();
+    console.log('[aai] connecting to AssemblyAI realtime:', aaiUrl);
+    console.log('[aai] Authorization header present?:', ASSEMBLYAI_API_KEY ? `yes (${String(ASSEMBLYAI_API_KEY).length} chars)` : 'no');
+
+    const aaiWebSocket = new WebSocketModule(aaiUrl, {
       headers: {
         Authorization: ASSEMBLYAI_API_KEY,
       },
@@ -1066,11 +1070,15 @@ function connectAssemblyAiRealtime(meetingId) {
     });
 
     aaiWebSocket.on('message', async (raw) => {
-      try {
-        await handleTranscript(raw);
-      } catch (error) {
-        console.error('[aai] transcript handling error:', error.message);
-      }
+        try {
+          console.log('\n================ AAI RAW ================');
+          try { console.log(raw.toString()); } catch { console.log(String(raw)); }
+          console.log('=========================================\n');
+
+          await handleTranscript(raw);
+        } catch (error) {
+          console.error('[aai] transcript handling error:', error.message);
+        }
     });
 
     aaiWebSocket.on('error', (error) => {
@@ -1369,6 +1377,9 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       console.log(`[jitsi-audio] audio context state=${audioContext.state}`);
     };
     const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.2;
     const zeroGain = audioContext.createGain();
     zeroGain.gain.value = 0;
     const sourceNodes = new Map();
@@ -1379,6 +1390,160 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     let currentAttempt = null;
     let processedChunkCount = 0;
     let lastMeterLogAt = 0;
+    let lastGraphStateLogAt = 0;
+    let lastAnalyserLogAt = 0;
+    let lastProcessorTickAt = 0;
+    let processorTickCount = 0;
+
+    const logGraphState = (label, audioElement, mediaStream, mediaTrack) => {
+      const now = Date.now();
+      if (now - lastGraphStateLogAt < 1000) {
+        return;
+      }
+
+      lastGraphStateLogAt = now;
+
+      let streamTracks = [];
+      try {
+        streamTracks = mediaStream && typeof mediaStream.getTracks === 'function'
+          ? mediaStream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id }))
+          : [];
+      } catch {
+        streamTracks = [];
+      }
+
+      console.log(`[jitsi-audio] ${label} graph state`, {
+        audio: audioElement ? {
+          currentTime: audioElement.currentTime,
+          readyState: audioElement.readyState,
+          paused: audioElement.paused,
+          ended: audioElement.ended,
+          muted: audioElement.muted,
+          volume: audioElement.volume,
+          networkState: audioElement.networkState,
+          playbackRate: audioElement.playbackRate,
+        } : null,
+        audioContext: {
+          state: audioContext.state,
+          currentTime: audioContext.currentTime,
+        },
+        mediaStream: {
+          active: mediaStream ? mediaStream.active : null,
+          tracks: streamTracks,
+        },
+        mediaTrack: mediaTrack ? {
+          muted: mediaTrack.muted,
+          readyState: mediaTrack.readyState,
+          enabled: mediaTrack.enabled,
+          kind: mediaTrack.kind,
+          id: mediaTrack.id,
+        } : null,
+        processor: {
+          bufferSize: processor.bufferSize,
+          connected: true,
+        },
+      });
+    };
+
+    const logAnalyserLevel = (label) => {
+      const now = Date.now();
+      if (now - lastAnalyserLogAt < 1000) {
+        return;
+      }
+
+      lastAnalyserLogAt = now;
+
+      try {
+        const samples = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(samples);
+
+        let sum = 0;
+        let peak = 0;
+        for (let i = 0; i < samples.length; i += 1) {
+          const value = Math.abs(samples[i]);
+          sum += value * value;
+          if (value > peak) {
+            peak = value;
+          }
+        }
+
+        const rms = Math.sqrt(sum / (samples.length || 1));
+        console.log(`[jitsi-audio] analyser meter ${label} rms=${rms.toFixed(6)} peak=${peak.toFixed(6)} sample0=${samples[0].toFixed(6)}`);
+      } catch (error) {
+        console.warn('[jitsi-audio] analyser read failed', error && (error.message || error));
+      }
+    };
+
+    const logReceiverDiagnostics = async (label, receiver, mediaTrack, mediaStream, audioElement) => {
+      try {
+        const receiverTrack = receiver && receiver.track ? receiver.track : null;
+        const receiverTrackId = receiverTrack ? receiverTrack.id : 'none';
+        const attachedTrackId = mediaTrack ? mediaTrack.id : 'none';
+        const streamTrackIds = mediaStream && typeof mediaStream.getTracks === 'function'
+          ? mediaStream.getTracks().map((track) => track.id)
+          : [];
+
+        console.log(`[jitsi-audio] receiver ${label}`, {
+          receiverTrackKind: receiverTrack ? receiverTrack.kind : null,
+          receiverTrackReadyState: receiverTrack ? receiverTrack.readyState : null,
+          receiverTrackMuted: receiverTrack ? receiverTrack.muted : null,
+          receiverTrackEnabled: receiverTrack ? receiverTrack.enabled : null,
+          receiverTrackId,
+          attachedTrackId,
+          sameTrackObject: Boolean(receiverTrack && mediaTrack && receiverTrack === mediaTrack),
+          sameTrackId: Boolean(receiverTrack && mediaTrack && receiverTrack.id === mediaTrack.id),
+          sameStreamTrackId: Boolean(mediaTrack && streamTrackIds.includes(mediaTrack.id)),
+          streamTrackIds,
+          audioElementTrackCount: audioElement && audioElement.srcObject && typeof audioElement.srcObject.getAudioTracks === 'function'
+            ? audioElement.srcObject.getAudioTracks().length
+            : null,
+        });
+
+        if (typeof receiver.getSynchronizationSources === 'function') {
+          try {
+            console.log(`[jitsi-audio] receiver ${label} synchronizationSources`, receiver.getSynchronizationSources());
+          } catch (syncError) {
+            console.warn('[jitsi-audio] getSynchronizationSources failed', syncError && (syncError.message || syncError));
+          }
+        } else {
+          console.log(`[jitsi-audio] receiver ${label} synchronizationSources`, 'not supported');
+        }
+
+        if (typeof receiver.getStats === 'function') {
+          try {
+            const stats = await receiver.getStats();
+            stats.forEach((report) => {
+              if (report.type !== 'inbound-rtp') {
+                return;
+              }
+
+              console.log(`[jitsi-audio] receiver ${label} stats`, {
+                id: report.id,
+                kind: report.kind,
+                mediaType: report.mediaType,
+                bytesReceived: report.bytesReceived,
+                packetsReceived: report.packetsReceived,
+                packetsLost: report.packetsLost,
+                jitter: report.jitter,
+                totalAudioEnergy: report.totalAudioEnergy,
+                totalSamplesDuration: report.totalSamplesDuration,
+                concealedSamples: report.concealedSamples,
+                concealedSamplesDuration: report.concealedSamplesDuration,
+                insertedSamplesForDeceleration: report.insertedSamplesForDeceleration,
+                removedSamplesForAcceleration: report.removedSamplesForAcceleration,
+                audioLevel: report.audioLevel,
+                totalPlayoutDelay: report.totalPlayoutDelay,
+                totalSamplesReceived: report.totalSamplesReceived,
+              });
+            });
+          } catch (statsError) {
+            console.warn('[jitsi-audio] receiver.getStats failed', statsError && (statsError.message || statsError));
+          }
+        }
+      } catch (error) {
+        console.warn('[jitsi-audio] receiver diagnostics failed', error && (error.message || error));
+      }
+    };
 
     const downsampleBuffer = (buffer, inputSampleRate, outputSampleRate) => {
       if (outputSampleRate === inputSampleRate) {
@@ -1448,7 +1613,27 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     };
 
     processor.onaudioprocess = (event) => {
+      processorTickCount += 1;
+      lastProcessorTickAt = Date.now();
+      console.log('[ONAUDIOPROCESS]', performance.now(), event.inputBuffer.numberOfChannels, event.inputBuffer.length);
       const input = event.inputBuffer.getChannelData(0).slice();
+      const pcm = event.inputBuffer.getChannelData(0);
+      let max = 0;
+      for (let i = 0; i < pcm.length; i++) {
+        const v = Math.abs(pcm[i]);
+        if (v > max) max = v;
+      }
+      console.log('[PCM MAX]', max);
+      if (processedChunkCount % 25 === 0) {
+    console.log("[PCM DEBUG]", {
+        first10: Array.from(input.slice(0, 10)),
+        min: Math.min(...input),
+        max: Math.max(...input),
+        nonZero: input.some(v => Math.abs(v) > 0.00001),
+        sampleRate: audioContext.sampleRate,
+        length: input.length
+    });
+}
       processedChunkCount += 1;
 
       if (processedChunkCount % 25 === 0) {
@@ -1474,9 +1659,43 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       });
     };
 
+    sourceNodes.set('__graph__', {
+      sourceNode: null,
+      audioElement: null,
+      track: null,
+      mediaStream: null,
+      participantId: 'graph',
+    });
     processor.connect(zeroGain);
     zeroGain.connect(audioContext.destination);
     await ensureAudioContextRunning();
+
+    window.setInterval(() => {
+      try {
+        if (audioElements.size === 0) {
+          return;
+        }
+
+        for (const entry of sourceNodes.values()) {
+          const audioElement = entry.audioElement;
+          const mediaStream = entry.mediaStream;
+          const mediaTrack = entry.track && typeof entry.track.getTrack === 'function' ? entry.track.getTrack() : null;
+          logGraphState('watchdog', audioElement, mediaStream, mediaTrack);
+          logAnalyserLevel('watchdog');
+        }
+
+        const now = Date.now();
+        if (lastProcessorTickAt && now - lastProcessorTickAt > 5000) {
+          console.warn('[jitsi-audio] processor watchdog: onaudioprocess has not fired recently', {
+            processorTickCount,
+            lastProcessorTickAt,
+            audioContextState: audioContext.state,
+          });
+        }
+      } catch (error) {
+        console.warn('[jitsi-audio] watchdog error', error && (error.message || error));
+      }
+    }, 1000);
 
     const trackMuteHandlers = new Map();
     const trackAudioLevelHandlers = new Map();
@@ -1513,7 +1732,9 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       audioElement.autoplay = true;
       audioElement.playsInline = true;
       audioElement.controls = false;
-      audioElement.muted = true;
+      // Keep the audio element unmuted so the AudioContext can receive its audio stream.
+      // We route audio through a zero-gain node so nothing is audible.
+      audioElement.muted = false;
       document.body.appendChild(audioElement);
 
       try {
@@ -1530,16 +1751,101 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       const mediaStream = (typeof track.getOriginalStream === 'function' && track.getOriginalStream())
         || audioElement.srcObject
         || new MediaStream([mediaTrack]);
+
+      try {
+        const track = (mediaStream && typeof mediaStream.getAudioTracks === 'function') ? mediaStream.getAudioTracks()[0] : null;
+        console.log('[TRACK SETTINGS]', track && track.getSettings ? track.getSettings() : null);
+        console.log('[TRACK CONSTRAINTS]', track && track.getConstraints ? track.getConstraints() : null);
+        console.log('[TRACK READY]', track ? track.readyState : null);
+        console.log('[TRACK ENABLED]', track ? track.enabled : null);
+        console.log('[TRACK MUTED]', track ? track.muted : null);
+
+        try {
+          const pc = conference && conference.room && conference.room.rtc && conference.room.rtc.peerConnections
+            ? conference.room.rtc.peerConnections.get('JVB')?.peerconnection
+            : null;
+
+          if (pc) {
+            const receivers = pc.getReceivers();
+            console.log('[jitsi-audio] pc receiver count', receivers.length);
+
+            receivers.forEach((receiver, index) => {
+              if (!receiver || !receiver.track || receiver.track.kind !== 'audio') {
+                return;
+              }
+
+              const receiverTrack = receiver.track;
+              void logReceiverDiagnostics(`receiver#${index}`, receiver, mediaTrack, mediaStream, audioElement);
+            });
+          }
+        } catch (errPc) {
+          console.warn('[TRACK DIAG] pc diagnostics failed', errPc && errPc.message);
+        }
+      } catch (err) {
+        console.warn('[TRACK DIAG] failed to log track diagnostics', err && err.message);
+      }
+
+      try {
+        const trackInfo = (mediaStream && typeof mediaStream.getTracks === 'function')
+          ? mediaStream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id }))
+          : [];
+        console.log('[jitsi-audio] STREAM TRACKS', { trackKey, trackInfo });
+        console.log('[jitsi-audio] audio element stream identity', {
+          hasSrcObject: Boolean(audioElement.srcObject),
+          srcObjectActive: audioElement.srcObject ? audioElement.srcObject.active : null,
+          srcObjectAudioTrackIds: audioElement.srcObject && typeof audioElement.srcObject.getAudioTracks === 'function'
+            ? audioElement.srcObject.getAudioTracks().map((track) => track.id)
+            : [],
+          mediaTrackId: mediaTrack ? mediaTrack.id : null,
+          mediaTrackKind: mediaTrack ? mediaTrack.kind : null,
+          streamContainsMediaTrack: Boolean(mediaTrack && trackInfo.some((track) => track.id === mediaTrack.id)),
+        });
+      } catch (err) {
+        console.warn('[jitsi-audio] failed to log stream tracks', err && err.message);
+      }
       let sourceNode;
 
       try {
-        sourceNode = audioContext.createMediaStreamSource(mediaStream);
+        // Start playback on the audio element first to ensure the element's pipeline
+        // is active. Some browsers (and headless runs) will not decode/produce
+        // audio frames until playback is initiated. We attempt play() and continue
+        // regardless of the result — we then prefer MediaElementSource (which
+        // reflects element output) and fall back to MediaStreamSource.
+        Promise.resolve(audioElement.play()).then(() => {
+          console.log('[jitsi-audio] audioElement.play() started for', trackKey);
+        }).catch((playErr) => {
+          console.warn('[jitsi-audio] audioElement.play() failed for', trackKey, playErr && (playErr.message || playErr));
+        });
+
+        // Prefer MediaElementSource (tied to the element playback) which is more
+        // likely to produce decoded audio frames in practice. If that fails,
+        // fall back to MediaStreamSource.
+        try {
+          sourceNode = audioContext.createMediaElementSource(audioElement);
+          console.log('[jitsi-audio] createMediaElementSource -> sourceNode type=', sourceNode && sourceNode.constructor ? sourceNode.constructor.name : typeof sourceNode);
+        } catch (elemErr) {
+          console.warn('[jitsi-audio] createMediaElementSource failed, falling back to createMediaStreamSource', elemErr && (elemErr.message || elemErr));
+          try {
+            console.log('[jitsi-audio] creating MediaStreamSource for track', trackKey);
+            console.log('[jitsi-audio] createMediaStreamSource ARG', (mediaStream && typeof mediaStream.getTracks === 'function') ? mediaStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id })) : mediaStream);
+            sourceNode = audioContext.createMediaStreamSource(mediaStream);
+            console.log('[jitsi-audio] createMediaStreamSource -> sourceNode type=', sourceNode && sourceNode.constructor ? sourceNode.constructor.name : typeof sourceNode, 'processor.bufferSize=', processor && processor.bufferSize);
+          } catch (streamErr) {
+            console.error('[jitsi-audio] createMediaStreamSource also failed', streamErr && streamErr.message);
+            return;
+          }
+        }
       } catch (error) {
-        console.warn('[jitsi-audio] media stream source failed, falling back to media element source', error);
-        sourceNode = audioContext.createMediaElementSource(audioElement);
+        console.error('[jitsi-audio] unexpected error creating source node', error && (error.message || error));
+        return;
       }
 
       sourceNode.connect(processor);
+      try {
+        sourceNode.connect(analyser);
+      } catch (error) {
+        console.warn('[jitsi-audio] failed to connect analyser tap', error && (error.message || error));
+      }
       sourceNodes.set(trackKey, {
         sourceNode,
         audioElement,
@@ -1549,6 +1855,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       });
       audioElements.set(trackKey, audioElement);
       ensureAudioContextRunning().catch(() => {});
+      logGraphState('attach', audioElement, mediaStream, mediaTrack);
 
       try {
         if (typeof track.addEventListener === 'function') {
@@ -1973,6 +2280,23 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
 
     const context = await browser.newContext();
     page = await context.newPage();
+
+    // Forward any browser page console messages to the Node process for runtime diagnostics
+    page.on('console', (msg) => {
+      try {
+        console.log(`[PAGE ${msg.type()}] ${msg.text()}`);
+      } catch {
+        // ignore console forwarding failures
+      }
+    });
+
+    page.on('pageerror', (err) => {
+      try {
+        console.error('[PAGE ERROR]', err && err.message ? err.message : String(err));
+      } catch {
+        // ignore
+      }
+    });
 
     const useJitsiCapture = shouldUseJitsiAudioCapture(config.meetingUrl, config.platform);
 

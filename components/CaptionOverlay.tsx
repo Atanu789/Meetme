@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { resolveMeetingAiSocketUrl } from '@/lib/meeting-ai-client';
+import { resolveMeetingAiHttpUrl, resolveMeetingAiSocketUrl, resolveMeetingAiSocketUrls } from '@/lib/meeting-ai-client';
 
 /**
  * Caption data model matching Google Meet / Zoom
@@ -21,12 +21,19 @@ type Caption = {
 
 type CaptionMessage = {
   type?: 'caption' | 'connected' | 'cleared' | 'summary';
-  summary?: string | { summary?: string };
+  summary?: string | { summary?: string; actions?: Array<{ description?: string; assignee?: string }> };
+  actions?: Array<{ description?: string; assignee?: string }>;
   text?: string;
   speaker?: string;
   speakerId?: string;
   final?: boolean;
   timestamp?: number;
+};
+
+type SummaryCard = {
+  text: string;
+  actions: Array<{ description: string; assignee?: string }>;
+  timestamp: number;
 };
 
 interface CaptionOverlayProps {
@@ -164,159 +171,289 @@ function captionReducer(state: Caption[], action: any): Caption[] {
 export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
-  const [meetingSummary, setMeetingSummary] = useState<string | null>(null);
-  const [showSummary, setShowSummary] = useState(false);
+  // opt-in debug mode via URL param ?capdebug=1
+  const debugMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('capdebug') === '1';
   const captionsEnabled = true;
   const lastSpeakerIdRef = useRef<string | null>(null);
 
   const socketUrl = useMemo(() => resolveMeetingAiSocketUrl(meetingId), [meetingId]);
+  const socketUrlCandidates = useMemo(() => resolveMeetingAiSocketUrls(meetingId), [meetingId]);
   const [retryTick, setRetryTick] = useState(0);
   const attemptRef = useRef(0);
   const portalElRef = useRef<HTMLElement | null>(null);
   const captionDispatchRef = useRef<{ dispatch: (action: any) => void } | null>(null);
   const lastProcessedIdRef = useRef<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const successfulSocketUrlRef = useRef<string | null>(null);
+  const lastHistoryTimestampRef = useRef(0);
+  const historyPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Initialize caption dispatcher
   useEffect(() => {
     const dispatcher = {
       dispatch(action: any) {
         setCaptions(prev => captionReducer(prev, action));
-      }
+      },
     };
     captionDispatchRef.current = dispatcher;
   }, []);
 
+  const processIncomingCaptionMessage = (payload: CaptionMessage) => {
+    // Handle summary broadcasts from the server
+    if (payload.type === 'summary') {
+      try {
+        const summaryObj = payload.summary && typeof payload.summary === 'object' ? payload.summary : null;
+        const summaryText = typeof payload.summary === 'string'
+          ? payload.summary
+          : summaryObj?.summary || '';
+        const rawActions = Array.isArray(payload.actions)
+          ? payload.actions
+          : Array.isArray(summaryObj?.actions)
+            ? summaryObj.actions
+            : [];
+        const actions = rawActions
+          .map((item) => ({
+            description: String(item?.description || '').trim(),
+            assignee: item?.assignee ? String(item.assignee).trim() : undefined,
+          }))
+          .filter((item) => item.description.length > 0)
+          .slice(0, 4);
+
+        const normalizedText = String(summaryText || '').trim();
+        if (normalizedText && typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('open-ai-summary', {
+              detail: {
+                meetingId,
+                summary: {
+                  text: normalizedText,
+                  actions,
+                  timestamp: Date.now(),
+                },
+                autoOpen: false,
+              },
+            })
+          );
+        }
+      } catch (err) {
+        console.error('[captions] Error processing summary payload', err);
+      }
+      return;
+    }
+
+    if (payload.type === 'connected') {
+      console.log('[captions] ✅ Server confirmed connection for:', meetingId);
+      return;
+    }
+
+    if (payload.type === 'cleared') {
+      console.log('[captions] 🗑️  Captions cleared');
+      lastSpeakerIdRef.current = null;
+      lastProcessedIdRef.current = null;
+      lastHistoryTimestampRef.current = 0;
+      captionDispatchRef.current?.dispatch({ type: 'CLEAR' });
+      return;
+    }
+
+    if (payload.type !== 'caption') {
+      console.log('[captions] 🔹 Received message type:', payload.type);
+      return;
+    }
+
+    if (!payload.text || !payload.speaker) {
+      console.warn('[captions] ⚠️  Invalid caption (missing text or speaker):', payload);
+      return;
+    }
+
+    const speakerId = payload.speakerId || payload.speaker;
+    const captionTimestamp = typeof payload.timestamp === 'number' ? payload.timestamp : Date.now();
+    const eventId = `${speakerId}-${captionTimestamp}-${payload.text}`;
+
+    if (lastProcessedIdRef.current === eventId) {
+      console.log('[captions] ℹ️  Ignoring duplicate caption');
+      return;
+    }
+
+    lastProcessedIdRef.current = eventId;
+    lastHistoryTimestampRef.current = Math.max(lastHistoryTimestampRef.current, captionTimestamp);
+
+    if (lastSpeakerIdRef.current !== null && lastSpeakerIdRef.current !== speakerId) {
+      captionDispatchRef.current?.dispatch({
+        type: 'FINALIZE_SPEAKER',
+        payload: { speakerId },
+      });
+    }
+
+    lastSpeakerIdRef.current = speakerId;
+
+    const label = payload.final ? '✅ FINAL' : '🔹 PARTIAL';
+    console.log(`[captions] ${label} caption: "${String(payload.text).slice(0, 60)}" from ${payload.speaker}`);
+
+    captionDispatchRef.current?.dispatch({
+      type: 'RECEIVE_CAPTION',
+      payload: {
+        speakerId,
+        speakerName: payload.speaker || 'Unknown participant',
+        text: payload.text,
+        isFinal: payload.final || false,
+        timestamp: captionTimestamp,
+      },
+    });
+  };
+
   // WebSocket connection
   useEffect(() => {
-    if (!socketUrl || !captionsEnabled) {
+    if (!captionsEnabled) {
+      return;
+    }
+
+    let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let candidateIndex = 0;
+
+    const candidates = successfulSocketUrlRef.current
+      ? [successfulSocketUrlRef.current, ...socketUrlCandidates.filter((url) => url !== successfulSocketUrlRef.current)]
+      : socketUrlCandidates;
+
+    const clearRetryTimer = () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (disposed) {
+        return;
+      }
+
+      candidateIndex += 1;
+
+      if (candidateIndex >= candidates.length) {
+        candidateIndex = 0;
+        const attempt = ++attemptRef.current;
+        const delay = Math.min(30000, 1000 * 2 ** (attempt - 1));
+        retryTimer = setTimeout(() => setRetryTick((tick) => tick + 1), delay);
+        return;
+      }
+
+      retryTimer = setTimeout(connect, 250);
+    };
+
+    const connect = () => {
+      if (disposed || candidates.length === 0) {
+        return;
+      }
+
+      const currentUrl = candidates[Math.min(candidateIndex, candidates.length - 1)];
+      if (!currentUrl) {
+        return;
+      }
+
+      const socket = new WebSocket(currentUrl);
+      socketRef.current = socket;
+
+      const markFailureAndRetry = () => {
+        if (disposed) {
+          return;
+        }
+
+        setConnected(false);
+        scheduleReconnect();
+      };
+
+      socket.addEventListener('open', () => {
+        successfulSocketUrlRef.current = currentUrl;
+        console.log('[captions] ✅ Connected to:', currentUrl);
+        if (disposed) return;
+
+        attemptRef.current = 0;
+        setConnected(true);
+        socket.send(JSON.stringify({ type: 'join', meetingId }));
+        console.log('[captions] 📤 Sent join message for:', meetingId);
+      });
+
+      socket.addEventListener('message', (event) => {
+        try {
+          const payload = JSON.parse(event.data) as CaptionMessage;
+          processIncomingCaptionMessage(payload);
+        } catch (err) {
+          console.error('[captions] Parse error:', err);
+        }
+      });
+
+      socket.addEventListener('close', () => {
+        console.log('[captions] ❌ Disconnected from server');
+        markFailureAndRetry();
+      });
+
+      socket.addEventListener('error', (e) => {
+        console.error('[captions] ❌ WebSocket error:', e);
+        markFailureAndRetry();
+      });
+    };
+
+    connect();
+
+    return () => {
+      disposed = true;
+      const activeSocket = socketRef.current;
+      socketRef.current = null;
+      clearRetryTimer();
+      try { activeSocket?.close(); } catch (_) {}
+    };
+  }, [meetingId, socketUrlCandidates, retryTick, captionsEnabled]);
+
+  useEffect(() => {
+    if (!captionsEnabled) {
       return;
     }
 
     let disposed = false;
 
-    const socket = new WebSocket(socketUrl);
-    socketRef.current = socket;
-
-    socket.addEventListener('open', () => {
-      console.log('[captions] ✅ Connected to:', socketUrl);
-      if (disposed) return;
-
-      attemptRef.current = 0;
-      setConnected(true);
-      socket.send(JSON.stringify({ type: 'join', meetingId }));
-      console.log('[captions] 📤 Sent join message for:', meetingId);
-    });
-
-    socket.addEventListener('message', (event) => {
+    const pollHistory = async () => {
       try {
-        const payload = JSON.parse(event.data) as CaptionMessage;
-
-        // Handle summary broadcasts from the server
-        if (payload.type === 'summary') {
-          try {
-            // payload.summary may be string or object
-            const summaryText = typeof payload.summary === 'string' ? payload.summary : (payload.summary && payload.summary.summary) ? payload.summary.summary : JSON.stringify(payload.summary || '');
-            setMeetingSummary(String(summaryText || '').trim());
-            setShowSummary(true);
-            // Auto-hide after 20s
-            setTimeout(() => setShowSummary(false), 20000);
-          } catch (err) {
-            console.error('[captions] Error processing summary payload', err);
-          }
+        const baseUrl = resolveMeetingAiHttpUrl();
+        if (!baseUrl) {
           return;
         }
 
-        if (payload.type === 'connected') {
-          console.log('[captions] ✅ Server confirmed connection for:', meetingId);
-          return;
-        }
-
-        if (payload.type === 'cleared') {
-          console.log('[captions] 🗑️  Captions cleared');
-          lastSpeakerIdRef.current = null;
-          captionDispatchRef.current?.dispatch({ type: 'CLEAR' });
-          return;
-        }
-
-        // Ignore all non-caption types
-        if (payload.type !== 'caption') {
-          console.log('[captions] 🔹 Received message type:', payload.type);
-          return;
-        }
-
-        if (!payload.text || !payload.speaker) {
-          console.warn('[captions] ⚠️  Invalid caption (missing text or speaker):', payload);
-          return;
-        }
-
-        // Deduplicate: create event ID and check if we've seen it
-        const speakerId = payload.speakerId || payload.speaker;
-        const eventId = `${speakerId}-${payload.timestamp || 0}-${payload.text}`;
-
-        if (lastProcessedIdRef.current === eventId) {
-          console.log('[captions] ℹ️  Ignoring duplicate caption');
-          return;
-        }
-
-        lastProcessedIdRef.current = eventId;
-
-        // If different speaker is now speaking, finalize previous
-        if (lastSpeakerIdRef.current !== null && lastSpeakerIdRef.current !== speakerId) {
-          captionDispatchRef.current?.dispatch({
-            type: 'FINALIZE_SPEAKER',
-            payload: { speakerId }
-          });
-        }
-
-        lastSpeakerIdRef.current = speakerId;
-
-        // Update caption
-        const label = payload.final ? '✅ FINAL' : '🔹 PARTIAL';
-        console.log(`[captions] ${label} caption: "${payload.text.slice(0, 60)}" from ${payload.speaker}`);
-
-        captionDispatchRef.current?.dispatch({
-          type: 'RECEIVE_CAPTION',
-          payload: {
-            speakerId,
-            speakerName: payload.speaker || 'Unknown participant',
-            text: payload.text,
-            isFinal: payload.final || false,
-            timestamp: payload.timestamp,
-          }
+        const since = lastHistoryTimestampRef.current > 0 ? `?since=${lastHistoryTimestampRef.current}` : '';
+        const response = await fetch(`${baseUrl}/api/rooms/${encodeURIComponent(meetingId)}/captions${since}`, {
+          cache: 'no-store',
         });
-      } catch (err) {
-        console.error('[captions] Parse error:', err);
-      }
-    });
 
-    socket.addEventListener('close', () => {
-      console.log('[captions] ❌ Disconnected from server');
-      if (!disposed) {
-        setConnected(false);
-        const attempt = ++attemptRef.current;
-        const delay = Math.min(30000, 1000 * 2 ** (attempt - 1));
-        console.log(`[captions] Reconnect attempt ${attempt} in ${delay}ms`);
-        setTimeout(() => setRetryTick(t => t + 1), delay);
-      }
-    });
+        if (!response.ok) {
+          return;
+        }
 
-    socket.addEventListener('error', (e) => {
-      console.error('[captions] ❌ WebSocket error:', e);
-      if (!disposed) {
-        setConnected(false);
-        const attempt = ++attemptRef.current;
-        const delay = Math.min(30000, 1000 * 2 ** (attempt - 1));
-        setTimeout(() => setRetryTick(t => t + 1), delay);
+        const data = await response.json();
+        const history = Array.isArray(data?.captions) ? data.captions : [];
+
+        for (const item of history) {
+          if (disposed) {
+            return;
+          }
+
+          processIncomingCaptionMessage(item);
+        }
+      } catch {
+        // polling fallback is best-effort only
       }
-    });
+    };
+
+    pollHistory();
+    const timer = setInterval(pollHistory, 3000);
+    historyPollTimerRef.current = timer;
 
     return () => {
       disposed = true;
-      socketRef.current = null;
-      try { socket.close(); } catch (_) {}
+      clearInterval(timer);
+      if (historyPollTimerRef.current === timer) {
+        historyPollTimerRef.current = null;
+      }
     };
-  }, [meetingId, socketUrl, retryTick, captionsEnabled]);
+  }, [captionsEnabled, meetingId]);
 
   // Auto-fade timer
   useEffect(() => {
@@ -369,39 +506,25 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
         paddingBottom: typeof window !== 'undefined' && window.innerWidth < 640 ? '72px' : '24px'
       }}
     >
-      {/* Summary toast (transient) */}
-      {showSummary && meetingSummary && (
-        <div className="fixed top-6 right-6 z-50 pointer-events-auto max-w-md">
-          <div className="rounded-lg bg-white/95 dark:bg-gray-900/95 shadow-xl border border-gray-200 dark:border-gray-700 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="text-sm text-gray-900 dark:text-gray-100 leading-snug">
-                <div className="font-semibold mb-1">Live Summary</div>
-                <div className="text-xs text-gray-700 dark:text-gray-300 max-h-32 overflow-y-auto">{meetingSummary}</div>
-              </div>
-              <div className="flex-shrink-0 flex flex-col items-end gap-2">
-                <button onClick={() => setShowSummary(false)} className="text-sm text-slate-500 hover:text-slate-700">Close</button>
-                <button
-                  onClick={() => {
-                    try {
-                      // Dispatch a global event so the meeting page can open the AI results panel
-                      if (typeof window !== 'undefined') {
-                        window.dispatchEvent(new CustomEvent('open-ai-summary', { detail: { meetingId } }));
-                      }
-                    } catch (err) {
-                      console.error('[captions] failed to dispatch open-ai-summary', err);
-                    }
-                  }}
-                  className="text-sm bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700"
-                >
-                  View full summary
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Caption queue: max 2 items */}
       <div className="space-y-3 w-full flex flex-col items-center px-4">
+        {/* Debug badge (opt-in) */}
+        {debugMode && (
+          <div className="fixed left-4 top-20 z-[2147483650] pointer-events-auto">
+            <div className="rounded-md bg-black/80 px-3 py-2 text-xs text-white shadow"> 
+              <div><strong>Captions Debug</strong></div>
+              <div className="mt-1">URL: <span className="font-mono break-all">{socketUrl}</span></div>
+              <div>Status: {connected ? 'connected' : 'disconnected'}</div>
+            </div>
+          </div>
+        )}
+        <div className={`self-end mr-2 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide ${
+          connected
+            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+            : 'bg-amber-100 text-amber-800 border border-amber-200'
+        }`}>
+          {connected ? 'CAPTIONS LIVE' : 'RECONNECTING...'}
+        </div>
         {captions.map((caption) => (
           <div
             key={caption.id}

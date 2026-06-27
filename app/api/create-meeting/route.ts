@@ -82,7 +82,15 @@ export async function POST(req: NextRequest) {
     const meetingUrl = `https://${jitsiDomain}/${normalizeJitsiRoomName(meetingId)}`;
 
     try {
-      const meetingAiUrl = (process.env.MEETING_AI_CONTROL_URL || 'http://localhost:4010').replace(/\/$/, '');
+      const meetingAiUrl = (
+        process.env.MEETING_AI_CONTROL_URL ||
+        process.env.NEXT_PUBLIC_MEETING_AI_CONTROL_URL ||
+        process.env.NEXT_PUBLIC_MEETING_AI_WS_URL ||
+        'http://localhost:4010'
+      )
+        .replace(/^wss?:/i, (protocol) => (protocol.toLowerCase().startsWith('wss') ? 'https:' : 'http:'))
+        .replace(/\/ws$/i, '')
+        .replace(/\/$/, '');
       await fetch(`${meetingAiUrl}/api/start-bot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,16 @@
 const DEFAULT_MEETING_AI_PORT = 4010;
 
+function getWindowLocationBase(): { protocol: 'http:' | 'https:'; hostname: string } | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return {
+    protocol: window.location.protocol === 'https:' ? 'https:' : 'http:',
+    hostname: window.location.hostname,
+  };
+}
+
 function trimTrailingSlash(value: string): string {
   return String(value || '').replace(/\/+$/, '');
 }
@@ -39,23 +50,57 @@ function appendMeetingPath(baseUrl: string, meetingId: string): string {
   return `${trimTrailingSlash(baseUrl)}/${encodeURIComponent(meetingId)}`;
 }
 
-export function resolveMeetingAiSocketUrl(meetingId: string): string {
-  const configuredSocketUrl = process.env.NEXT_PUBLIC_MEETING_AI_WS_URL?.trim();
-  if (configuredSocketUrl) {
-    return appendMeetingPath(toWsBaseUrl(configuredSocketUrl), meetingId);
-  }
+function buildDefaultMeetingAiSocketUrl(meetingId: string): string {
+  const locationBase = getWindowLocationBase();
 
-  const configuredControlUrl = process.env.NEXT_PUBLIC_MEETING_AI_CONTROL_URL?.trim();
-  if (configuredControlUrl) {
-    return appendMeetingPath(toWsBaseUrl(configuredControlUrl), meetingId);
-  }
-
-  if (typeof window === 'undefined') {
+  if (!locationBase) {
     return '';
   }
 
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.hostname}:${DEFAULT_MEETING_AI_PORT}/ws/${encodeURIComponent(meetingId)}`;
+  const protocol = locationBase.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${locationBase.hostname}:${DEFAULT_MEETING_AI_PORT}/ws/${encodeURIComponent(meetingId)}`;
+}
+
+function buildDefaultMeetingAiHttpUrl(): string {
+  const locationBase = getWindowLocationBase();
+
+  if (!locationBase) {
+    return `http://localhost:${DEFAULT_MEETING_AI_PORT}`;
+  }
+
+  return `${locationBase.protocol}//${locationBase.hostname}:${DEFAULT_MEETING_AI_PORT}`;
+}
+
+function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const normalized = String(value || '').trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+  }
+
+  return Array.from(seen);
+}
+
+export function resolveMeetingAiSocketUrls(meetingId: string): string[] {
+  const configuredSocketUrl = process.env.NEXT_PUBLIC_MEETING_AI_WS_URL?.trim();
+  const configuredControlUrl = process.env.NEXT_PUBLIC_MEETING_AI_CONTROL_URL?.trim();
+
+  const candidates = uniqueNonEmpty([
+    configuredSocketUrl ? appendMeetingPath(toWsBaseUrl(configuredSocketUrl), meetingId) : null,
+    configuredControlUrl ? appendMeetingPath(toWsBaseUrl(configuredControlUrl), meetingId) : null,
+    buildDefaultMeetingAiSocketUrl(meetingId),
+  ]);
+
+  return candidates;
+}
+
+export function resolveMeetingAiSocketUrl(meetingId: string): string {
+  return resolveMeetingAiSocketUrls(meetingId)[0] || '';
 }
 
 export function resolveMeetingAiHttpUrl(): string {
@@ -69,10 +114,5 @@ export function resolveMeetingAiHttpUrl(): string {
     return toHttpUrl(configuredSocketUrl);
   }
 
-  if (typeof window === 'undefined') {
-    return `http://localhost:${DEFAULT_MEETING_AI_PORT}`;
-  }
-
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-  return `${protocol}//${window.location.hostname}:${DEFAULT_MEETING_AI_PORT}`;
+  return buildDefaultMeetingAiHttpUrl();
 }

@@ -3,6 +3,7 @@
 const WebSocket = require('ws');
 
 const rooms = new Map();
+const captionHistory = new Map();
 
 function getRoom(meetingId) {
   if (!rooms.has(meetingId)) {
@@ -52,7 +53,9 @@ function broadcast(meetingId, payload) {
   }
 
   let sent = 0;
+  const states = { 0: 0, 1: 0, 2: 0, 3: 0 };
   for (const socket of room) {
+    states[socket.readyState] = (states[socket.readyState] || 0) + 1;
     if (socket.readyState === WebSocket.OPEN) {
       try {
         socket.send(message);
@@ -62,6 +65,9 @@ function broadcast(meetingId, payload) {
       }
     }
   }
+  try {
+    console.log(`[ws] socket states: OPEN=${states[1] || 0} CONNECTING=${states[0] || 0} CLOSING=${states[2] || 0} CLOSED=${states[3] || 0}`);
+  } catch {}
   
   if (sent > 0) {
     console.log(`[ws] ✅ DELIVERED to ${sent}/${socketCount} sockets`);
@@ -72,11 +78,33 @@ function broadcast(meetingId, payload) {
 
 function clearRoom(meetingId) {
   rooms.delete(meetingId);
+  captionHistory.delete(meetingId);
+}
+
+function getRoomSize(meetingId) {
+  const room = rooms.get(meetingId);
+  return room ? room.size : 0;
+}
+
+function recordCaption(meetingId, payload) {
+  const history = captionHistory.get(meetingId) || [];
+  history.push({
+    ...payload,
+    receivedAt: Date.now(),
+  });
+  captionHistory.set(meetingId, history.slice(-50));
+}
+
+function getCaptionHistory(meetingId) {
+  return [...(captionHistory.get(meetingId) || [])];
 }
 
 module.exports = {
   broadcast,
   clearRoom,
+  getCaptionHistory,
+  getRoomSize,
   joinRoom,
   leaveRoom,
+  recordCaption,
 };

@@ -5,7 +5,7 @@ const { URL } = require('url');
 const WebSocket = require('ws');
 const { spawn } = require('child_process');
 const path = require('path');
-const { broadcast, joinRoom, leaveRoom } = require('../ws/roomHub');
+const { broadcast, joinRoom, leaveRoom, getRoomSize, getCaptionHistory, recordCaption } = require('../ws/roomHub');
 const { addCaption, getLastSummary, flushMeeting } = require('../summarizer');
 const { addParticipant, removeParticipant, resolveSpeaker } = require('../participants');
 
@@ -168,12 +168,43 @@ function createServer() {
         return;
       }
 
+      // GET /api/rooms/:id/captions -> return recent caption history for polling fallback
+      if (request.method === 'GET' && action === 'captions') {
+        try {
+          const since = Number(requestUrl.searchParams.get('since') || '0');
+          const history = getCaptionHistory(meetingId)
+            .filter((item) => !since || (typeof item.timestamp === 'number' && item.timestamp > since));
+
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ ok: true, captions: history }));
+        } catch (err) {
+          response.writeHead(500, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Failed' }));
+        }
+
+        return;
+      }
+
       // GET /api/rooms/:id/summary -> return last summary
       if (request.method === 'GET' && action === 'summary') {
         try {
           const data = getLastSummary(meetingId);
           response.writeHead(200, { 'Content-Type': 'application/json' });
           response.end(JSON.stringify({ ok: true, summary: data }));
+        } catch (err) {
+          response.writeHead(500, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Failed' }));
+        }
+
+        return;
+      }
+
+      // GET /api/rooms/:id/clients -> diagnostic: number of connected sockets
+      if (request.method === 'GET' && action === 'clients') {
+        try {
+          const count = typeof getRoomSize === 'function' ? getRoomSize(meetingId) : 0;
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ ok: true, clients: count }));
         } catch (err) {
           response.writeHead(500, { 'Content-Type': 'application/json' });
           response.end(JSON.stringify({ error: err instanceof Error ? err.message : 'Failed' }));
@@ -227,6 +258,7 @@ function createServer() {
           }
 
           console.log(`[server] 📡 Broadcasting caption to meeting ${meetingId}`);
+          recordCaption(meetingId, payload);
           broadcast(meetingId, payload);
 
           // Add caption to summarizer buffer (non-blocking)
@@ -304,6 +336,7 @@ function createServer() {
             timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
           };
 
+          recordCaption(meetingId, captionPayload);
           broadcast(meetingId, captionPayload);
 
           // forward to summarizer asynchronously

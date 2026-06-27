@@ -17,7 +17,15 @@ export async function POST(request: NextRequest) {
     console.log(`[start-bot] Meeting URL: ${meetingUrl}`);
 
     // Call the meeting-ai service to start the bot
-    const meetingAiUrl = (process.env.MEETING_AI_CONTROL_URL || 'http://localhost:4010').replace(/\/$/, '');
+    const meetingAiUrl = (
+      process.env.MEETING_AI_CONTROL_URL ||
+      process.env.NEXT_PUBLIC_MEETING_AI_CONTROL_URL ||
+      process.env.NEXT_PUBLIC_MEETING_AI_WS_URL ||
+      'http://localhost:4010'
+    )
+      .replace(/^wss?:/i, (protocol) => (protocol.toLowerCase().startsWith('wss') ? 'https:' : 'http:'))
+      .replace(/\/ws$/i, '')
+      .replace(/\/$/, '');
     
     const response = await fetch(`${meetingAiUrl}/api/start-bot`, {
       method: 'POST',

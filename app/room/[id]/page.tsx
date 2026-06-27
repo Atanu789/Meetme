@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaptionOverlay } from '../../../components/CaptionOverlay';
 import AIResultsDisplay from '../../../components/AIResultsDisplay';
 import TaskList from '../../../components/TaskList';
@@ -33,6 +33,7 @@ export default function RoomPage() {
   const [meetingError, setMeetingError] = useState('');
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [jwt, setJwt] = useState<string | null>(null);
+  const [tokenResolved, setTokenResolved] = useState(false);
   const [showAiResults, setShowAiResults] = useState(false);
   const [aiResults, setAiResults] = useState<any | null>(null);
   const apiRef = useRef<any>(null);
@@ -84,6 +85,7 @@ export default function RoomPage() {
     }
 
     const verifyMeeting = async () => {
+      setTokenResolved(false);
       try {
         const controller = new AbortController();
         const requestTimeout = setTimeout(() => controller.abort(), 10000);
@@ -111,7 +113,12 @@ export default function RoomPage() {
           if (tokenResponse.ok) {
             const tokenData = await tokenResponse.json();
             setJwt(tokenData.token || null);
+          } else {
+            setMeetingError('Unable to get secure meeting token');
+            return;
           }
+        } else {
+          setJwt(null);
         }
       } catch (err: any) {
         console.error('Error verifying meeting:', err);
@@ -119,6 +126,8 @@ export default function RoomPage() {
           setMeetingError('Failed to verify meeting');
           setTimeout(() => router.push(fallbackRoute), 2000);
         }
+      } finally {
+        setTokenResolved(true);
       }
     };
 
@@ -128,7 +137,12 @@ export default function RoomPage() {
   // Start the bot once the room is verified so caption capture does not depend on the
   // Jitsi join event firing at the right time.
   useEffect(() => {
-    if (!meeting || !nameReady) {
+    if (!meeting || !nameReady || !tokenResolved) {
+      return;
+    }
+
+    if (meeting.isPrivate && !jwt) {
+      console.error('[meeting] Private room requires JWT. Bot start skipped.');
       return;
     }
 
@@ -167,7 +181,7 @@ export default function RoomPage() {
     };
 
     triggerBot();
-  }, [jwt, jitsiRoomName, meeting, nameReady, meetingId]);
+  }, [jwt, jitsiRoomName, meeting, nameReady, meetingId, tokenResolved]);
 
   // Open AI results panel when caption overlay dispatches event
   useEffect(() => {
@@ -175,6 +189,8 @@ export default function RoomPage() {
       try {
         const detailMeetingId = e?.detail?.meetingId || meetingId;
         if (!detailMeetingId) return;
+
+        const shouldAutoOpen = Boolean(e?.detail?.autoOpen);
 
         // Fetch meeting details (includes summary, keyDecisions, actionItems, transcript)
         const resp = await fetch(`/api/get-meeting?id=${encodeURIComponent(detailMeetingId)}`);
@@ -186,7 +202,10 @@ export default function RoomPage() {
         const body = await resp.json();
         const m = body.meeting || null;
         setAiResults(m);
-        setShowAiResults(true);
+
+        if (shouldAutoOpen) {
+          setShowAiResults(true);
+        }
       } catch (err) {
         console.error('[AI panel] error opening AI results', err);
       }
@@ -203,6 +222,27 @@ export default function RoomPage() {
       console.log('[meeting] video conference joined');
     });
   };
+
+  const roomToolbarButtons = useMemo(
+    () => [
+      'microphone',
+      'camera',
+      'desktop',
+      'fullscreen',
+      'hangup',
+      ...(meeting?.chatEnabled !== false ? ['chat'] : []),
+      ...(meeting?.recordingEnabled !== false ? ['recording'] : []),
+      'settings',
+      'raisehand',
+      'tileview',
+      'participants-pane',
+      'stats',
+      'shortcuts',
+      'security',
+      'download',
+    ],
+    [meeting?.chatEnabled, meeting?.recordingEnabled]
+  );
 
   if (status === 'loading' || !nameReady) {
     return <Loader />;
@@ -227,24 +267,6 @@ export default function RoomPage() {
     );
   }
 
-  const roomToolbarButtons = [
-    'microphone',
-    'camera',
-    'desktop',
-    'fullscreen',
-    'hangup',
-    ...(meeting?.chatEnabled !== false ? ['chat'] : []),
-    ...(meeting?.recordingEnabled !== false ? ['recording'] : []),
-    'settings',
-    'raisehand',
-    'tileview',
-    'participants-pane',
-    'stats',
-    'shortcuts',
-    'security',
-    'download',
-  ];
-
   return (
     <div className="page-shell-wide text-slate-950">
       <div className="space-y-3 sm:space-y-4">
@@ -256,7 +278,7 @@ export default function RoomPage() {
               userEmail={userEmail}
               jwt={jwt || undefined}
               height="100%"
-              prejoinPageEnabled={false}
+              prejoinPageEnabled
               startWithAudioMuted
               startWithVideoMuted
               onApiReady={handleApiReady}
