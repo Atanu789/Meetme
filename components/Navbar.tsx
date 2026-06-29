@@ -6,7 +6,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import { Copy, PencilLine, Radio, Upload, Video } from 'lucide-react';
 import UploadMedia from './UploadMedia';
-import AIAssistant from './AIAssistant';
+import { AudioCapture } from './AudioCapture';
 import Whiteboard from './Whiteboard';
 import { YouTubeStreamModal } from './YouTubeStreamModal';
 import { useRecording } from '@/hooks/useRecording';
@@ -257,7 +257,7 @@ export function Navbar() {
                 >
                   <Copy className="h-4 w-4" />
                 </button>
-                <AIAssistant meetingId={roomMeetingId} />
+                <AudioCapture meetingId={roomMeetingId} className="relative flex flex-col gap-2" />
                 <button
                   onClick={() => {
                     if (isRecording) {

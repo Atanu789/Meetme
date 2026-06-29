@@ -2,7 +2,6 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { LiveblocksProvider, RoomProvider, useBroadcastEvent, useEventListener, useOthers } from '@liveblocks/react';
 import { Loader } from './Loader';
 import type { ExcalidrawInitialDataState } from '@excalidraw/excalidraw/types';
 
@@ -20,6 +19,7 @@ const Excalidraw = dynamic(
 
 type WhiteboardScene = {
   meetingId: string;
+  updatedAt?: string | Date;
 } & ExcalidrawInitialDataState;
 
 interface WhiteboardProps {
@@ -36,9 +36,12 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
 
   const elementsRef = useRef<ExcalidrawInitialDataState['elements']>([]);
   const appStateRef = useRef<ExcalidrawInitialDataState['appState']>({});
+  const filesRef = useRef<ExcalidrawInitialDataState['files']>({});
   const lastSavedSnapshotRef = useRef('');
+  const lastRemoteVersionRef = useRef('');
   const saveInFlightRef = useRef(false);
   const saveQueuedRef = useRef(false);
+  const savePromiseRef = useRef<Promise<void> | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const excalidrawApiRef = useRef<any>(null);
 
@@ -47,11 +50,28 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     return rest;
   };
 
-  const serializeSnapshot = () => JSON.stringify({
-    meetingId,
-    elements: elementsRef.current,
-    appState: sanitizeAppState(appStateRef.current),
-  });
+  const syncSceneFromApi = () => {
+    const api = excalidrawApiRef.current;
+
+    if (!api) {
+      return;
+    }
+
+    elementsRef.current = api.getSceneElements?.() || elementsRef.current;
+    appStateRef.current = api.getAppState?.() || appStateRef.current;
+    filesRef.current = api.getFiles?.() || filesRef.current;
+  };
+
+  const serializeSnapshot = () => {
+    syncSceneFromApi();
+
+    return JSON.stringify({
+      meetingId,
+      elements: elementsRef.current,
+      appState: sanitizeAppState(appStateRef.current),
+      files: filesRef.current || {},
+    });
+  };
 
   const schedulePersistScene = () => {
     if (saveTimerRef.current) {
@@ -68,8 +88,6 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     [meetingId]
   );
 
-  const liveblocksEnabled = Boolean(process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY);
-
   useEffect(() => {
     let active = true;
 
@@ -79,7 +97,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
         setError('');
         setStatus('Loading whiteboard...');
 
-        const response = await fetch(whiteboardUrl);
+        const response = await fetch(whiteboardUrl, { cache: 'no-store' });
         const body = await response.json().catch(() => ({}));
 
         if (!active) {
@@ -99,6 +117,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
                 collaborators: [],
                 ...(loadedScene.appState || {}),
               },
+              files: loadedScene.files || {},
             }
           : {
               meetingId,
@@ -106,11 +125,14 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
               appState: {
                 collaborators: [],
               },
+              files: {},
             };
 
         elementsRef.current = nextScene.elements;
         appStateRef.current = nextScene.appState;
-        lastSavedSnapshotRef.current = JSON.stringify(nextScene);
+        filesRef.current = nextScene.files || {};
+        lastRemoteVersionRef.current = String(loadedScene?.updatedAt || '');
+        lastSavedSnapshotRef.current = serializeSnapshot();
         setScene(nextScene);
         setStatus(loadedScene ? 'Loaded saved whiteboard' : 'New whiteboard ready');
         setIsLoaded(true);
@@ -132,9 +154,19 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     };
   }, [meetingId, whiteboardUrl]);
 
-  const persistScene = async () => {
-    if (!meetingId || saveInFlightRef.current) {
+  const persistScene = async (flushQueued = false): Promise<void> => {
+    if (!meetingId) {
+      return;
+    }
+
+    if (saveInFlightRef.current) {
       saveQueuedRef.current = true;
+      await savePromiseRef.current;
+
+      if (flushQueued) {
+        await persistScene(true);
+      }
+
       return;
     }
 
@@ -149,7 +181,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     setIsSaving(true);
     setStatus('Saving...');
 
-    try {
+    const savePromise = (async () => {
       const response = await fetch('/api/whiteboards', {
         method: 'PUT',
         headers: {
@@ -165,18 +197,38 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       }
 
       lastSavedSnapshotRef.current = snapshot;
+      lastRemoteVersionRef.current = String(body?.updatedAt || lastRemoteVersionRef.current);
       setStatus('Saved');
+    })();
+
+    savePromiseRef.current = savePromise;
+
+    try {
+      await savePromise;
     } catch (saveError: any) {
       setStatus(saveError?.message || 'Autosave failed');
     } finally {
       saveInFlightRef.current = false;
+      savePromiseRef.current = null;
       setIsSaving(false);
 
       if (saveQueuedRef.current) {
         saveQueuedRef.current = false;
-        void persistScene();
+        await persistScene(flushQueued);
       }
     }
+  };
+
+  const handleClose = async () => {
+    syncSceneFromApi();
+
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    await persistScene(true);
+    onClose();
   };
 
   useEffect(() => {
@@ -190,7 +242,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
 
     return () => {
       window.clearInterval(intervalId);
-      void persistScene();
+      void persistScene(true);
     };
   }, [error, isLoaded]);
 
@@ -205,6 +257,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       if (saveTimerRef.current) {
         window.clearTimeout(saveTimerRef.current);
       }
+      void persistScene(true);
     };
   }, []);
 
@@ -240,129 +293,31 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       }
     : undefined;
 
-  if (!liveblocksEnabled) {
-    return (
-      <SoloWhiteboard
-        meetingId={meetingId}
-        onClose={onClose}
-        initialData={initialData}
-        status={status}
-        isSaving={isSaving}
-        onChange={(elements, appState) => {
-          elementsRef.current = elements;
-          appStateRef.current = appState;
-          schedulePersistScene();
-        }}
-        onApiReady={(api) => {
-          excalidrawApiRef.current = api;
-        }}
-      />
-    );
-  }
-
   return (
-    <LiveblocksProvider
-      authEndpoint={async (room) => {
-        const response = await fetch('/api/liveblocks-auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ room: room || meetingId }),
-        });
-
-        return response.json();
+    <CollaborativeWhiteboard
+      meetingId={meetingId}
+      onClose={handleClose}
+      scene={scene}
+      initialData={initialData}
+      status={status}
+      isSaving={isSaving}
+      whiteboardUrl={whiteboardUrl}
+      lastRemoteVersionRef={lastRemoteVersionRef}
+      setStatus={setStatus}
+      schedulePersistScene={schedulePersistScene}
+      onChange={(elements, appState) => {
+        elementsRef.current = elements;
+        appStateRef.current = appState;
       }}
-    >
-      <RoomProvider id={meetingId} initialPresence={{}}>
-        <CollaborativeWhiteboard
-          meetingId={meetingId}
-          onClose={onClose}
-          scene={scene}
-          initialData={initialData}
-          status={status}
-          isSaving={isSaving}
-          setStatus={setStatus}
-          schedulePersistScene={schedulePersistScene}
-          onChange={(elements, appState) => {
-            elementsRef.current = elements;
-            appStateRef.current = appState;
-          }}
-          onApiReady={(api) => {
-            excalidrawApiRef.current = api;
-          }}
-        />
-      </RoomProvider>
-    </LiveblocksProvider>
-  );
-}
-
-function SoloWhiteboard({
-  meetingId,
-  onClose,
-  initialData,
-  status,
-  isSaving,
-  onChange,
-  onApiReady,
-}: {
-  meetingId: string;
-  onClose: () => void;
-  initialData: ExcalidrawInitialDataState | null | undefined;
-  status: string;
-  isSaving: boolean;
-  onChange: (elements: ExcalidrawInitialDataState['elements'], appState: ExcalidrawInitialDataState['appState']) => void;
-  onApiReady: (api: any) => void;
-}) {
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-slate-950 text-white">
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
-        <div className="min-w-0">
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Whiteboard session</div>
-          <div className="truncate text-sm font-medium text-white">{meetingId}</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">Solo mode</span>
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
-            {isSaving ? 'Saving' : status}
-          </span>
-          <button
-            onClick={onClose}
-            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 bg-slate-900">
-        <Excalidraw
-          key={meetingId}
-          name={meetingId}
-          theme={'light'}
-          initialData={initialData}
-          autoFocus
-          handleKeyboardGlobally={false}
-          detectScroll={false}
-          excalidrawAPI={onApiReady}
-          onChange={onChange}
-          UIOptions={{
-            canvasActions: {
-              changeViewBackgroundColor: true,
-              clearCanvas: true,
-              export: { saveFileToDisk: true },
-              loadScene: true,
-              saveAsImage: true,
-              saveToActiveFile: true,
-              toggleTheme: true,
-            },
-            tools: {
-              image: true,
-            },
-          }}
-        />
-      </div>
-    </div>
+      onSceneChange={(elements, appState, files) => {
+        elementsRef.current = elements;
+        appStateRef.current = appState;
+        filesRef.current = files || {};
+      }}
+      onApiReady={(api) => {
+        excalidrawApiRef.current = api;
+      }}
+    />
   );
 }
 
@@ -373,9 +328,12 @@ function CollaborativeWhiteboard({
   initialData,
   status,
   isSaving,
+  whiteboardUrl,
+  lastRemoteVersionRef,
   setStatus,
   schedulePersistScene,
   onChange,
+  onSceneChange,
   onApiReady,
 }: {
   meetingId: string;
@@ -384,45 +342,22 @@ function CollaborativeWhiteboard({
   initialData: ExcalidrawInitialDataState | null | undefined;
   status: string;
   isSaving: boolean;
+  whiteboardUrl: string;
+  lastRemoteVersionRef: React.MutableRefObject<string>;
   setStatus: (value: string) => void;
   schedulePersistScene: () => void;
   onChange: (elements: ExcalidrawInitialDataState['elements'], appState: ExcalidrawInitialDataState['appState']) => void;
+  onSceneChange: (
+    elements: ExcalidrawInitialDataState['elements'],
+    appState: ExcalidrawInitialDataState['appState'],
+    files: ExcalidrawInitialDataState['files']
+  ) => void;
   onApiReady: (api: any) => void;
 }) {
-  const collaboratorsCount = useOthers().length;
-  const broadcast = useBroadcastEvent();
   const appliedRemoteSnapshotRef = useRef('');
-  const pendingBroadcastRef = useRef<number | null>(null);
+  const lastLocalChangeAtRef = useRef(0);
   const isApplyingRemoteRef = useRef(false);
   const excalidrawApiRef = useRef<any>(null);
-
-  useEventListener(({ event }) => {
-    if (!event || (event as any).type !== 'whiteboard-scene') {
-      return;
-    }
-
-    const nextScene = (event as any).scene as WhiteboardScene;
-    const nextSnapshot = JSON.stringify(nextScene);
-
-    if (!nextScene || nextSnapshot === appliedRemoteSnapshotRef.current) {
-      return;
-    }
-
-    appliedRemoteSnapshotRef.current = nextSnapshot;
-    isApplyingRemoteRef.current = true;
-    excalidrawApiRef.current?.updateScene({
-      elements: nextScene.elements || [],
-      appState: {
-        collaborators: [],
-        ...(nextScene.appState || {}),
-      },
-    });
-    onChange(nextScene.elements || [], nextScene.appState || {});
-    setStatus('Live update received');
-    window.setTimeout(() => {
-      isApplyingRemoteRef.current = false;
-    }, 0);
-  });
 
   useEffect(() => {
     if (!scene) {
@@ -432,25 +367,74 @@ function CollaborativeWhiteboard({
     appliedRemoteSnapshotRef.current = JSON.stringify(scene);
   }, [scene]);
 
-  const scheduleBroadcast = (nextScene: WhiteboardScene) => {
-    if (pendingBroadcastRef.current) {
-      window.clearTimeout(pendingBroadcastRef.current);
-    }
+  useEffect(() => {
+    let active = true;
 
-    pendingBroadcastRef.current = window.setTimeout(() => {
-      const nextSnapshot = JSON.stringify(nextScene);
-
-      if (isApplyingRemoteRef.current || nextSnapshot === appliedRemoteSnapshotRef.current) {
+    const applyRemoteScene = async () => {
+      if (Date.now() - lastLocalChangeAtRef.current < 1200) {
         return;
       }
 
-      broadcast({
-        type: 'whiteboard-scene',
-        scene: nextScene,
-        version: Date.now(),
-      } as any);
-    }, 120);
-  };
+      try {
+        const response = await fetch(whiteboardUrl, { cache: 'no-store' });
+        const body = await response.json().catch(() => ({}));
+
+        if (!active || !response.ok) {
+          return;
+        }
+
+        const nextScene = body?.whiteboard as WhiteboardScene | null;
+        const nextRemoteVersion = String(nextScene?.updatedAt || '');
+
+        if (!nextScene || !nextRemoteVersion || nextRemoteVersion === lastRemoteVersionRef.current) {
+          return;
+        }
+
+        const nextSnapshot = JSON.stringify({
+          meetingId,
+          elements: nextScene.elements || [],
+          appState: {
+            collaborators: [],
+            ...(nextScene.appState || {}),
+          },
+          files: nextScene.files || {},
+        });
+
+        if (nextSnapshot === appliedRemoteSnapshotRef.current) {
+          lastRemoteVersionRef.current = nextRemoteVersion;
+          return;
+        }
+
+        lastRemoteVersionRef.current = nextRemoteVersion;
+        appliedRemoteSnapshotRef.current = nextSnapshot;
+        isApplyingRemoteRef.current = true;
+        excalidrawApiRef.current?.updateScene({
+          elements: nextScene.elements || [],
+          appState: {
+            collaborators: [],
+            ...(nextScene.appState || {}),
+          },
+          files: nextScene.files || {},
+        });
+        onSceneChange(nextScene.elements || [], nextScene.appState || {}, nextScene.files || {});
+        setStatus('Live update received');
+        window.setTimeout(() => {
+          isApplyingRemoteRef.current = false;
+        }, 0);
+      } catch (err) {
+        console.warn('[whiteboard] realtime sync failed:', err);
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void applyRemoteScene();
+    }, 900);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [lastRemoteVersionRef, meetingId, onChange, setStatus, whiteboardUrl]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-slate-950 text-white">
@@ -461,7 +445,7 @@ function CollaborativeWhiteboard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
-            {collaboratorsCount > 0 ? `${collaboratorsCount + 1} participants` : 'Solo mode'}
+            Shared realtime
           </span>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
             {isSaving ? 'Saving' : status}
@@ -488,16 +472,12 @@ function CollaborativeWhiteboard({
             excalidrawApiRef.current = api;
             onApiReady(api);
           }}
-          onChange={(elements, appState) => {
-            onChange(elements, appState);
+          onChange={(elements, appState, files) => {
+            onSceneChange(elements, appState, files);
 
             if (!isApplyingRemoteRef.current) {
+              lastLocalChangeAtRef.current = Date.now();
               setStatus('Unsaved changes');
-              scheduleBroadcast({
-                meetingId,
-                elements,
-                appState,
-              });
             }
 
             schedulePersistScene();

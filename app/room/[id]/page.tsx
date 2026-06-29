@@ -3,7 +3,6 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaptionOverlay } from '../../../components/CaptionOverlay';
-import { AudioCapture } from '../../../components/AudioCapture';
 import AIResultsDisplay from '../../../components/AIResultsDisplay';
 import TaskList from '../../../components/TaskList';
 import Polls from '../../../components/Polls';
@@ -289,7 +288,6 @@ export default function RoomPage() {
           </div>
 
           <CaptionOverlay meetingId={meetingId} />
-          <AudioCapture meetingId={meetingId} />
           {showAiResults && aiResults && (
             <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto bg-white/95 dark:bg-slate-900/95 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
               <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">

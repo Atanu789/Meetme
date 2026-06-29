@@ -6,6 +6,7 @@ import { resolveMeetingAiHttpUrl } from '@/lib/meeting-ai-client';
 interface AudioCaptureProps {
   meetingId: string;
   enabled?: boolean;
+  className?: string;
 }
 
 type SpeechRecognitionResult = {
@@ -49,7 +50,7 @@ declare global {
   }
 }
 
-export function AudioCapture({ meetingId, enabled = true }: AudioCaptureProps) {
+export function AudioCapture({ meetingId, enabled = true, className }: AudioCaptureProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -299,26 +300,34 @@ export function AudioCapture({ meetingId, enabled = true }: AudioCaptureProps) {
     };
   }, [enabled]);
 
+  const isEmbedded = Boolean(className);
+  const wrapperClassName = className || 'fixed bottom-20 left-4 z-40 flex flex-col gap-2';
+  const statusClassName = isEmbedded
+    ? 'absolute left-0 top-11 z-50 min-w-max rounded px-3 py-1 text-xs shadow-lg'
+    : 'rounded px-3 py-1 text-xs';
+
   return (
-    <div className="fixed bottom-20 left-4 z-40 flex flex-col gap-2">
+    <div className={wrapperClassName}>
       <button
         onClick={isListening ? stopListening : startListening}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-white transition-all ${ isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600' }`}
+        className={`flex h-9 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition-all ${ isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600' }`}
+        aria-label={isListening ? 'Stop captions' : 'Start captions'}
+        title={isListening ? 'Stop captions' : 'Start captions'}
       >
         <div
-          className={`w-3 h-3 rounded-full ${ isListening ? 'animate-pulse bg-white' : 'bg-white/50' }`}
+          className={`h-2.5 w-2.5 rounded-full ${ isListening ? 'animate-pulse bg-white' : 'bg-white/50' }`}
         />
         {isListening ? 'Stop captions' : 'Start captions'}
       </button>
 
       {error && (
-        <div className="text-xs text-red-400 bg-red-900/20 px-3 py-1 rounded">
+        <div className={`${statusClassName} bg-red-900/90 text-red-100`}>
           {error}
         </div>
       )}
 
       {isListening && (
-        <div className="text-xs text-blue-300 bg-blue-900/20 px-3 py-1 rounded">
+        <div className={`${statusClassName} bg-blue-900/90 text-blue-100`}>
           Listening...
         </div>
       )}
