@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { getAdminCredentials, createAdminToken, getAdminCookieName } from '../../../../lib/admin-auth';
+import { getAdminCredentials, createAdminToken, getAdminCookieName } from '@/lib/admin-auth';
 
 export async function POST(request: Request) {
   try {

@@ -171,8 +171,11 @@ function captionReducer(state: Caption[], action: any): Caption[] {
 export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
-  // opt-in debug mode via URL param ?capdebug=1
-  const debugMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('capdebug') === '1';
+  // opt-in debug mode via URL param ?capdebug=1 or ?captions_debug=1
+  const debugMode = typeof window !== 'undefined' && (
+    new URLSearchParams(window.location.search).get('capdebug') === '1' ||
+    new URLSearchParams(window.location.search).get('captions_debug') === '1'
+  );
   const captionsEnabled = true;
   const lastSpeakerIdRef = useRef<string | null>(null);
 
@@ -260,12 +263,13 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
       return;
     }
 
-    if (!payload.text || !payload.speaker) {
-      console.warn('[captions] ⚠️  Invalid caption (missing text or speaker):', payload);
+    if (!payload.text || !String(payload.text).trim()) {
+      console.warn('[captions] ⚠️  Invalid caption (missing text):', payload);
       return;
     }
 
-    const speakerId = payload.speakerId || payload.speaker;
+    const speakerId = payload.speakerId || payload.speaker || 'speaker';
+    const speakerName = payload.speaker || (speakerId === 'speaker' ? 'Speaker' : `Speaker ${speakerId}`);
     const captionTimestamp = typeof payload.timestamp === 'number' ? payload.timestamp : Date.now();
     const eventId = `${speakerId}-${captionTimestamp}-${payload.text}`;
 
@@ -287,13 +291,13 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
     lastSpeakerIdRef.current = speakerId;
 
     const label = payload.final ? '✅ FINAL' : '🔹 PARTIAL';
-    console.log(`[captions] ${label} caption: "${String(payload.text).slice(0, 60)}" from ${payload.speaker}`);
+    console.log(`[captions] ${label} caption: "${String(payload.text).slice(0, 60)}" from ${speakerName}`);
 
     captionDispatchRef.current?.dispatch({
       type: 'RECEIVE_CAPTION',
       payload: {
         speakerId,
-        speakerName: payload.speaker || 'Unknown participant',
+        speakerName,
         text: payload.text,
         isFinal: payload.final || false,
         timestamp: captionTimestamp,

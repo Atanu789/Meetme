@@ -5,6 +5,7 @@ import FileShare from '@/components/FileShare';
 import { GlowCard } from '@/components/ui/glow-card';
 import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
+import { LmsMeetingActions } from './LmsMeetingActions';
 
 type InstructorDashboardData = {
   courses: any[];
@@ -313,6 +314,8 @@ export function InstructorLmsDashboard() {
       description="Create courses, attach live meetings, enroll students, publish assignments, and keep course resources organized by course."
       stats={stats}
     >
+      <LmsMeetingActions roleLabel="Instructor" />
+
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">

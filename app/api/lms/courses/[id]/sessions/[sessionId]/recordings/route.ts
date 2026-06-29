@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import CourseSession from '@/models/CourseSession';
-import { canManageCourse, getCourseOr404, getLmsContext, json } from '../../../../_shared';
+import { canManageCourse, getCourseOr404, getLmsContext, json } from '@/app/api/lms/_shared';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string; sessionId: string } }) {
   const { context, response } = await getLmsContext();

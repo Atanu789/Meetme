@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import TaskList from '../../../../components/TaskList'
-import ParticipationAnalytics from '../../../../components/ParticipationAnalytics'
-import FileShare from '../../../../components/FileShare'
+import TaskList from '@/components/TaskList'
+import ParticipationAnalytics from '@/components/ParticipationAnalytics'
+import FileShare from '@/components/FileShare'
 
 type MeetingData = {
   _id: string

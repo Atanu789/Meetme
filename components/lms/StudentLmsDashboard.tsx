@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { GlowCard } from '@/components/ui/glow-card';
 import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
+import { LmsMeetingActions } from './LmsMeetingActions';
 
 type StudentDashboardData = {
   courses: any[];
@@ -108,6 +109,8 @@ export function StudentLmsDashboard() {
       description="Track your classes, submit work, and jump back into recordings without leaving the Melanam workspace."
       stats={stats}
     >
+      <LmsMeetingActions roleLabel="Student" />
+
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}
 
       <div className="grid gap-6 lg:grid-cols-2">

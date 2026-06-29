@@ -1290,6 +1290,9 @@ async function resolveJitsiJoinConfig(meetingUrl, meetingId, botName) {
   const websocket = deploymentConfig.websocket || process.env.BOT_JITSI_WEBSOCKET_URL || `${wsProtocol}//${parsedUrl.hostname}/xmpp-websocket`;
   const serviceUrl = process.env.BOT_JITSI_SERVICE_URL || websocket || bosh;
   const serviceUrls = [...new Set([serviceUrl, websocket, bosh].filter(Boolean))];
+  const bridgeChannel = {
+    preferSctp: process.env.BOT_JITSI_BRIDGE_CHANNEL !== 'websocket',
+  };
 
   return {
     roomName,
@@ -1305,8 +1308,10 @@ async function resolveJitsiJoinConfig(meetingUrl, meetingId, botName) {
       websocket,
       serviceUrl,
       clientNode: 'https://melanam.com/meeting-ai-bot',
+      bridgeChannel,
     },
     serviceUrls,
+    bridgeChannel,
   };
 }
 
@@ -1380,6 +1385,8 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.2;
+    const mixer = audioContext.createGain();
+    mixer.gain.value = 1;
     const zeroGain = audioContext.createGain();
     zeroGain.gain.value = 0;
     const sourceNodes = new Map();
@@ -1394,6 +1401,10 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     let lastAnalyserLogAt = 0;
     let lastProcessorTickAt = 0;
     let processorTickCount = 0;
+    let droppedSilentChunkCount = 0;
+    let forwardedNonSilentChunkCount = 0;
+    let lastNonSilentAudioAt = 0;
+    let lastSilenceWarningAt = 0;
 
     const logGraphState = (label, audioElement, mediaStream, mediaTrack) => {
       const now = Date.now();
@@ -1599,15 +1610,46 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       return btoa(binary);
     };
 
+    const calculateFloatRms = (buffer) => {
+      if (!buffer || buffer.length === 0) {
+        return 0;
+      }
+
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i += 1) {
+        const value = buffer[i];
+        sum += value * value;
+      }
+
+      return Math.sqrt(sum / buffer.length);
+    };
+
     const sendBuffer = async (inputBuffer) => {
       if (!inputBuffer || inputBuffer.length === 0) {
         return;
       }
 
       const downsampled = downsampleBuffer(inputBuffer, audioContext.sampleRate, 16000);
+      const rms = calculateFloatRms(downsampled);
+
+      if (rms < 0.0005) {
+        droppedSilentChunkCount += 1;
+
+        const now = Date.now();
+        if (sourceNodes.size > 0 && now - lastSilenceWarningAt >= 5000) {
+          console.warn(`[jitsi-audio] dropping silent pcm chunks=${droppedSilentChunkCount} sources=${sourceNodes.size} rms=${rms.toFixed(6)}`);
+          lastSilenceWarningAt = now;
+          scanPeerConnectionReceivers('silence-watch');
+        }
+
+        return;
+      }
+
       const pcmBytes = floatTo16BitPCM(downsampled);
 
       if (pcmBytes.length > 0 && typeof window.__botDeliverAudioChunk === 'function') {
+        forwardedNonSilentChunkCount += 1;
+        lastNonSilentAudioAt = Date.now();
         await window.__botDeliverAudioChunk(bytesToBase64(pcmBytes));
       }
     };
@@ -1615,25 +1657,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     processor.onaudioprocess = (event) => {
       processorTickCount += 1;
       lastProcessorTickAt = Date.now();
-      console.log('[ONAUDIOPROCESS]', performance.now(), event.inputBuffer.numberOfChannels, event.inputBuffer.length);
       const input = event.inputBuffer.getChannelData(0).slice();
-      const pcm = event.inputBuffer.getChannelData(0);
-      let max = 0;
-      for (let i = 0; i < pcm.length; i++) {
-        const v = Math.abs(pcm[i]);
-        if (v > max) max = v;
-      }
-      console.log('[PCM MAX]', max);
-      if (processedChunkCount % 25 === 0) {
-    console.log("[PCM DEBUG]", {
-        first10: Array.from(input.slice(0, 10)),
-        min: Math.min(...input),
-        max: Math.max(...input),
-        nonZero: input.some(v => Math.abs(v) > 0.00001),
-        sampleRate: audioContext.sampleRate,
-        length: input.length
-    });
-}
       processedChunkCount += 1;
 
       if (processedChunkCount % 25 === 0) {
@@ -1659,27 +1683,24 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       });
     };
 
-    sourceNodes.set('__graph__', {
-      sourceNode: null,
-      audioElement: null,
-      track: null,
-      mediaStream: null,
-      participantId: 'graph',
-    });
+    mixer.connect(processor);
+    mixer.connect(analyser);
     processor.connect(zeroGain);
     zeroGain.connect(audioContext.destination);
     await ensureAudioContextRunning();
 
     window.setInterval(() => {
       try {
-        if (audioElements.size === 0) {
+        scanPeerConnectionReceivers('watchdog');
+
+        if (sourceNodes.size === 0) {
           return;
         }
 
         for (const entry of sourceNodes.values()) {
           const audioElement = entry.audioElement;
           const mediaStream = entry.mediaStream;
-          const mediaTrack = entry.track && typeof entry.track.getTrack === 'function' ? entry.track.getTrack() : null;
+          const mediaTrack = entry.mediaTrack || (entry.track && typeof entry.track.getTrack === 'function' ? entry.track.getTrack() : null);
           logGraphState('watchdog', audioElement, mediaStream, mediaTrack);
           logAnalyserLevel('watchdog');
         }
@@ -1692,10 +1713,165 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
             audioContextState: audioContext.state,
           });
         }
+
+        if (sourceNodes.size > 0 && (!lastNonSilentAudioAt || now - lastNonSilentAudioAt > 15000) && now - lastSilenceWarningAt >= 5000) {
+          console.warn('[jitsi-audio] no non-silent audio captured yet; remote tracks may be muted or the bridge channel may be unhealthy', {
+            sourceCount: sourceNodes.size,
+            processorTickCount,
+            droppedSilentChunkCount,
+            forwardedNonSilentChunkCount,
+          });
+          lastSilenceWarningAt = now;
+        }
       } catch (error) {
         console.warn('[jitsi-audio] watchdog error', error && (error.message || error));
       }
     }, 1000);
+
+    const getAudioTrackKey = (track, mediaTrack) => {
+      return (mediaTrack && mediaTrack.id)
+        || (track && typeof track.getTrackId === 'function' && track.getTrackId())
+        || `${track && typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'remote'}-${Date.now()}`;
+    };
+
+    const getUsableAudioStream = (track, mediaTrack, audioElement) => {
+      const originalStream = track && typeof track.getOriginalStream === 'function'
+        ? track.getOriginalStream()
+        : null;
+
+      if (
+        originalStream
+        && typeof originalStream.getAudioTracks === 'function'
+        && originalStream.getAudioTracks().some((candidate) => candidate === mediaTrack || candidate.id === mediaTrack.id)
+      ) {
+        return originalStream;
+      }
+
+      if (
+        audioElement
+        && audioElement.srcObject
+        && typeof audioElement.srcObject.getAudioTracks === 'function'
+        && audioElement.srcObject.getAudioTracks().length > 0
+      ) {
+        return audioElement.srcObject;
+      }
+
+      return new MediaStream([mediaTrack]);
+    };
+
+    const attachAudioSource = ({ track = null, mediaTrack, participantId = 'unknown', label = 'track' }) => {
+      if (!mediaTrack || mediaTrack.kind !== 'audio') {
+        return;
+      }
+
+      const trackKey = getAudioTrackKey(track, mediaTrack);
+
+      if (sourceNodes.has(trackKey)) {
+        return;
+      }
+
+      if (mediaTrack.readyState && mediaTrack.readyState !== 'live') {
+        console.warn(`[jitsi-audio] skipped non-live ${label} audio track: ${trackKey} readyState=${mediaTrack.readyState}`);
+        return;
+      }
+
+      let audioElement = null;
+      let mediaStream = new MediaStream([mediaTrack]);
+      let sourceNode = null;
+
+      try {
+        mediaStream = getUsableAudioStream(track, mediaTrack, null);
+        sourceNode = audioContext.createMediaStreamSource(mediaStream);
+        console.log(`[jitsi-audio] createMediaStreamSource attached ${label}: ${trackKey}`);
+      } catch (streamErr) {
+        console.warn('[jitsi-audio] createMediaStreamSource failed, trying media element fallback', streamErr && (streamErr.message || streamErr));
+
+        try {
+          audioElement = document.createElement('audio');
+          audioElement.autoplay = true;
+          audioElement.playsInline = true;
+          audioElement.controls = false;
+          audioElement.muted = false;
+          document.body.appendChild(audioElement);
+
+          if (track && typeof track.attach === 'function') {
+            track.attach(audioElement);
+          } else {
+            audioElement.srcObject = new MediaStream([mediaTrack]);
+          }
+
+          mediaStream = getUsableAudioStream(track, mediaTrack, audioElement);
+          Promise.resolve(audioElement.play()).catch((playErr) => {
+            console.warn('[jitsi-audio] audioElement.play() failed for fallback', trackKey, playErr && (playErr.message || playErr));
+          });
+
+          sourceNode = audioContext.createMediaElementSource(audioElement);
+          console.log(`[jitsi-audio] createMediaElementSource attached ${label}: ${trackKey}`);
+        } catch (elementErr) {
+          console.error('[jitsi-audio] failed to attach audio source', elementErr && (elementErr.message || elementErr));
+          if (audioElement) {
+            try {
+              audioElement.remove();
+            } catch {
+              // ignore
+            }
+          }
+          return;
+        }
+      }
+
+      sourceNode.connect(mixer);
+      sourceNodes.set(trackKey, {
+        sourceNode,
+        audioElement,
+        track,
+        mediaStream,
+        mediaTrack,
+        participantId,
+      });
+
+      if (audioElement) {
+        audioElements.set(trackKey, audioElement);
+      }
+
+      ensureAudioContextRunning().catch(() => {});
+      logGraphState(`attach:${label}`, audioElement, mediaStream, mediaTrack);
+
+      try {
+        const trackInfo = (mediaStream && typeof mediaStream.getTracks === 'function')
+          ? mediaStream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id }))
+          : [];
+        console.log('[jitsi-audio] attached stream tracks', { trackKey, label, participantId, trackInfo });
+      } catch (err) {
+        console.warn('[jitsi-audio] failed to log attached stream tracks', err && err.message);
+      }
+    };
+
+    const scanPeerConnectionReceivers = (reason) => {
+      try {
+        const pc = conference && conference.room && conference.room.rtc && conference.room.rtc.peerConnections
+          ? conference.room.rtc.peerConnections.get('JVB')?.peerconnection
+          : null;
+
+        if (!pc || typeof pc.getReceivers !== 'function') {
+          return;
+        }
+
+        pc.getReceivers().forEach((receiver, index) => {
+          if (!receiver || !receiver.track || receiver.track.kind !== 'audio') {
+            return;
+          }
+
+          attachAudioSource({
+            mediaTrack: receiver.track,
+            participantId: `receiver#${index}`,
+            label: `receiver:${reason}`,
+          });
+        });
+      } catch (error) {
+        console.warn('[jitsi-audio] receiver scan failed', error && (error.message || error));
+      }
+    };
 
     const trackMuteHandlers = new Map();
     const trackAudioLevelHandlers = new Map();
@@ -1722,11 +1898,45 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
         return;
       }
 
-      const trackKey = (typeof track.getTrackId === 'function' && track.getTrackId()) || mediaTrack.id || `${track.getParticipantId?.() || 'remote'}-${Date.now()}`;
+      const trackKey = getAudioTrackKey(track, mediaTrack);
 
       if (sourceNodes.has(trackKey)) {
         return;
       }
+
+      attachAudioSource({
+        track,
+        mediaTrack,
+        participantId: typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown',
+        label: 'jitsi-track',
+      });
+
+      try {
+        if (typeof track.addEventListener === 'function') {
+          const muteHandler = () => onTrackMuteChanged(track);
+          trackMuteHandlers.set(trackKey, muteHandler);
+          track.addEventListener(JitsiMeetJS.events.track.TRACK_MUTE_CHANGED, muteHandler);
+
+          const audioLevelHandler = (audioLevel) => {
+            const now = Date.now();
+            if (now - lastTrackAudioLevelLogAt >= 4000) {
+              console.log(`[jitsi-audio] track audio level: ${trackKey} level=${Number(audioLevel || 0).toFixed(6)}`);
+              lastTrackAudioLevelLogAt = now;
+            }
+          };
+          trackAudioLevelHandlers.set(trackKey, audioLevelHandler);
+          track.addEventListener(JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED, audioLevelHandler);
+        }
+      } catch {
+        // ignore
+      }
+
+      console.log(
+        `[jitsi-audio] attached remote audio track: ${trackKey} participant=${typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown'} muted=${typeof track.isMuted === 'function' ? track.isMuted() : 'unknown'} readyState=${mediaTrack.readyState}`
+      );
+
+      scanPeerConnectionReceivers('track-added');
+      return;
 
       const audioElement = document.createElement('audio');
       audioElement.autoplay = true;
@@ -1806,6 +2016,14 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       let sourceNode;
 
       try {
+        try {
+          sourceNode = audioContext.createMediaStreamSource(mediaStream);
+          console.log('[jitsi-audio] createMediaStreamSource -> sourceNode type=', sourceNode && sourceNode.constructor ? sourceNode.constructor.name : typeof sourceNode, 'processor.bufferSize=', processor && processor.bufferSize);
+        } catch (streamFirstErr) {
+          console.warn('[jitsi-audio] createMediaStreamSource failed, falling back to media element source', streamFirstErr && (streamFirstErr.message || streamFirstErr));
+        }
+
+        if (!sourceNode) {
         // Start playback on the audio element first to ensure the element's pipeline
         // is active. Some browsers (and headless runs) will not decode/produce
         // audio frames until playback is initiated. We attempt play() and continue
@@ -1835,17 +2053,13 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
             return;
           }
         }
+        }
       } catch (error) {
         console.error('[jitsi-audio] unexpected error creating source node', error && (error.message || error));
         return;
       }
 
-      sourceNode.connect(processor);
-      try {
-        sourceNode.connect(analyser);
-      } catch (error) {
-        console.warn('[jitsi-audio] failed to connect analyser tap', error && (error.message || error));
-      }
+      sourceNode.connect(mixer);
       sourceNodes.set(trackKey, {
         sourceNode,
         audioElement,
@@ -1886,11 +2100,13 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
         .catch((error) => {
           console.warn('[jitsi-audio] audio element play failed', error);
         });
+
+      scanPeerConnectionReceivers('track-added');
     };
 
     const detachTrack = (track) => {
       const mediaTrack = track && typeof track.getTrack === 'function' ? track.getTrack() : null;
-      const trackKey = (track && typeof track.getTrackId === 'function' && track.getTrackId()) || mediaTrack?.id;
+      const trackKey = mediaTrack ? getAudioTrackKey(track, mediaTrack) : (track && typeof track.getTrackId === 'function' && track.getTrackId());
 
       if (!trackKey || !sourceNodes.has(trackKey)) {
         return;
@@ -1968,6 +2184,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
 
       try {
         processor.disconnect();
+        mixer.disconnect();
         zeroGain.disconnect();
       } catch {
         // ignore
@@ -2036,7 +2253,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
 
     function onConnectionEstablished() {
       conference = connection.initJitsiConference(roomName, {
-        openBridgeChannel: 'websocket',
+        openBridgeChannel: joinConfig.bridgeChannel?.preferSctp ? 'datachannel' : 'websocket',
         p2p: {
           enabled: false,
         },
@@ -2048,6 +2265,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       conference.on(JitsiMeetJS.events.conference.CONFERENCE_JOINED, () => {
         console.log('[jitsi-audio] conference joined');
         attachExistingTracks();
+        scanPeerConnectionReceivers('conference-joined');
         if (currentAttempt?.resolve) {
           currentAttempt.resolve();
           currentAttempt = null;

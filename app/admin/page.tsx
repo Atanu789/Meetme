@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     } else if (status === 'authenticated') {
       const userRole = (session?.user as any)?.role;
       if (userRole !== 'admin') {
-        router.push('/dashboard');
+        router.push('/lms');
       } else {
         void fetchAllData();
       }

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import Assignment from '@/models/Assignment';
 import Submission from '@/models/Submission';
 import Course from '@/models/Course';
-import { canManageCourse, canViewCourse, getLmsContext, json } from '../../../_shared';
+import { canManageCourse, canViewCourse, getLmsContext, json } from '@/app/api/lms/_shared';
 
 async function getAssignmentWithCourse(assignmentId: string) {
   const assignment = await Assignment.findById(assignmentId);

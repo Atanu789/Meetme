@@ -136,7 +136,7 @@ export default function RoomPage() {
       roomName={params.id as string}
       displayName={user?.firstName || 'Guest'}
       userEmail={user?.emailAddresses[0]?.emailAddress}
-      onReadyToClose={() => router.push('/dashboard')}
+      onReadyToClose={() => router.push('/lms')}
     />
   );
 }

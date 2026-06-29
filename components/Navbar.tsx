@@ -27,7 +27,7 @@ export function Navbar() {
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
   const currentUrl = pathname ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}` : '/';
-  const signInHref = status === 'authenticated' ? '/dashboard' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
+  const signInHref = status === 'authenticated' ? '/lms' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
   // Initialize recording and livestream hooks
   const { isRecording, startRecording, stopRecording, loading: recordingLoading, error: recordingError, clearError: clearRecordingError } = useRecording(roomMeetingId);
@@ -94,7 +94,7 @@ export function Navbar() {
   };
 
   const handleLeave = () => {
-    router.push(isLoggedIn ? '/dashboard' : '/');
+    router.push(isLoggedIn ? '/lms' : '/');
   };
 
   const userEmail = session?.user?.email || '';
@@ -120,7 +120,7 @@ export function Navbar() {
     },
     {
       name: 'Meetings',
-      href: '/dashboard',
+      href: '/lms',
       tag: 'Live',
       description: 'Create rooms and start calls fast.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]',
@@ -128,7 +128,7 @@ export function Navbar() {
     },
     {
       name: 'Live Captions',
-      href: '/dashboard',
+      href: '/lms',
       tag: 'AI',
       description: 'Stream captions in real time.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-violet-300 hover:bg-violet-100 hover:shadow-[0_14px_30px_rgba(139,92,246,0.2)]',
@@ -136,7 +136,7 @@ export function Navbar() {
     },
     {
       name: 'File Share',
-      href: '/dashboard',
+      href: '/lms',
       tag: 'Now',
       description: 'Keep room uploads in one place.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]',
@@ -144,7 +144,7 @@ export function Navbar() {
     },
     {
       name: 'Future Product 1',
-      href: '/dashboard',
+      href: '/lms',
       tag: 'Soon',
       description: 'Upcoming workflow tools.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:shadow-[0_14px_30px_rgba(245,158,11,0.2)]',
@@ -152,7 +152,7 @@ export function Navbar() {
     },
     {
       name: 'Future Product 2',
-      href: '/dashboard',
+      href: '/lms',
       tag: 'Soon',
       description: 'More team utilities on the way.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-[0_14px_30px_rgba(244,63,94,0.2)]',
@@ -352,10 +352,10 @@ export function Navbar() {
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-3 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-52">
                       <Link
-                        href="/dashboard"
+                        href="/lms"
                         className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
                       >
-                        Dashboard
+                        LMS Dashboard
                       </Link>
                       {(session?.user as any)?.role === 'admin' && (
                         <Link

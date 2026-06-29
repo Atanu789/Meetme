@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import Assignment from '@/models/Assignment';
 import Course from '@/models/Course';
 import Submission from '@/models/Submission';
-import { canManageCourse, getLmsContext, json } from '../../../_shared';
+import { canManageCourse, getLmsContext, json } from '@/app/api/lms/_shared';
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const { context, response } = await getLmsContext();

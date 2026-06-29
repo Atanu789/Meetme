@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GlowCard } from '@/components/ui/glow-card';
 import { LmsShell } from './LmsShell';
+import { LmsMeetingActions } from './LmsMeetingActions';
 
 export function AdminLmsDashboard() {
   const [dashboard, setDashboard] = useState<any>({ courses: [], sessions: [], assignments: [], submissions: [] });
@@ -39,6 +40,8 @@ export function AdminLmsDashboard() {
       description="A lightweight overview for administrators to monitor the course layer without turning this into a full LMS suite."
       stats={stats}
     >
+      <LmsMeetingActions roleLabel="Admin" />
+
       <GlowCard>
         <h3 className="font-display text-xl font-semibold text-slate-950">All Courses</h3>
         <div className="mt-4 space-y-3">

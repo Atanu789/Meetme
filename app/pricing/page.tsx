@@ -132,8 +132,8 @@ function BillingCard({ planKey, cycle, currency }: { planKey: PlanKey; cycle: Bi
           <CreditCard className="h-4 w-4" />
           {planKey === 'enterprise' ? 'Contact Sales' : 'Checkout with Razorpay'}
         </GradientBorderButton>
-        <GradientBorderLink href="/dashboard" variant="light">
-          Open dashboard
+        <GradientBorderLink href="/lms" variant="light">
+          Open LMS
           <ArrowRight className="h-4 w-4" />
         </GradientBorderLink>
       </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import db from '../../../../lib/db';
-import Task from '../../../../models/Task';
+import db from '@/lib/db';
+import Task from '@/models/Task';
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {

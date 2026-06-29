@@ -51,6 +51,8 @@ export interface JitsiMeetingProps {
   toolbarButtons?: string[];
   /** Optional JWT for private rooms */
   jwt?: string;
+  /** Caption service room id, when it differs from the normalized Jitsi room name */
+  captionMeetingId?: string;
   /** Callback when the Jitsi API instance is ready */
   onApiReady?: (api: any) => void;
   /** Enable custom styling */
@@ -74,7 +76,7 @@ export interface JitsiMeetingProps {
  *   displayName="John Doe"
  *   userEmail="john@example.com"
  *   domain="meet.melanam.com"
- *   onReadyToClose={() => router.push('/dashboard')}
+ *   onReadyToClose={() => router.push('/lms')}
  * />
  * ```
  */
@@ -90,6 +92,7 @@ export function JitsiMeeting({
   prejoinPageEnabled = false,
   toolbarButtons = DEFAULT_TOOLBAR_BUTTONS,
   jwt,
+  captionMeetingId,
   onApiReady,
   showLogo = false,
   height = '100%',
@@ -300,9 +303,10 @@ export function JitsiMeeting({
           // Post participant mapping to meeting-ai service
           try {
             const base = resolveMeetingAiHttpUrl();
+            const captionRoomId = captionMeetingId || roomName;
 
             if (base) {
-              fetch(`${base}/api/rooms/${encodeURIComponent(roomName)}/participants`, {
+              fetch(`${base}/api/rooms/${encodeURIComponent(captionRoomId)}/participants`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ participantId: id, displayName: name }),
@@ -322,9 +326,10 @@ export function JitsiMeeting({
           console.log('Participant left:', id);
           try {
             const base = resolveMeetingAiHttpUrl();
+            const captionRoomId = captionMeetingId || roomName;
 
             if (base) {
-              fetch(`${base}/api/rooms/${encodeURIComponent(roomName)}/participants`, {
+              fetch(`${base}/api/rooms/${encodeURIComponent(captionRoomId)}/participants`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ participantId: id, displayName: '' }),
@@ -373,6 +378,7 @@ export function JitsiMeeting({
     height,
     showLogo,
     activeProtocol,
+    captionMeetingId,
   ]);
 
   if (error) {

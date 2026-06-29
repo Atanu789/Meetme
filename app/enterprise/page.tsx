@@ -96,7 +96,7 @@ export default function EnterpriseDashboard() {
     } else if (status === 'authenticated') {
       const user = session?.user as any;
       if (user.role !== 'enterprise_admin' && user.role !== 'admin') {
-        router.push('/dashboard');
+        router.push('/lms');
       } else {
         void fetchAllData();
       }

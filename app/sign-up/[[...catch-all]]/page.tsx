@@ -1,19 +1,17 @@
 "use client";
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
 type RoleType = 'student' | 'instructor' | 'admin';
 
 export default function Page() {
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<RoleType>('user');
+  const [role, setRole] = useState<RoleType>('student');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const callbackUrl = searchParams.get('callbackUrl') || '/lms';
+  const callbackUrl = '/lms';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

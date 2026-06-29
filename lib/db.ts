@@ -1,9 +1,20 @@
-import mongoose from 'mongoose';
+import "server-only";
+
+import mongoose from "mongoose";
+import {
+  configureMongoDns,
+  mongoDnsLookup,
+  resolveMongoConnectionString,
+} from "./mongodb-dns";
+
+configureMongoDns();
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+  throw new Error(
+    "Please define the MONGODB_URI environment variable in .env.local"
+  );
 }
 
 interface Cached {
@@ -12,40 +23,42 @@ interface Cached {
 }
 
 declare global {
-  var mongoose: Cached;
+  var mongooseCache: Cached | undefined;
 }
 
-let cached: Cached = global.mongoose;
+const cached: Cached = global.mongooseCache ?? {
+  conn: null,
+  promise: null,
+};
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
+global.mongooseCache = cached;
 
-async function dbConnect() {
+async function dbConnect(): Promise<typeof mongoose> {
   if (cached.conn) {
     return cached.conn;
   }
 
   if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
-    cached.promise = mongoose
-      .connect(MONGODB_URI!, opts)
-      .then((mongoose) => {
-        return mongoose;
-      });
+    cached.promise = resolveMongoConnectionString(MONGODB_URI).then((resolvedUri) =>
+      mongoose.connect(resolvedUri, {
+        bufferCommands: false,
+        serverSelectionTimeoutMS: 15000,
+        lookup: mongoDnsLookup,
+      })
+    );
   }
 
   try {
     cached.conn = await cached.promise;
-  } catch (e) {
+    return cached.conn;
+  } catch (error) {
     cached.promise = null;
-    throw e;
-  }
+    cached.conn = null;
 
-  return cached.conn;
+    console.error("MongoDB connection error:", error);
+
+    throw error;
+  }
 }
 
 export default dbConnect;

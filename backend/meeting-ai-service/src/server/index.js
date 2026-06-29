@@ -235,7 +235,9 @@ function createServer() {
             type: 'caption',
             meetingId,
             text: String(body.text || '').trim(),
-            speaker: body.speaker ? String(body.speaker).trim() : undefined,
+            speaker: body.speaker
+              ? String(body.speaker).trim()
+              : (body.speakerId ? `Speaker ${String(body.speakerId).trim()}` : 'Speaker'),
             speakerId: body.speakerId ? String(body.speakerId).trim() : undefined,
             final: Boolean(body.final),
             timestamp: typeof body.timestamp === 'number' ? body.timestamp : Date.now(),
@@ -331,7 +333,7 @@ function createServer() {
             type: 'caption',
             meetingId,
             text: String(payload.text).trim(),
-            speaker: payload.speaker ? String(payload.speaker).trim() : undefined,
+            speaker: payload.speaker ? String(payload.speaker).trim() : 'Speaker',
             final: Boolean(payload.final),
             timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
           };

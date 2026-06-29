@@ -283,6 +283,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
           status={status}
           isSaving={isSaving}
           setStatus={setStatus}
+          schedulePersistScene={schedulePersistScene}
           onChange={(elements, appState) => {
             elementsRef.current = elements;
             appStateRef.current = appState;
@@ -373,6 +374,7 @@ function CollaborativeWhiteboard({
   status,
   isSaving,
   setStatus,
+  schedulePersistScene,
   onChange,
   onApiReady,
 }: {
@@ -383,6 +385,7 @@ function CollaborativeWhiteboard({
   status: string;
   isSaving: boolean;
   setStatus: (value: string) => void;
+  schedulePersistScene: () => void;
   onChange: (elements: ExcalidrawInitialDataState['elements'], appState: ExcalidrawInitialDataState['appState']) => void;
   onApiReady: (api: any) => void;
 }) {
