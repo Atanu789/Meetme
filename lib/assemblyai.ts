@@ -30,6 +30,22 @@ export const SUPPORTED_LANGUAGES = {
 
 export type SupportedLanguage = keyof typeof SUPPORTED_LANGUAGES;
 
+export type SpeakerNameMap = Record<string, string>;
+
+type AssemblyAIUtterance = {
+  text?: string;
+  start?: number;
+  end?: number;
+  speaker?: string | number;
+};
+
+type MeetingNotesResult = {
+  summary: string;
+  keyNotes: string[];
+  keyDecisions: string[];
+  actionItems: string[];
+};
+
 class AssemblyAIService {
   private apiKey: string;
   private baseUrl: string = ASSEMBLYAI_API_BASE;
@@ -142,38 +158,54 @@ class AssemblyAIService {
    */
   async generateSummary(transcriptId: string): Promise<{
     summary: string;
+    keyNotes: string[];
     keyDecisions: string[];
     actionItems: string[];
   }> {
-    // Get full transcript first
+    return this.generateMeetingNotes(transcriptId);
+  }
+
+  /**
+   * Generate structured meeting notes using the completed transcript as LeMUR context
+   */
+  async generateMeetingNotes(
+    transcriptId: string,
+    speakerNameMap: SpeakerNameMap = {}
+  ): Promise<MeetingNotesResult> {
     const transcript = await this.getTranscription(transcriptId);
 
     if (transcript.status !== 'completed') {
       throw new Error('Transcript not yet completed');
     }
 
-    const fullText = transcript.text;
+    const transcriptText = this.formatTranscriptForNotes(transcript, speakerNameMap);
+    const prompt = `Analyze this meeting transcript and return ONLY valid JSON.
 
-    // Generate summary
-    const summaryPrompt = `Provide a concise summary of this meeting transcript:\n\n${fullText}`;
-    const summaryResponse = await this.lemurGenerate(summaryPrompt);
+Schema:
+{
+  "summary": "3-5 sentence executive summary",
+  "keyNotes": ["Important discussion point or context"],
+  "keyDecisions": ["Decision that was actually made"],
+  "actionItems": ["Owner: task, if an owner is mentioned; otherwise task"]
+}
 
-    // Extract key decisions
-    const decisionsPrompt = `Extract key decisions made in this meeting transcript as a bullet-point list:\n\n${fullText}`;
-    const decisionsResponse = await this.lemurGenerate(decisionsPrompt);
+Rules:
+- Use the speaker names exactly as shown in the transcript.
+- Do not invent decisions, owners, or tasks.
+- Keep each list item concise and useful.
+- If there are no items for a list, return an empty array.
 
-    // Extract action items
-    const actionPrompt = `Extract all action items from this meeting transcript as a bullet-point list with owner if mentioned:\n\n${fullText}`;
-    const actionResponse = await this.lemurGenerate(actionPrompt);
+Transcript:
+${transcriptText}`;
 
-    // Parse responses into structured format
-    const keyDecisions = this.parseBulletList(decisionsResponse);
-    const actionItems = this.parseBulletList(actionResponse);
+    const response = await this.lemurGenerate(prompt, [transcriptId]);
+    const notes = this.parseMeetingNotes(response);
 
     return {
-      summary: summaryResponse,
-      keyDecisions,
-      actionItems,
+      summary: notes.summary || response.trim(),
+      keyNotes: notes.keyNotes,
+      keyDecisions: notes.keyDecisions,
+      actionItems: notes.actionItems,
     };
   }
 
@@ -219,23 +251,183 @@ class AssemblyAIService {
       .filter(line => line.length > 0);
   }
 
+  private parseMeetingNotes(text: string): MeetingNotesResult {
+    const parsed = this.parseJsonObject(text);
+
+    if (!parsed) {
+      return {
+        summary: '',
+        keyNotes: [],
+        keyDecisions: this.parseResponseList(text),
+        actionItems: [],
+      };
+    }
+
+    return {
+      summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : '',
+      keyNotes: this.normalizeStringList(parsed.keyNotes || parsed.key_notes || parsed.notes),
+      keyDecisions: this.normalizeStringList(parsed.keyDecisions || parsed.key_decisions || parsed.decisions),
+      actionItems: this.normalizeStringList(parsed.actionItems || parsed.action_items || parsed.actions),
+    };
+  }
+
+  private parseJsonObject(text: string): any | null {
+    const cleaned = String(text || '')
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```$/i, '')
+      .trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      if (!match) {
+        return null;
+      }
+
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  private parseResponseList(text: string): string[] {
+    return String(text || '')
+      .split('\n')
+      .map((line) => line.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, '').trim())
+      .filter((line) => line.length > 0);
+  }
+
+  private normalizeStringList(value: any): string[] {
+    if (typeof value === 'string') {
+      return this.parseResponseList(value);
+    }
+
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => {
+        if (typeof item === 'string') {
+          return item.trim();
+        }
+
+        if (item && typeof item === 'object') {
+          return String(
+            item.text ||
+            item.description ||
+            item.note ||
+            item.decision ||
+            item.item ||
+            item.task ||
+            ''
+          ).trim();
+        }
+
+        return '';
+      })
+      .filter((item) => item.length > 0);
+  }
+
+  private formatTranscriptForNotes(transcript: any, speakerNameMap: SpeakerNameMap): string {
+    const utterances = Array.isArray(transcript.utterances)
+      ? transcript.utterances as AssemblyAIUtterance[]
+      : [];
+
+    if (utterances.length === 0) {
+      return String(transcript.text || '').trim();
+    }
+
+    const speakerIndexes = this.getSpeakerIndexes(utterances);
+
+    return utterances
+      .map((utterance) => {
+        const speakerId = this.normalizeSpeakerLabel(utterance.speaker);
+        const speakerName = this.resolveSpeakerName(
+          speakerId,
+          speakerIndexes.get(speakerId) || 0,
+          speakerNameMap
+        );
+
+        return `${speakerName}: ${String(utterance.text || '').trim()}`;
+      })
+      .filter((line) => line.trim().length > 0)
+      .join('\n');
+  }
+
+  private getSpeakerIndexes(utterances: AssemblyAIUtterance[]): Map<string, number> {
+    const speakerIndexes = new Map<string, number>();
+
+    utterances.forEach((utterance) => {
+      const speakerId = this.normalizeSpeakerLabel(utterance.speaker);
+      if (!speakerIndexes.has(speakerId)) {
+        speakerIndexes.set(speakerId, speakerIndexes.size);
+      }
+    });
+
+    return speakerIndexes;
+  }
+
+  private normalizeSpeakerLabel(label: unknown): string {
+    return String(label ?? '').trim() || 'unknown';
+  }
+
+  private resolveSpeakerName(
+    speakerId: string,
+    speakerIndex: number,
+    speakerNameMap: SpeakerNameMap
+  ): string {
+    const candidateKeys = [
+      speakerId,
+      `Speaker ${speakerId}`,
+      `speaker:${speakerId}`,
+      `speaker-${speakerId}`,
+    ];
+
+    for (const key of candidateKeys) {
+      const mappedName = speakerNameMap[key]?.trim();
+      if (mappedName) {
+        return mappedName;
+      }
+    }
+
+    return this.fallbackSpeakerName(speakerId, speakerIndex);
+  }
+
+  private fallbackSpeakerName(speakerId: string, speakerIndex: number): string {
+    if (/^[a-z]$/i.test(speakerId)) {
+      return `Speaker ${speakerId.toUpperCase()}`;
+    }
+
+    return `Speaker ${speakerIndex + 1}`;
+  }
+
   /**
    * Get speaker labels from transcript
    */
   async getSpeakerLabels(
-    transcriptId: string
+    transcriptId: string,
+    speakerNameMap: SpeakerNameMap = {}
   ): Promise<Array<{ label: string; speaker: string }>> {
     const transcript = await this.getTranscription(transcriptId);
 
-    if (!transcript.utterances) {
+    if (!Array.isArray(transcript.utterances)) {
       return [];
     }
 
     // Extract unique speakers with their labels
     const speakers = new Map<string, string>();
-    transcript.utterances.forEach((utterance: any) => {
-      if (utterance.speaker && !speakers.has(utterance.speaker)) {
-        speakers.set(utterance.speaker, `Speaker ${speakers.size + 1}`);
+    transcript.utterances.forEach((utterance: AssemblyAIUtterance) => {
+      const speakerId = this.normalizeSpeakerLabel(utterance.speaker);
+      if (!speakers.has(speakerId)) {
+        speakers.set(
+          speakerId,
+          this.resolveSpeakerName(speakerId, speakers.size, speakerNameMap)
+        );
       }
     });
 
@@ -249,27 +441,40 @@ class AssemblyAIService {
    * Get transcript with timestamps and speaker labels
    */
   async getDetailedTranscript(
-    transcriptId: string
+    transcriptId: string,
+    speakerNameMap: SpeakerNameMap = {}
   ): Promise<
     Array<{
       text: string;
       start: number;
       end: number;
+      speakerId: string;
       speaker: string;
     }>
   > {
     const transcript = await this.getTranscription(transcriptId);
 
-    if (!transcript.utterances) {
+    if (!Array.isArray(transcript.utterances)) {
       return [];
     }
 
-    return transcript.utterances.map((utterance: any) => ({
-      text: utterance.text,
-      start: utterance.start,
-      end: utterance.end,
-      speaker: `Speaker ${utterance.speaker}`,
-    }));
+    const speakerIndexes = this.getSpeakerIndexes(transcript.utterances);
+
+    return transcript.utterances.map((utterance: AssemblyAIUtterance) => {
+      const speakerId = this.normalizeSpeakerLabel(utterance.speaker);
+
+      return {
+        text: String(utterance.text || ''),
+        start: Number(utterance.start || 0),
+        end: Number(utterance.end || 0),
+        speakerId,
+        speaker: this.resolveSpeakerName(
+          speakerId,
+          speakerIndexes.get(speakerId) || 0,
+          speakerNameMap
+        ),
+      };
+    });
   }
 }
 

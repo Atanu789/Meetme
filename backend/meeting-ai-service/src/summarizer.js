@@ -3,7 +3,8 @@
 const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY || process.env.AAI_API_KEY || '';
 const { broadcast } = require('./ws/roomHub');
 
-// Simple in-memory per-meeting caption buffer and timers.
+const ASSEMBLYAI_LEMUR_URL = 'https://api.assemblyai.com/v2/lemur/v3/generate';
+
 const buffers = new Map();
 const lastSummaries = new Map();
 
@@ -11,151 +12,271 @@ function ensureBuffer(meetingId) {
   if (!buffers.has(meetingId)) {
     buffers.set(meetingId, { captions: [], timer: null });
   }
+
   return buffers.get(meetingId);
 }
 
-async function callAssemblyAISummarize(text) {
+async function callAssemblyAIMeetingNotes(text) {
   if (!ASSEMBLYAI_KEY) {
     throw new Error('AssemblyAI API key not configured');
   }
 
-  // Use AssemblyAI text summarization endpoint. We send the combined captions
-  // and request a concise summary and action items if available.
-  const res = await fetch('https://api.assemblyai.com/v2/summarize', {
+  const response = await fetch(ASSEMBLYAI_LEMUR_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      authorization: ASSEMBLYAI_KEY,
+      Authorization: ASSEMBLYAI_KEY,
     },
     body: JSON.stringify({
-      text,
-      summary_type: 'concise',
+      final_model: 'default',
+      max_output_size: 4096,
+      prompt: `Analyze these live meeting captions and return ONLY valid JSON.
+
+Schema:
+{
+  "summary": "3-5 sentence executive summary",
+  "keyNotes": ["Important discussion point or context"],
+  "keyDecisions": ["Decision that was actually made"],
+  "actionItems": [{"description": "Task", "assignee": "Owner if mentioned"}]
+}
+
+Rules:
+- Keep speaker names exactly as written in the captions.
+- Do not invent decisions, owners, or action items.
+- Use empty arrays when nothing clear is present.
+- Keep every item concise.
+
+Captions:
+${text}`,
     }),
   });
 
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`AssemblyAI summarize failed: ${res.status} ${txt}`);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`AssemblyAI LeMUR failed: ${response.status} ${body}`);
   }
 
-  const json = await res.json();
-  // AssemblyAI may return summary text or structured items.
-  return json;
+  const json = await response.json();
+  return parseMeetingNotes(json.response || json.text || '');
+}
+
+function parseMeetingNotes(text) {
+  const parsed = parseJsonObject(text);
+
+  if (!parsed) {
+    return {
+      summary: String(text || '').trim(),
+      keyNotes: [],
+      keyDecisions: [],
+      actionItems: [],
+    };
+  }
+
+  return {
+    summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : '',
+    keyNotes: normalizeStringList(parsed.keyNotes || parsed.key_notes || parsed.notes),
+    keyDecisions: normalizeStringList(parsed.keyDecisions || parsed.key_decisions || parsed.decisions),
+    actionItems: normalizeActionItems(parsed.actionItems || parsed.action_items || parsed.actions),
+  };
+}
+
+function parseJsonObject(text) {
+  const cleaned = String(text || '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function normalizeStringList(value) {
+  if (typeof value === 'string') {
+    return value
+      .split('\n')
+      .map((line) => line.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, '').trim())
+      .filter(Boolean);
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (!item || typeof item !== 'object') return '';
+      return String(item.text || item.description || item.note || item.decision || item.item || '').trim();
+    })
+    .filter(Boolean);
+}
+
+function normalizeActionItems(value) {
+  if (typeof value === 'string') {
+    return normalizeStringList(value).map((description) => ({
+      description,
+      assignee: extractAssignee(description),
+    }));
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') {
+        return {
+          description: item.trim(),
+          assignee: extractAssignee(item),
+        };
+      }
+
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+
+      const description = String(item.description || item.text || item.item || item.task || '').trim();
+      const assignee = String(item.assignee || item.owner || item.assignedTo || '').trim();
+
+      if (!description) {
+        return null;
+      }
+
+      return {
+        description,
+        assignee: assignee || extractAssignee(description),
+      };
+    })
+    .filter(Boolean);
+}
+
+function extractAssignee(text) {
+  const match = String(text || '').match(/^(.*?):\s+.+$/);
+  return match ? match[1].trim() : undefined;
 }
 
 async function summarizeMeeting(meetingId, captions) {
   try {
-    const combined = captions.map((c) => `${c.speaker || 'Speaker'}: ${c.text}`).join('\n');
+    const combined = captions
+      .map((caption) => {
+        const speaker = caption.speaker || (caption.speakerId ? `Speaker ${caption.speakerId}` : 'Speaker');
+        return `${speaker}: ${caption.text}`;
+      })
+      .join('\n');
 
-    // Ask AssemblyAI to summarize the collected captions
-    const result = await callAssemblyAISummarize(combined);
+    const notes = await callAssemblyAIMeetingNotes(combined);
 
-    // Normalize AssemblyAI response into { summary, actions }
-    let summary = '';
-    let actions = [];
-
-    if (result) {
-      if (typeof result.summary === 'string') {
-        summary = result.summary;
-      } else if (typeof result.text === 'string') {
-        summary = result.text;
-      } else if (result?.summaries && Array.isArray(result.summaries) && result.summaries[0]) {
-        summary = result.summaries[0].text || '';
-      }
-
-      if (Array.isArray(result.action_items)) {
-        actions = result.action_items.map((a) => ({ description: a.text || a.description || '', assignee: a.assignee || undefined }));
-      } else if (Array.isArray(result.actions)) {
-        actions = result.actions.map((a) => ({ description: a.text || a.description || '', assignee: a.assignee || undefined }));
-      }
+    if (!notes.summary) {
+      notes.summary = fallbackSummarize(captions).summary;
     }
 
-    // If AssemblyAI didn't return structured data, try to extract plain text
-    if (!summary) {
-      summary = captions.length > 0 ? `${captions[0].text.split('.').slice(0,1).join('.')}. ${captions[captions.length-1].text.split('.').slice(0,1).join('.')}.` : '';
-    }
-
-    // Broadcast a combined payload
-    broadcast(meetingId, {
-      type: 'summary',
-      meetingId,
-      summary: String(summary).trim(),
-      actions: Array.isArray(actions) ? actions : [],
-      timestamp: Date.now(),
-    });
-    // store last summary
-    lastSummaries.set(meetingId, { summary: String(summary).trim(), actions: Array.isArray(actions) ? actions : [], timestamp: Date.now() });
+    publishSummary(meetingId, notes);
   } catch (err) {
     console.error('[summarizer] error summarizing meeting', meetingId, err.message || err);
 
-    // Fallback: produce a simple extractive summary and naive action extraction
     try {
-      const fallback = fallbackSummarize(captions);
-      broadcast(meetingId, {
-        type: 'summary',
-        meetingId,
-        summary: fallback.summary,
-        actions: fallback.actions,
-        timestamp: Date.now(),
-      });
-    } catch (err2) {
-      console.error('[summarizer] fallback error', err2 && err2.message);
+      publishSummary(meetingId, fallbackSummarize(captions));
+    } catch (fallbackError) {
+      console.error('[summarizer] fallback error', fallbackError && fallbackError.message);
     }
   }
 }
 
 function fallbackSummarize(captions) {
-  const lines = captions.map((c) => `${c.speaker || 'Speaker'}: ${c.text}`);
-  const joined = lines.join(' ');
-
-  // Simple summary: first and last caption snippets
   const first = captions[0]?.text || '';
   const last = captions[captions.length - 1]?.text || '';
-  const summary = `${first.split('.').slice(0,1).join('.')}. ${last.split('.').slice(0,1).join('.')}.`;
-
-  // Naive action extraction: lines containing keywords
+  const summary = [first, last]
+    .map((text) => String(text).split('.').slice(0, 1).join('.').trim())
+    .filter(Boolean)
+    .join('. ');
+  const keyNotes = captions
+    .slice(-5)
+    .map((caption) => `${caption.speaker || 'Speaker'}: ${caption.text}`)
+    .filter((text) => text.trim().length > 0);
   const actionKeywords = ['action', 'todo', 'follow up', 'follow-up', 'deadline', 'will', 'please', 'assign', 'assign to'];
-  const actions = [];
+  const actionItems = captions
+    .filter((caption) => actionKeywords.some((keyword) => String(caption.text || '').toLowerCase().includes(keyword)))
+    .map((caption) => ({ description: String(caption.text || '').trim(), assignee: undefined }))
+    .filter((item) => item.description.length > 0);
 
-  for (const c of captions) {
-    const text = (c.text || '').toLowerCase();
-    if (actionKeywords.some((k) => text.includes(k))) {
-      actions.push({ description: c.text.trim(), assignee: undefined });
-    }
-  }
+  return {
+    summary: summary.trim(),
+    keyNotes,
+    keyDecisions: [],
+    actionItems,
+  };
+}
 
-  return { summary: summary.trim(), actions };
+function publishSummary(meetingId, notes) {
+  const timestamp = Date.now();
+  const payload = {
+    type: 'summary',
+    meetingId,
+    summary: String(notes.summary || '').trim(),
+    keyNotes: Array.isArray(notes.keyNotes) ? notes.keyNotes : [],
+    keyDecisions: Array.isArray(notes.keyDecisions) ? notes.keyDecisions : [],
+    actionItems: Array.isArray(notes.actionItems) ? notes.actionItems : [],
+    actions: Array.isArray(notes.actionItems) ? notes.actionItems : [],
+    timestamp,
+  };
+
+  broadcast(meetingId, payload);
+  lastSummaries.set(meetingId, {
+    summary: payload.summary,
+    keyNotes: payload.keyNotes,
+    keyDecisions: payload.keyDecisions,
+    actionItems: payload.actionItems,
+    actions: payload.actions,
+    timestamp,
+  });
 }
 
 function scheduleSummarize(meetingId) {
-  const buf = ensureBuffer(meetingId);
-  if (buf.timer) return; // already scheduled
+  const buffer = ensureBuffer(meetingId);
+  if (buffer.timer) return;
 
-  buf.timer = setTimeout(async () => {
-    const captions = buf.captions.splice(0, buf.captions.length);
-    buf.timer = null;
+  buffer.timer = setTimeout(async () => {
+    const captions = buffer.captions.splice(0, buffer.captions.length);
+    buffer.timer = null;
     if (captions.length === 0) return;
     await summarizeMeeting(meetingId, captions);
-  }, 30_000); // summarize every 30s if captions accumulate
+  }, 30_000);
 }
 
 async function addCaption(meetingId, payload) {
   try {
-    const buf = ensureBuffer(meetingId);
-    buf.captions.push({ speaker: payload.speaker || 'Speaker', text: payload.text || '' });
+    const buffer = ensureBuffer(meetingId);
+    buffer.captions.push({
+      speaker: payload.speaker || 'Speaker',
+      speakerId: payload.speakerId || undefined,
+      text: payload.text || '',
+    });
 
-    // If buffer large enough, summarize immediately
-    if (buf.captions.length >= 20) {
-      const captions = buf.captions.splice(0, buf.captions.length);
-      if (buf.timer) {
-        clearTimeout(buf.timer);
-        buf.timer = null;
+    if (buffer.captions.length >= 20) {
+      const captions = buffer.captions.splice(0, buffer.captions.length);
+      if (buffer.timer) {
+        clearTimeout(buffer.timer);
+        buffer.timer = null;
       }
+
       await summarizeMeeting(meetingId, captions);
       return;
     }
 
-    // Otherwise ensure a scheduled summarize
     scheduleSummarize(meetingId);
   } catch (err) {
     console.error('[summarizer] addCaption error', err.message || err);
@@ -164,18 +285,16 @@ async function addCaption(meetingId, payload) {
 
 async function flushMeeting(meetingId) {
   try {
-    const buf = ensureBuffer(meetingId);
-    if (!buf || !buf.captions || buf.captions.length === 0) {
+    const buffer = ensureBuffer(meetingId);
+    if (!buffer || !buffer.captions || buffer.captions.length === 0) {
       return getLastSummary(meetingId) || null;
     }
 
-    // Pull out all pending captions
-    const captions = buf.captions.splice(0, buf.captions.length);
+    const captions = buffer.captions.splice(0, buffer.captions.length);
 
-    // If there was a scheduled timer, clear it
-    if (buf.timer) {
-      clearTimeout(buf.timer);
-      buf.timer = null;
+    if (buffer.timer) {
+      clearTimeout(buffer.timer);
+      buffer.timer = null;
     }
 
     await summarizeMeeting(meetingId, captions);

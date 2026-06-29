@@ -42,6 +42,7 @@ interface IMeeting extends Document {
   aiLanguage?: string;
   transcript?: ITranscript[];
   summary?: string;
+  keyNotes?: string[];
   keyDecisions?: string[];
   actionItems?: IActionItem[];
   translatedCaptions?: ITranslatedCaption[];
@@ -118,6 +119,7 @@ const MeetingSchema = new Schema<IMeeting>(
       type: String,
       default: '',
     },
+    keyNotes: [String],
     keyDecisions: [String],
     actionItems: [
       {

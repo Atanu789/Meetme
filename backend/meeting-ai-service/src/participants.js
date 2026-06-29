@@ -13,13 +13,30 @@ function ensureMapping(meetingId) {
 function addParticipant(meetingId, participantId, displayName) {
   const map = ensureMapping(meetingId);
   if (!participantId) return;
-  map.set(String(participantId), String(displayName || '').trim());
+
+  const normalizedId = String(participantId).trim();
+  const normalizedName = String(displayName || '').trim();
+
+  if (!normalizedName) {
+    removeParticipant(meetingId, normalizedId);
+    return;
+  }
+
+  map.set(normalizedId, normalizedName);
+  map.set(`Speaker ${normalizedId}`, normalizedName);
+  map.set(`speaker:${normalizedId}`, normalizedName);
+  map.set(`speaker-${normalizedId}`, normalizedName);
 }
 
 function removeParticipant(meetingId, participantId) {
   const map = mappings.get(meetingId);
   if (!map) return;
-  map.delete(String(participantId));
+
+  const normalizedId = String(participantId || '').trim();
+  map.delete(normalizedId);
+  map.delete(`Speaker ${normalizedId}`);
+  map.delete(`speaker:${normalizedId}`);
+  map.delete(`speaker-${normalizedId}`);
 }
 
 function resolveSpeaker(meetingId, speakerLabel) {
@@ -28,11 +45,23 @@ function resolveSpeaker(meetingId, speakerLabel) {
   if (!map) return undefined;
 
   // Try direct match
-  if (map.has(String(speakerLabel))) return map.get(String(speakerLabel));
+  const normalizedLabel = String(speakerLabel || '').trim();
+  const directMatch = map.get(normalizedLabel);
+  if (directMatch) return directMatch;
 
   // If speakerLabel contains digits, try to match the numeric part
-  const digits = (String(speakerLabel || '').match(/\d+/) || [])[0];
-  if (digits && map.has(digits)) return map.get(digits);
+  const speakerMatch = normalizedLabel.match(/^speaker\s+(.+)$/i);
+  const speakerAlias = speakerMatch?.[1]?.trim();
+  if (speakerAlias) {
+    const speakerAliasMatch = map.get(speakerAlias);
+    if (speakerAliasMatch) return speakerAliasMatch;
+  }
+
+  const digits = (normalizedLabel.match(/\d+/) || [])[0];
+  if (digits) {
+    const digitMatch = map.get(digits);
+    if (digitMatch) return digitMatch;
+  }
 
   return undefined;
 }

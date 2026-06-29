@@ -94,19 +94,21 @@ function extractCaptionSegments(transcript: AssemblyAITranscript) {
     return utterances
       .map((utterance) => ({
         text: String(utterance?.text || '').trim(),
+        speakerId: String(utterance?.speaker || '1'),
         speaker: `Speaker ${String(utterance?.speaker || '1')}`,
       }))
       .filter((segment) => segment.text.length > 0);
   }
 
   const text = String(transcript.text || '').trim();
-  return text ? [{ text, speaker: 'You' }] : [];
+  return text ? [{ text, speakerId: 'local-user', speaker: 'You' }] : [];
 }
 
-async function postCaption(meetingId: string, text: string, speaker = 'You'): Promise<void> {
+async function postCaption(meetingId: string, text: string, speaker = 'You', speakerId?: string): Promise<void> {
   const payload = {
     text,
     speaker,
+    speakerId,
     final: true,
     timestamp: Date.now(),
   };
@@ -152,7 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const segment of segments) {
-      await postCaption(meetingId, segment.text, segment.speaker);
+      await postCaption(meetingId, segment.text, segment.speaker, segment.speakerId);
     }
 
     return NextResponse.json({ text: String(transcript.text || '').trim(), segments });

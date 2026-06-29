@@ -4,7 +4,7 @@ import Meeting from '@/models/Meeting';
 import Task from '@/models/Task';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getAssemblyAIService } from '@/lib/assemblyai';
+import { getAssemblyAIService, type SpeakerNameMap } from '@/lib/assemblyai';
 
 /**
  * Process meeting recording after it ends
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { meetingId, recordingUrl, transcriptId } = await request.json();
+    const { meetingId, recordingUrl, transcriptId, speakerMap } = await request.json();
 
     if (!meetingId || (!recordingUrl && !transcriptId)) {
       return NextResponse.json(
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
 
     const assemblyai = getAssemblyAIService();
     let finalTranscriptId = transcriptId;
+    const speakerNameMap = buildSpeakerNameMap(speakerMap, meeting);
 
     // If we have a recording URL and no transcript ID, submit for transcription
     if (recordingUrl && !transcriptId) {
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
     let detailedTranscript = [];
 
     try {
-      const speakers = await assemblyai.getSpeakerLabels(finalTranscriptId);
+      const speakers = await assemblyai.getSpeakerLabels(finalTranscriptId, speakerNameMap);
       speakerLabels = speakers.map((s, idx) => ({
         speakerId: s.label,
         name: s.speaker,
@@ -96,7 +97,8 @@ export async function POST(request: Request) {
       }));
 
       detailedTranscript = await assemblyai.getDetailedTranscript(
-        finalTranscriptId
+        finalTranscriptId,
+        speakerNameMap
       );
     } catch (error: any) {
       console.warn('Could not fetch speaker labels:', error.message);
@@ -104,14 +106,17 @@ export async function POST(request: Request) {
 
     // Generate summary, decisions, action items
     let summary = '';
+    let keyNotes = [];
     let keyDecisions = [];
     let actionItems = [];
 
     try {
-      const analysisResult = await assemblyai.generateSummary(
-        finalTranscriptId
+      const analysisResult = await assemblyai.generateMeetingNotes(
+        finalTranscriptId,
+        speakerNameMap
       );
       summary = analysisResult.summary;
+      keyNotes = analysisResult.keyNotes;
       keyDecisions = analysisResult.keyDecisions;
       actionItems = analysisResult.actionItems.map((item: string) => ({
         item,
@@ -125,10 +130,11 @@ export async function POST(request: Request) {
     meeting.transcript = detailedTranscript.map((item: any) => ({
       text: item.text,
       timestamp: item.start,
-      speakerId: item.speaker,
+      speakerId: item.speakerId,
       speaker: item.speaker,
     }));
     meeting.summary = summary;
+    meeting.keyNotes = keyNotes;
     meeting.keyDecisions = keyDecisions;
     meeting.actionItems = actionItems;
     // Best-effort: persist action items as tasks so they appear in Task Workspace
@@ -158,6 +164,7 @@ export async function POST(request: Request) {
         message: 'Meeting processed successfully',
         data: {
           summary,
+          keyNotes,
           keyDecisions,
           actionItems,
           speakerLabels,
@@ -191,4 +198,55 @@ const SPEAKER_COLORS = [
 function extractOwner(item: string): string | undefined {
   const ownerMatch = item.match(/(?:owner|assign|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
   return ownerMatch ? ownerMatch[1] : undefined;
+}
+
+function buildSpeakerNameMap(input: unknown, meeting: any): SpeakerNameMap {
+  const speakerNameMap: SpeakerNameMap = {};
+
+  const addMapping = (speakerId: unknown, displayName: unknown) => {
+    const key = String(speakerId || '').trim();
+    const name = String(displayName || '').trim();
+
+    if (!key || !name) {
+      return;
+    }
+
+    speakerNameMap[key] = name;
+
+    const speakerPrefixMatch = key.match(/^speaker\s+(.+)$/i);
+    if (speakerPrefixMatch?.[1]) {
+      const rawId = speakerPrefixMatch[1].trim();
+      speakerNameMap[rawId] = name;
+      speakerNameMap[`Speaker ${rawId}`] = name;
+      return;
+    }
+
+    speakerNameMap[`Speaker ${key}`] = name;
+    speakerNameMap[`speaker:${key}`] = name;
+    speakerNameMap[`speaker-${key}`] = name;
+  };
+
+  if (Array.isArray(meeting?.speakerLabels)) {
+    meeting.speakerLabels.forEach((speaker: any) => {
+      addMapping(
+        speaker?.speakerId || speaker?.label || speaker?.id,
+        speaker?.name || speaker?.speaker || speaker?.displayName
+      );
+    });
+  }
+
+  if (Array.isArray(input)) {
+    input.forEach((speaker: any) => {
+      addMapping(
+        speaker?.speakerId || speaker?.label || speaker?.id,
+        speaker?.name || speaker?.speaker || speaker?.displayName
+      );
+    });
+  } else if (input && typeof input === 'object') {
+    Object.entries(input as Record<string, unknown>).forEach(([speakerId, displayName]) => {
+      addMapping(speakerId, displayName);
+    });
+  }
+
+  return speakerNameMap;
 }

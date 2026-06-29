@@ -281,8 +281,37 @@ export function JitsiMeeting({
         setLoading(false);
       }, 30000);
 
-      jitsiRef.current.addEventListener('videoConferenceJoined', () => {
+      const postParticipantMapping = (participantId: unknown, participantName: unknown) => {
+        const id = String(participantId || '').trim();
+        const name = String(participantName || '').trim();
+        const base = resolveMeetingAiHttpUrl();
+        const captionRoomId = captionMeetingId || roomName;
+
+        if (!base || !id) {
+          return;
+        }
+
+        fetch(`${base}/api/rooms/${encodeURIComponent(captionRoomId)}/participants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            participantId: id,
+            displayName: name,
+            email: userEmail || '',
+          }),
+        }).catch((e) => console.warn('[Jitsi] participant mapping failed', e));
+      };
+
+      jitsiRef.current.addEventListener('videoConferenceJoined', (event: any) => {
         console.log('JitsiMeeting: Video conference joined');
+        const localParticipantId =
+          event?.id ||
+          event?.participantId ||
+          event?.jid ||
+          jitsiRef.current?.getCurrentUserID?.() ||
+          userEmail ||
+          displayName;
+        postParticipantMapping(localParticipantId, displayName || userEmail || 'Guest');
         setLoading(false);
         clearJoinTimeout();
         onReadyRef.current?.();
@@ -299,22 +328,7 @@ export function JitsiMeeting({
           const name = participant.getDisplayName ? participant.getDisplayName() : participant.displayName || participant.name || '';
           const id = participant.getId ? participant.getId() : participant.id || participant.participantId || participant.jid;
           console.log('Participant joined:', name, id);
-
-          // Post participant mapping to meeting-ai service
-          try {
-            const base = resolveMeetingAiHttpUrl();
-            const captionRoomId = captionMeetingId || roomName;
-
-            if (base) {
-              fetch(`${base}/api/rooms/${encodeURIComponent(captionRoomId)}/participants`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ participantId: id, displayName: name }),
-              }).catch((e) => console.warn('[Jitsi] participant mapping failed', e));
-            }
-          } catch (e) {
-            console.warn('[Jitsi] participant mapping error', e);
-          }
+          postParticipantMapping(id, name);
         } catch (err) {
           console.log('Participant joined event error', err);
         }
@@ -324,20 +338,7 @@ export function JitsiMeeting({
         try {
           const id = participant.getId ? participant.getId() : participant.id || participant.participantId || participant.jid;
           console.log('Participant left:', id);
-          try {
-            const base = resolveMeetingAiHttpUrl();
-            const captionRoomId = captionMeetingId || roomName;
-
-            if (base) {
-              fetch(`${base}/api/rooms/${encodeURIComponent(captionRoomId)}/participants`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ participantId: id, displayName: '' }),
-              }).catch(() => {});
-            }
-          } catch (e) {
-            // ignore
-          }
+          postParticipantMapping(id, '');
         } catch (err) {
           console.log('Participant left event error', err);
         }

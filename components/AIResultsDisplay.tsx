@@ -32,6 +32,7 @@ interface IActionItem {
 interface AIResultsDisplayProps {
   meetingId: string;
   summary?: string;
+  keyNotes?: string[];
   keyDecisions?: string[];
   actionItems?: IActionItem[];
   transcript?: ITranscript[];
@@ -42,6 +43,7 @@ interface AIResultsDisplayProps {
 export function AIResultsDisplay({
   meetingId,
   summary,
+  keyNotes = [],
   keyDecisions = [],
   actionItems = [],
   transcript = [],
@@ -52,7 +54,7 @@ export function AIResultsDisplay({
     summary ? 'summary' : null
   );
 
-  const hasAIContent = summary || keyDecisions.length > 0 || actionItems.length > 0;
+  const hasAIContent = summary || keyNotes.length > 0 || keyDecisions.length > 0 || actionItems.length > 0;
 
   if (!hasAIContent) {
     return null;
@@ -113,6 +115,45 @@ export function AIResultsDisplay({
           {expandedSection === 'summary' && (
             <div className="px-4 pb-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
               {summary}
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* Key Notes Section */}
+      {keyNotes.length > 0 && (
+        <motion.div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 overflow-hidden">
+          <button
+            onClick={() =>
+              setExpandedSection(expandedSection === 'notes' ? null : 'notes')
+            }
+            className="w-full flex items-center justify-between p-4 hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition"
+          >
+            <div className="flex items-center gap-3">
+              <IconFileText size={20} className="text-cyan-600 dark:text-cyan-400" />
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                Key Notes ({keyNotes.length})
+              </span>
+            </div>
+            <motion.div
+              animate={{ rotate: expandedSection === 'notes' ? 180 : 0 }}
+            >
+              <IconChevronDown size={20} className="text-cyan-600 dark:text-cyan-400" />
+            </motion.div>
+          </button>
+          {expandedSection === 'notes' && (
+            <div className="px-4 pb-4 space-y-2">
+              {keyNotes.map((note, idx) => (
+                <div
+                  key={idx}
+                  className="flex gap-3 text-sm text-gray-700 dark:text-gray-300"
+                >
+                  <span className="text-cyan-600 dark:text-cyan-400 font-semibold min-w-fit">
+                    •
+                  </span>
+                  <span>{note}</span>
+                </div>
+              ))}
             </div>
           )}
         </motion.div>

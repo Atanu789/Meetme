@@ -12,6 +12,7 @@ type MeetingData = {
   title: string
   description?: string
   summary?: string
+  keyNotes?: string[]
   keyDecisions?: string[]
   actionItems?: any[]
   transcript?: Array<{ text: string; timestamp: number; speaker?: string }>
@@ -64,6 +65,14 @@ export default function RecordingPage() {
       <section className="mb-6">
         <h2 className="text-lg font-medium">Summary</h2>
         <div className="mt-2 p-3 bg-white/70 rounded">{meeting.summary || 'No summary available.'}</div>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="text-lg font-medium">Key Notes</h2>
+        <ul className="mt-2 list-disc pl-5">
+          {(meeting.keyNotes || []).length === 0 && <li className="text-sm text-slate-500">No key notes recorded.</li>}
+          {(meeting.keyNotes || []).map((note, idx) => <li key={idx}>{note}</li>)}
+        </ul>
       </section>
 
       <section className="mb-6">

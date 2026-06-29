@@ -149,7 +149,7 @@ function createServer() {
         try {
           const body = await readJsonBody(request);
           const participantId = body.participantId || body.id || body.jid || body.participant;
-          const displayName = body.displayName || body.name || '';
+          const displayName = body.displayName || body.name || body.email || '';
 
           if (!participantId) {
             response.writeHead(400, { 'Content-Type': 'application/json' });
@@ -253,7 +253,9 @@ function createServer() {
 
           // Try to resolve a friendly speaker name if mapping exists
           try {
-            const mapped = resolveSpeaker(meetingId, payload.speaker);
+            const mapped =
+              resolveSpeaker(meetingId, payload.speakerId) ||
+              resolveSpeaker(meetingId, payload.speaker);
             if (mapped) payload.speaker = mapped;
           } catch (err) {
             // ignore mapping errors
@@ -334,9 +336,19 @@ function createServer() {
             meetingId,
             text: String(payload.text).trim(),
             speaker: payload.speaker ? String(payload.speaker).trim() : 'Speaker',
+            speakerId: payload.speakerId ? String(payload.speakerId).trim() : undefined,
             final: Boolean(payload.final),
             timestamp: typeof payload.timestamp === 'number' ? payload.timestamp : Date.now(),
           };
+
+          try {
+            const mapped =
+              resolveSpeaker(meetingId, captionPayload.speakerId) ||
+              resolveSpeaker(meetingId, captionPayload.speaker);
+            if (mapped) captionPayload.speaker = mapped;
+          } catch (err) {
+            // ignore mapping errors
+          }
 
           recordCaption(meetingId, captionPayload);
           broadcast(meetingId, captionPayload);

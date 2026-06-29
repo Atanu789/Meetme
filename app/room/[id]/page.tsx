@@ -192,17 +192,40 @@ export default function RoomPage() {
         if (!detailMeetingId) return;
 
         const shouldAutoOpen = Boolean(e?.detail?.autoOpen);
+        const liveSummary = e?.detail?.summary || null;
+        const liveActionItems = Array.isArray(liveSummary?.actions)
+          ? liveSummary.actions.map((action: any) => ({
+              item: String(action?.description || action?.item || '').trim(),
+              owner: action?.assignee || action?.owner ? String(action.assignee || action.owner).trim() : undefined,
+            })).filter((action: any) => action.item.length > 0)
+          : [];
 
         // Fetch meeting details (includes summary, keyDecisions, actionItems, transcript)
         const resp = await fetch(`/api/get-meeting?id=${encodeURIComponent(detailMeetingId)}`);
+        let m = null;
         if (!resp.ok) {
           console.warn('[AI panel] failed to fetch meeting data');
-          return;
+        } else {
+          const body = await resp.json();
+          m = body.meeting || null;
         }
 
-        const body = await resp.json();
-        const m = body.meeting || null;
-        setAiResults(m);
+        setAiResults((current: any) => ({
+          ...(m || current || {}),
+          meetingId: detailMeetingId,
+          summary: liveSummary?.text || m?.summary || current?.summary || '',
+          keyNotes: Array.isArray(liveSummary?.keyNotes)
+            ? liveSummary.keyNotes
+            : m?.keyNotes || current?.keyNotes || [],
+          keyDecisions: Array.isArray(liveSummary?.keyDecisions)
+            ? liveSummary.keyDecisions
+            : m?.keyDecisions || current?.keyDecisions || [],
+          actionItems: liveActionItems.length > 0
+            ? liveActionItems
+            : m?.actionItems || current?.actionItems || [],
+          transcript: m?.transcript || current?.transcript || [],
+          speakerLabels: m?.speakerLabels || current?.speakerLabels || [],
+        }));
 
         if (shouldAutoOpen) {
           setShowAiResults(true);
@@ -327,6 +350,7 @@ export default function RoomPage() {
                 <AIResultsDisplay
                   meetingId={meetingId}
                   summary={aiResults?.summary}
+                  keyNotes={aiResults?.keyNotes || []}
                   keyDecisions={aiResults?.keyDecisions || []}
                   actionItems={aiResults?.actionItems || []}
                   transcript={aiResults?.transcript || []}

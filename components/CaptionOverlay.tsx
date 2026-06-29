@@ -19,10 +19,27 @@ type Caption = {
   opacity?: number;
 };
 
+type SummaryAction = {
+  description?: string;
+  item?: string;
+  assignee?: string;
+  owner?: string;
+};
+
 type CaptionMessage = {
   type?: 'caption' | 'connected' | 'cleared' | 'summary';
-  summary?: string | { summary?: string; actions?: Array<{ description?: string; assignee?: string }> };
-  actions?: Array<{ description?: string; assignee?: string }>;
+  summary?: string | {
+    summary?: string;
+    text?: string;
+    keyNotes?: string[];
+    keyDecisions?: string[];
+    actionItems?: SummaryAction[];
+    actions?: SummaryAction[];
+  };
+  keyNotes?: string[];
+  keyDecisions?: string[];
+  actionItems?: SummaryAction[];
+  actions?: SummaryAction[];
   text?: string;
   speaker?: string;
   speakerId?: string;
@@ -32,6 +49,8 @@ type CaptionMessage = {
 
 type SummaryCard = {
   text: string;
+  keyNotes: string[];
+  keyDecisions: string[];
   actions: Array<{ description: string; assignee?: string }>;
   timestamp: number;
 };
@@ -208,16 +227,25 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
         const summaryObj = payload.summary && typeof payload.summary === 'object' ? payload.summary : null;
         const summaryText = typeof payload.summary === 'string'
           ? payload.summary
-          : summaryObj?.summary || '';
-        const rawActions = Array.isArray(payload.actions)
-          ? payload.actions
-          : Array.isArray(summaryObj?.actions)
-            ? summaryObj.actions
-            : [];
+          : summaryObj?.summary || summaryObj?.text || '';
+        const normalizeStringArray = (items: unknown) => Array.isArray(items)
+          ? items.map((item) => String(item || '').trim()).filter(Boolean)
+          : [];
+        const keyNotes = normalizeStringArray(payload.keyNotes || summaryObj?.keyNotes);
+        const keyDecisions = normalizeStringArray(payload.keyDecisions || summaryObj?.keyDecisions);
+        const rawActions = Array.isArray(payload.actionItems)
+          ? payload.actionItems
+          : Array.isArray(payload.actions)
+            ? payload.actions
+            : Array.isArray(summaryObj?.actionItems)
+              ? summaryObj.actionItems
+              : Array.isArray(summaryObj?.actions)
+                ? summaryObj.actions
+                : [];
         const actions = rawActions
           .map((item) => ({
-            description: String(item?.description || '').trim(),
-            assignee: item?.assignee ? String(item.assignee).trim() : undefined,
+            description: String(item?.description || item?.item || '').trim(),
+            assignee: item?.assignee || item?.owner ? String(item.assignee || item.owner).trim() : undefined,
           }))
           .filter((item) => item.description.length > 0)
           .slice(0, 4);
@@ -230,6 +258,8 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
                 meetingId,
                 summary: {
                   text: normalizedText,
+                  keyNotes,
+                  keyDecisions,
                   actions,
                   timestamp: Date.now(),
                 },
