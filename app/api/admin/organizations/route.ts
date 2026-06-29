@@ -1,23 +1,19 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../lib/auth-options';
+import { getAdminAuthorization } from '../../../../lib/admin-auth';
 import dbConnect from '../../../../lib/db';
 import Organization from '../../../../models/Organization';
 import User from '../../../../models/User';
 
-async function checkAdminAuth() {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any).role !== 'admin') {
-    return { authorized: false };
-  }
-  return { authorized: true };
+async function checkAdminAuth(request?: Request) {
+  const auth = await getAdminAuthorization(request);
+  return auth;
 }
 
 export async function GET() {
   try {
-    const { authorized } = await checkAdminAuth();
-    if (!authorized) {
+    const auth = await checkAdminAuth();
+    if (!auth.authorized) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

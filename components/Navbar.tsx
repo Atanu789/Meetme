@@ -18,7 +18,6 @@ export function Navbar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
@@ -35,7 +34,6 @@ export function Navbar() {
 
   useEffect(() => {
     setIsFilesOpen(false);
-    setIsProductsOpen(false);
     setIsDropdownOpen(false);
     setIsWhiteboardOpen(false);
     setIsYouTubeModalOpen(false);
@@ -103,22 +101,6 @@ export function Navbar() {
 
   const productLinks = [
     {
-      name: 'Pricing',
-      href: '/pricing',
-      tag: 'Plan',
-      description: 'Compare Free, Pro, Business, and Enterprise.',
-      hoverClass: 'hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]',
-      tagClass: 'bg-cyan-500/15 text-cyan-800 ring-cyan-500/20',
-    },
-    {
-      name: 'Admin',
-      href: '/lms/admin',
-      tag: 'Ops',
-      description: 'Open the system console.',
-      hoverClass: 'hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-100 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]',
-      tagClass: 'bg-slate-500/15 text-slate-800 ring-slate-500/20',
-    },
-    {
       name: 'Meetings',
       href: '/lms',
       tag: 'Live',
@@ -141,22 +123,6 @@ export function Navbar() {
       description: 'Keep room uploads in one place.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]',
       tagClass: 'bg-emerald-500/15 text-emerald-800 ring-emerald-500/20',
-    },
-    {
-      name: 'Future Product 1',
-      href: '/lms',
-      tag: 'Soon',
-      description: 'Upcoming workflow tools.',
-      hoverClass: 'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:shadow-[0_14px_30px_rgba(245,158,11,0.2)]',
-      tagClass: 'bg-amber-500/15 text-amber-800 ring-amber-500/20',
-    },
-    {
-      name: 'Future Product 2',
-      href: '/lms',
-      tag: 'Soon',
-      description: 'More team utilities on the way.',
-      hoverClass: 'hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-[0_14px_30px_rgba(244,63,94,0.2)]',
-      tagClass: 'bg-rose-500/15 text-rose-800 ring-rose-500/20',
     },
   ];
 
@@ -187,65 +153,7 @@ export function Navbar() {
               </span>
             </Link>
 
-            <div
-              className="relative hidden md:block"
-              onMouseEnter={() => setIsProductsOpen(true)}
-              onMouseLeave={() => setIsProductsOpen(false)}
-            >
-              <button
-                onClick={() => setIsProductsOpen((prev) => !prev)}
-                onFocus={() => setIsProductsOpen(true)}
-                className={`inline-flex h-8 items-center whitespace-nowrap rounded-lg border px-2.5 text-left text-sm font-medium leading-none transition duration-200 ${
-                  isProductsOpen
-                    ? 'border-cyan-300 bg-cyan-100 text-cyan-950 shadow-[0_14px_30px_rgba(6,182,212,0.2)]'
-                    : 'border-slate-200 bg-slate-100/80 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-950 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]'
-                }`}
-              >
-                Products
-              </button>
-              <Link
-                href="/pricing"
-                className="ml-2 inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100 hover:text-cyan-950 hover:shadow-[0_14px_30px_rgba(6,182,212,0.2)]"
-              >
-                Pricing
-              </Link>
-              <Link
-                href="/lms/admin"
-                className="ml-2 inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-200 hover:text-slate-950 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]"
-              >
-                Admin
-              </Link>
-              {isProductsOpen && (
-                <div
-                  className="absolute left-0 mt-2 w-[22rem] overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white/95 p-2.5 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl"
-                  onBlur={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                      setIsProductsOpen(false);
-                    }
-                  }}
-                >
-                  {productLinks.map((product) => (
-                    <Link
-                      key={product.name}
-                      href={product.href}
-                      className={`group flex items-start justify-between gap-3 rounded-[1.2rem] border border-slate-200 bg-slate-100/80 px-3.5 py-3 text-sm text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 ${product.hoverClass}`}
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium text-slate-900 transition group-hover:text-slate-950">
-                          {product.name}
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          {product.description}
-                        </p>
-                      </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition ${product.tagClass}`}>
-                        {product.tag}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Products and pricing removed from navbar per admin request */}
 
             {pathname?.startsWith('/room/') && (
               <div className="flex items-center gap-2">

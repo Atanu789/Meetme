@@ -83,6 +83,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [adminAuthorized, setAdminAuthorized] = useState(false);
   const [showOrgModal, setShowOrgModal] = useState(false);
 
   useEffect(() => {
@@ -93,16 +94,39 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    } else if (status === 'authenticated') {
-      const userRole = (session?.user as any)?.role;
-      if (userRole !== 'admin') {
-        router.push('/lms');
-      } else {
-        void fetchAllData();
+    void (async () => {
+      try {
+        if (status === 'authenticated') {
+          const userRole = (session?.user as any)?.role;
+          if (userRole !== 'admin') {
+            router.push('/lms');
+            return;
+          }
+          await fetchAllData();
+          return;
+        }
+
+        if (status === 'unauthenticated') {
+          // Check admin cookie-based session as a fallback (admins authenticate via env creds)
+          try {
+            const s = await fetch('/api/admin/auth/session', { credentials: 'include' });
+            const d = await s.json();
+            if (s.ok && d?.authenticated) {
+              // admin cookie valid; mark authorized and load admin data
+              setAdminAuthorized(true);
+              await fetchAllData();
+              return;
+            }
+          } catch (e) {
+            // ignore and redirect to admin login below
+          }
+
+          router.push('/admin/login');
+        }
+      } catch (err) {
+        console.error('Admin access check failed', err);
       }
-    }
+    })();
   }, [status, session, router]);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
@@ -114,10 +138,10 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const [statsRes, usersRes, meetingsRes, orgsRes] = await Promise.all([
-        fetch('/api/admin/stats'),
-        fetch('/api/admin/users'),
-        fetch('/api/admin/meetings'),
-        fetch('/api/admin/organizations'),
+        fetch('/api/admin/stats', { credentials: 'include' }),
+        fetch('/api/admin/users', { credentials: 'include' }),
+        fetch('/api/admin/meetings', { credentials: 'include' }),
+        fetch('/api/admin/organizations', { credentials: 'include' }),
       ]);
 
       if (statsRes.ok) {
@@ -150,6 +174,7 @@ export default function AdminDashboard() {
       const response = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ userId, ...updates }),
       });
 
@@ -164,7 +189,7 @@ export default function AdminDashboard() {
       );
       
       // Refresh stats
-      void fetch('/api/admin/stats').then((res) => {
+      void fetch('/api/admin/stats', { credentials: 'include' }).then((res) => {
         if (res.ok) res.json().then((d) => setStats(d.stats));
       });
     } catch (err: any) {
@@ -181,6 +206,7 @@ export default function AdminDashboard() {
       setActionLoading(`user-delete-${userId}`);
       const response = await fetch(`/api/admin/users?userId=${userId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -190,7 +216,7 @@ export default function AdminDashboard() {
       setUsers((prev) => prev.filter((u) => u._id !== userId));
       
       // Refresh stats
-      void fetch('/api/admin/stats').then((res) => {
+      void fetch('/api/admin/stats', { credentials: 'include' }).then((res) => {
         if (res.ok) res.json().then((d) => setStats(d.stats));
       });
     } catch (err: any) {
@@ -207,6 +233,7 @@ export default function AdminDashboard() {
       setActionLoading(`meeting-delete-${meetingId}`);
       const response = await fetch(`/api/admin/meetings?meetingId=${meetingId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -216,7 +243,7 @@ export default function AdminDashboard() {
       setMeetings((prev) => prev.filter((m) => m.meetingId !== meetingId));
       
       // Refresh stats
-      void fetch('/api/admin/stats').then((res) => {
+      void fetch('/api/admin/stats', { credentials: 'include' }).then((res) => {
         if (res.ok) res.json().then((d) => setStats(d.stats));
       });
     } catch (err: any) {
@@ -233,6 +260,7 @@ export default function AdminDashboard() {
       const response = await fetch('/api/admin/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: newOrgName,
           domain: newOrgDomain || undefined,
@@ -256,14 +284,14 @@ export default function AdminDashboard() {
       setNewOrgChatEnabled(true);
 
       // Refresh organizations
-      const orgsRes = await fetch('/api/admin/organizations');
+      const orgsRes = await fetch('/api/admin/organizations', { credentials: 'include' });
       if (orgsRes.ok) {
         const d = await orgsRes.json();
         setOrganizations(d.organizations || []);
       }
       
       // Refresh stats
-      void fetch('/api/admin/stats').then((res) => {
+      void fetch('/api/admin/stats', { credentials: 'include' }).then((res) => {
         if (res.ok) res.json().then((d) => setStats(d.stats));
       });
     } catch (err: any) {
@@ -280,6 +308,7 @@ export default function AdminDashboard() {
       setActionLoading(`org-delete-${orgId}`);
       const response = await fetch(`/api/admin/organizations?orgId=${orgId}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -289,14 +318,14 @@ export default function AdminDashboard() {
       setOrganizations((prev) => prev.filter((o) => o._id !== orgId));
       
       // Refresh users (since their org relations changed)
-      const usersRes = await fetch('/api/admin/users');
+      const usersRes = await fetch('/api/admin/users', { credentials: 'include' });
       if (usersRes.ok) {
         const d = await usersRes.json();
         setUsers(d.users || []);
       }
 
       // Refresh stats
-      void fetch('/api/admin/stats').then((res) => {
+      void fetch('/api/admin/stats', { credentials: 'include' }).then((res) => {
         if (res.ok) res.json().then((d) => setStats(d.stats));
       });
     } catch (err: any) {
@@ -343,7 +372,9 @@ export default function AdminDashboard() {
     );
   }
 
-  if (status !== 'authenticated' || (session?.user as any)?.role !== 'admin') {
+  // Allow render when NextAuth session indicates admin OR when admin cookie auth succeeded
+  const sessionIsAdmin = status === 'authenticated' && (session?.user as any)?.role === 'admin';
+  if (!sessionIsAdmin && !adminAuthorized) {
     return null;
   }
 

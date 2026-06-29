@@ -25,7 +25,7 @@ export default function AdminSubscriptionTable() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/admin/subscriptions');
+      const response = await fetch('/api/admin/subscriptions', { credentials: 'include' });
       if (response.status === 403) {
         // not authorized as admin - redirect to admin login
         window.location.href = '/admin/login';
@@ -53,6 +53,7 @@ export default function AdminSubscriptionTable() {
       const response = await fetch('/api/admin/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ subscriptionId, ...updates }),
       });
       if (response.status === 403) {
@@ -77,6 +78,7 @@ export default function AdminSubscriptionTable() {
     try {
       const response = await fetch(`/api/admin/subscriptions?subscriptionId=${encodeURIComponent(subscriptionId)}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (response.status === 403) {
         window.location.href = '/admin/login';

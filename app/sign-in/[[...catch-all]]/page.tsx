@@ -45,7 +45,10 @@ export default function Page() {
             Sign in to your Melanam workspace.
           </h1>
           <p className="max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            Only registered student, instructor, and admin accounts can receive a magic login link.
+            Only registered student and instructor accounts can receive a magic login link. Admins must sign in via the admin console.
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Admins: use the <a href="/admin/login" className="font-medium text-slate-900 underline">admin login</a> with the credentials in your .env.
           </p>
         </div>
         <div className="surface-strong rounded-[2rem] p-3 sm:p-6">

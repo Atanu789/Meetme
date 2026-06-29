@@ -9,6 +9,10 @@ type RoleType = 'student' | 'instructor' | 'admin';
 export default function Page() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<RoleType>('student');
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const callbackUrl = '/lms';
@@ -76,9 +80,9 @@ export default function Page() {
           <h1 className="section-title font-display text-3xl font-semibold text-slate-950 sm:text-5xl">
             Start fresh with a new Melanam account.
           </h1>
-          <p className="max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            Choose Student, Instructor, or Admin. Sign in only works after the account has been created.
-          </p>
+                  <p className="max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+                    Choose Student or Instructor. Admin accounts cannot be created here.
+                  </p>
         </div>
 
         {/* Right column signup card */}
@@ -97,7 +101,7 @@ export default function Page() {
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Select Role
                 </label>
-                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-3">
 
                   <div
                     onClick={() => setRole('student')}
@@ -137,52 +141,105 @@ export default function Page() {
                     onClick={() => setRole('admin')}
                     className={`cursor-pointer rounded-2xl border p-4 transition flex flex-col justify-between ${
                       role === 'admin'
-                        ? 'border-violet-500 bg-violet-50/40 shadow-sm ring-1 ring-violet-500'
+                        ? 'border-rose-500 bg-rose-50/30 shadow-sm ring-1 ring-rose-500'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div>
-                      <span className="text-xl">🛡️</span>
+                      <span className="text-xl">🔒</span>
                       <h4 className="mt-2 font-bold text-sm text-slate-900">Admin</h4>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 leading-4">
-                      Full access to user and course administration.
+                      Sign in with admin credentials. Admin accounts are controlled via environment variables.
                     </p>
                   </div>
+
+                  {/* Admin role removed: admins must be provisioned via admin panel credentials */}
 
                 </div>
               </div>
 
-              {/* Email Address Input */}
-              <div className="space-y-1.5">
-                <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  className="input-modern w-full"
-                />
-              </div>
+              {/* Email Address Input (or admin credentials when admin selected) */}
+              {role !== 'admin' ? (
+                <div className="space-y-1.5">
+                  <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Email Address
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    className="input-modern w-full"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Admin Username</label>
+                    <input
+                      value={adminUsername}
+                      onChange={(e) => setAdminUsername(e.target.value)}
+                      className="input-modern mt-1.5 w-full"
+                      placeholder="admin username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Admin Password</label>
+                    <input
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      className="input-modern mt-1.5 w-full"
+                      placeholder="password"
+                    />
+                  </div>
+                  {adminError ? <p className="text-sm text-red-600">{adminError}</p> : null}
+                </div>
+              )}
 
               {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className={`button-primary w-full justify-center py-3 text-sm sm:text-base font-semibold flex items-center gap-2 ${
-                  role === 'instructor'
-                    ? 'from-emerald-500 to-teal-500 shadow-emerald-500/20'
-                    : role === 'admin'
-                    ? 'from-violet-500 to-fuchsia-500 shadow-violet-500/20'
-                    : 'from-cyan-500 to-blue-500 shadow-cyan-500/20'
-                }`}
-              >
-                {loading ? 'Processing...' : 'Send Magic Link'}
-              </button>
+              {role !== 'admin' ? (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`button-primary w-full justify-center py-3 text-sm sm:text-base font-semibold flex items-center gap-2 ${
+                    role === 'instructor' ? 'from-emerald-500 to-teal-500 shadow-emerald-500/20' : 'from-cyan-500 to-blue-500 shadow-cyan-500/20'
+                  }`}
+                >
+                  {loading ? 'Processing...' : 'Send Magic Link'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setAdminLoading(true);
+                    setAdminError(null);
+                    try {
+                      const res = await fetch('/api/admin/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ username: adminUsername, password: adminPassword }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Admin sign in failed');
+                      // successful admin login sets cookie; redirect to admin area
+                      window.location.href = '/lms/admin';
+                    } catch (err: any) {
+                      setAdminError(err.message || 'Admin sign in failed');
+                    } finally {
+                      setAdminLoading(false);
+                    }
+                  }}
+                  disabled={adminLoading}
+                  className={`button-primary w-full justify-center py-3 text-sm sm:text-base font-semibold flex items-center gap-2 from-rose-500 to-pink-500 shadow-rose-500/20`}
+                >
+                  {adminLoading ? 'Signing in...' : 'Sign in as Admin'}
+                </button>
+              )}
 
             </form>
 

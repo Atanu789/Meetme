@@ -13,7 +13,7 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     void (async () => {
-      const response = await fetch('/api/admin/auth/session');
+      const response = await fetch('/api/admin/auth/session', { credentials: 'include' });
       const data = await response.json();
       if (data?.authenticated) {
         router.replace('/lms/admin');
@@ -30,6 +30,7 @@ export default function AdminLoginPage() {
       const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
 

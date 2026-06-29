@@ -2,22 +2,20 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth-options';
+import { getAdminAuthorization } from '../../../../lib/admin-auth';
 import dbConnect from '../../../../lib/db';
 import User from '../../../../models/User';
 import Organization from '../../../../models/Organization';
 
-async function checkAdminAuth() {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any).role !== 'admin') {
-    return { authorized: false, session: null };
-  }
-  return { authorized: true, session };
+async function checkAdminAuth(request?: Request) {
+  const auth = await getAdminAuthorization(request);
+  return auth;
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const { authorized } = await checkAdminAuth();
-    if (!authorized) {
+    const auth = await checkAdminAuth(req);
+    if (!auth.authorized) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -68,8 +66,8 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const { authorized } = await checkAdminAuth();
-    if (!authorized) {
+    const auth = await checkAdminAuth(req);
+    if (!auth.authorized) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -87,10 +85,12 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Don't let admins demote themselves accidentally
-    const session = await getServerSession(authOptions);
-    if (user.email === session?.user?.email && role && role !== 'admin') {
-      return NextResponse.json({ error: 'You cannot demote yourself' }, { status: 400 });
+    // Don't let NextAuth-based admins demote themselves accidentally
+    if (auth.source === 'nextauth') {
+      const session = await getServerSession(authOptions);
+      if (user.email === session?.user?.email && role && role !== 'admin') {
+        return NextResponse.json({ error: 'You cannot demote yourself' }, { status: 400 });
+      }
     }
 
     if (role !== undefined) user.role = role;
@@ -108,8 +108,8 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { authorized } = await checkAdminAuth();
-    if (!authorized) {
+    const auth = await checkAdminAuth(req);
+    if (!auth.authorized) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -127,9 +127,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const session = await getServerSession(authOptions);
-    if (user.email === session?.user?.email) {
-      return NextResponse.json({ error: 'You cannot delete yourself' }, { status: 400 });
+    if (auth.source === 'nextauth') {
+      const session = await getServerSession(authOptions);
+      if (user.email === session?.user?.email) {
+        return NextResponse.json({ error: 'You cannot delete yourself' }, { status: 400 });
+      }
     }
 
     await User.findByIdAndDelete(userId);

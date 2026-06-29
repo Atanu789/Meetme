@@ -33,6 +33,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
     }
 
+    // Disallow creating admin accounts via this public endpoint.
+    // Admins must be provisioned via the admin panel credentials (env vars).
+    if (normalizedRole === 'admin') {
+      return NextResponse.json({ error: 'Admin accounts cannot be created via this endpoint' }, { status: 403 });
+    }
+
     // Keep the legacy organization model available for existing enterprise flows,
     // but new sign-ups use the fresh LMS role set directly.
     let orgId: string | null = null;
