@@ -269,7 +269,7 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[96rem] overflow-hidden px-3 pb-5 pt-4 text-slate-950 sm:px-5">
+    <div className="mx-auto w-full max-w-[80rem] overflow-hidden px-3 pb-5 pt-4 text-slate-950 sm:px-5">
       <div className="min-w-0 space-y-3">
         <div className="surface-strong overflow-hidden rounded-[2rem] border-white/70">
           <div className="flex flex-col gap-4 border-b border-slate-200/80 bg-white/70 p-4 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">

@@ -8,14 +8,22 @@ import { LmsMeetingActions } from './LmsMeetingActions';
 export function AdminLmsDashboard() {
   const [dashboard, setDashboard] = useState<any>({ courses: [], sessions: [], assignments: [], submissions: [] });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const response = await fetch('/api/lms/dashboard/admin');
-      const body = await response.json().catch(() => ({}));
-      if (response.ok) {
-        setDashboard(body.dashboard || dashboard);
+      setLoadError('');
+      try {
+        const response = await fetch('/api/lms/dashboard/admin');
+        const body = await response.json().catch(() => ({}));
+        if (response.ok) {
+          setDashboard(body.dashboard || dashboard);
+        } else {
+          setLoadError(body.error || 'Failed to load admin dashboard');
+        }
+      } catch (error) {
+        setLoadError('Failed to load admin dashboard');
       }
       setLoading(false);
     };
@@ -38,6 +46,34 @@ export function AdminLmsDashboard() {
     { label: 'Session velocity', value: Math.min(100, (dashboard.totalSessions || dashboard.sessions.length) * 12 + 28), tone: 'from-emerald-400 to-teal-500' },
     { label: 'Assessment flow', value: Math.min(100, (dashboard.totalAssignments || dashboard.assignments.length) * 10 + 32), tone: 'from-violet-400 to-indigo-500' },
   ];
+
+  if (loading || loadError) {
+    return (
+      <LmsShell
+        kicker="Admin Oversight"
+        title="Global LMS Health"
+        description="A lightweight overview for administrators to monitor the course layer without turning this into a full LMS suite."
+        stats={stats}
+      >
+        <LmsMeetingActions roleLabel="Admin" />
+        <GlowCard>
+          <div className="flex flex-col gap-2">
+            <p className="font-display text-xl font-semibold text-slate-950">
+              {loadError ? 'Could not load admin dashboard' : 'Loading system health'}
+            </p>
+            <p className="text-sm leading-6 text-slate-600">
+              {loadError || 'Courses, sessions, assignments, and submissions are being prepared.'}
+            </p>
+            {loadError ? (
+              <button onClick={() => window.location.reload()} className="mt-2 w-fit rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                Refresh dashboard
+              </button>
+            ) : null}
+          </div>
+        </GlowCard>
+      </LmsShell>
+    );
+  }
 
   return (
     <LmsShell

@@ -21,14 +21,22 @@ export function StudentLmsDashboard() {
   const [submissionContent, setSubmissionContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const response = await fetch('/api/lms/dashboard/student');
-      const body = await response.json().catch(() => ({}));
-      if (response.ok) {
-        setDashboard(body.dashboard || { courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [] });
+      setLoadError('');
+      try {
+        const response = await fetch('/api/lms/dashboard/student');
+        const body = await response.json().catch(() => ({}));
+        if (response.ok) {
+          setDashboard(body.dashboard || { courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [] });
+        } else {
+          setLoadError(body.error || 'Failed to load student dashboard');
+        }
+      } catch (error) {
+        setLoadError('Failed to load student dashboard');
       }
       setLoading(false);
     };
@@ -80,7 +88,7 @@ export function StudentLmsDashboard() {
     const reload = await fetch('/api/lms/dashboard/student');
     const reloadBody = await reload.json().catch(() => ({}));
     if (reload.ok) {
-      setDashboard(reloadBody.dashboard || dashboard);
+    setDashboard(reloadBody.dashboard || dashboard);
     }
   };
 
@@ -107,6 +115,34 @@ export function StudentLmsDashboard() {
       setMessage('Failed to join session');
     }
   };
+
+  if (loading || loadError) {
+    return (
+      <LmsShell
+        kicker="Student Dashboard"
+        title="My Courses"
+        description="Track your classes, submit work, and jump back into recordings without leaving the Melanam workspace."
+        stats={stats}
+      >
+        <LmsMeetingActions roleLabel="Student" />
+        <GlowCard>
+          <div className="flex flex-col gap-2">
+            <p className="font-display text-xl font-semibold text-slate-950">
+              {loadError ? 'Could not load student dashboard' : 'Loading your learning workspace'}
+            </p>
+            <p className="text-sm leading-6 text-slate-600">
+              {loadError || 'Courses, classes, assignments, recordings, and submissions are being prepared.'}
+            </p>
+            {loadError ? (
+              <button onClick={() => window.location.reload()} className="mt-2 w-fit rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                Refresh dashboard
+              </button>
+            ) : null}
+          </div>
+        </GlowCard>
+      </LmsShell>
+    );
+  }
 
   return (
     <LmsShell

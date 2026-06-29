@@ -23,7 +23,7 @@ export default function LmsLandingPage() {
   }, [router, session?.user, status]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[80rem] px-3 py-6 sm:px-5">
       <Skeleton className="h-64 rounded-[2rem]" />
     </div>
   );

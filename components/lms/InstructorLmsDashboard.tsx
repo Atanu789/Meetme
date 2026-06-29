@@ -59,6 +59,7 @@ export function InstructorLmsDashboard() {
   const [gradeScore, setGradeScore] = useState('');
   const [gradeFeedback, setGradeFeedback] = useState('');
   const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   const selectedCourse = dashboard.courses.find((course) => course._id === selectedCourseId) || dashboard.courses[0] || null;
 
@@ -68,6 +69,7 @@ export function InstructorLmsDashboard() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setLoadError('');
       try {
         const [dashboardResponse, meetingsResponse] = await Promise.all([
           fetch('/api/lms/dashboard/instructor'),
@@ -90,9 +92,12 @@ export function InstructorLmsDashboard() {
           if (firstCourse && !selectedCourseId) {
             setSelectedCourseId(firstCourse._id);
           }
+        } else {
+          setLoadError(dashboardBody.error || 'Failed to load instructor dashboard');
         }
       } catch (err) {
         console.error('Error loading dashboard:', err);
+        setLoadError('Failed to load instructor dashboard');
       }
       setLoading(false);
     };
@@ -313,6 +318,34 @@ export function InstructorLmsDashboard() {
     setGradeFeedback('');
     await reloadDashboard();
   };
+
+  if (loading || loadError) {
+    return (
+      <LmsShell
+        kicker="Instructor Dashboard"
+        title="Teaching Command Center"
+        description="Create courses, schedule live classes, enroll students, publish assignments, and review learning activity."
+        stats={stats}
+      >
+        <LmsMeetingActions roleLabel="Instructor" />
+        <GlowCard>
+          <div className="flex flex-col gap-2">
+            <p className="font-display text-xl font-semibold text-slate-950">
+              {loadError ? 'Could not load instructor dashboard' : 'Loading your teaching workspace'}
+            </p>
+            <p className="text-sm leading-6 text-slate-600">
+              {loadError || 'Courses, meetings, sessions, assignments, resources, and grading queues are being prepared.'}
+            </p>
+            {loadError ? (
+              <button onClick={() => window.location.reload()} className="mt-2 w-fit rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
+                Refresh dashboard
+              </button>
+            ) : null}
+          </div>
+        </GlowCard>
+      </LmsShell>
+    );
+  }
 
   return (
     <LmsShell

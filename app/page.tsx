@@ -150,7 +150,7 @@ function HeroPreview() {
 export default function HomePage() {
   return (
     <div className="relative isolate -mt-16 min-h-screen overflow-hidden text-slate-950">
-      <section className="mx-auto grid w-full max-w-[92rem] gap-10 px-4 pb-14 pt-28 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:pt-32">
+      <section className="mx-auto grid w-full max-w-[80rem] gap-10 px-3 pb-14 pt-28 sm:px-5 lg:grid-cols-[0.92fr_1.08fr] lg:pt-32">
         <div className="flex min-w-0 flex-col justify-center">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/70 bg-white/70 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-700 shadow-sm backdrop-blur">
             <Sparkles className="h-3.5 w-3.5" />
@@ -189,7 +189,7 @@ export default function HomePage() {
         <HeroPreview />
       </section>
 
-      <section className="mx-auto w-full max-w-[92rem] px-4 pb-12 sm:px-6 lg:px-8">
+      <section className="mx-auto w-full max-w-[80rem] px-3 pb-12 sm:px-5">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {capabilities.map(({ icon: Icon, title, desc }) => (
             <PremiumCard key={title} className="group p-5 transition duration-300 hover:-translate-y-1">
@@ -207,7 +207,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-[92rem] gap-5 px-4 pb-12 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8">
+      <section className="mx-auto grid w-full max-w-[80rem] gap-5 px-3 pb-12 sm:px-5 lg:grid-cols-[0.85fr_1.15fr]">
         <PremiumCard className="bg-slate-950 p-6 text-white">
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-200">Dashboard intelligence</p>
           <h2 className="mt-3 font-display text-3xl font-semibold">One cockpit for learning and meetings.</h2>
@@ -246,7 +246,7 @@ export default function HomePage() {
         </PremiumCard>
       </section>
 
-      <section className="mx-auto w-full max-w-[92rem] px-4 pb-16 sm:px-6 lg:px-8">
+      <section className="mx-auto w-full max-w-[80rem] px-3 pb-16 sm:px-5">
         <PremiumCard className="p-5 sm:p-7">
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
             <div>

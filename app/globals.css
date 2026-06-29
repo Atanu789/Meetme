@@ -15,6 +15,7 @@
   --aceternity-sun: #fbbf24;
   --aceternity-sand: #fef3c7;
   --aceternity-cloud: #f2f8ff;
+  --app-content-max: 80rem;
   --font-sans: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display: 'Orbitron', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -23,6 +24,7 @@ html {
   scroll-behavior: smooth;
   color-scheme: light;
   max-width: 100%;
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -31,6 +33,7 @@ body {
   min-height: 100%;
   width: 100%;
   max-width: 100%;
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -622,6 +625,7 @@ html.dark .landing-doodle-link--signal {
   width: 100%;
   max-width: 100vw;
   min-width: 0;
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -1039,15 +1043,19 @@ html.dark .features-card:hover {
 }
 
 .page-shell {
-  max-width: 1200px;
+  width: 100%;
+  max-width: var(--app-content-max);
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
+  overflow: hidden;
 }
 
 .page-shell-wide {
-  max-width: 80rem;
+  width: 100%;
+  max-width: var(--app-content-max);
   margin: 0 auto;
   padding: 1.5rem 1rem 3rem;
+  overflow: hidden;
 }
 
 .surface {
