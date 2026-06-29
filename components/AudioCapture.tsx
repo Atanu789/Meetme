@@ -317,7 +317,7 @@ export function AudioCapture({ meetingId, enabled = true, className }: AudioCapt
         <div
           className={`h-2.5 w-2.5 rounded-full ${ isListening ? 'animate-pulse bg-white' : 'bg-white/50' }`}
         />
-        {isListening ? 'Stop captions' : 'Start captions'}
+        <span className="hidden sm:inline">{isListening ? 'Stop captions' : 'Start captions'}</span>
       </button>
 
       {error && (

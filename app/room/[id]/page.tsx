@@ -10,6 +10,7 @@ import { Loader } from '../../../components/Loader';
 import { JitsiMeeting } from '../../../components/JitsiMeeting';
 import { useSession } from 'next-auth/react';
 import { normalizeJitsiRoomName } from '../../../lib/jitsi-room';
+import { Radio, ShieldCheck, Sparkles, Users } from 'lucide-react';
 
 interface MeetingDetails {
   _id: string;
@@ -268,10 +269,36 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="page-shell-wide text-slate-950">
-      <div className="space-y-3 sm:space-y-4">
-        <div className="surface-strong overflow-hidden rounded-[2rem]">
-          <div className="relative h-[76vh] min-h-[620px] sm:h-[calc(100vh-11rem)]">
+    <div className="mx-auto w-full max-w-[96rem] overflow-hidden px-3 pb-5 pt-4 text-slate-950 sm:px-5">
+      <div className="min-w-0 space-y-3">
+        <div className="surface-strong overflow-hidden rounded-[2rem] border-white/70">
+          <div className="flex flex-col gap-4 border-b border-slate-200/80 bg-white/70 p-4 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Live Room
+              </div>
+              <h1 className="mt-2 truncate font-display text-2xl font-semibold text-slate-950">
+                {meeting?.title || meetingId}
+              </h1>
+              <p className="mt-1 max-w-2xl truncate text-sm text-slate-500">
+                {meeting?.description || 'Video, captions, files, whiteboard, recordings, polls, and AI meeting memory.'}
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+              {[
+                { label: 'Secure', icon: ShieldCheck },
+                { label: `${meeting?.joinCount || 0} joins`, icon: Users },
+                { label: 'Live tools', icon: Radio },
+              ].map(({ label, icon: Icon }) => (
+                <div key={label} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
+                  <Icon className="h-3.5 w-3.5 text-cyan-600" />
+                  <span className="truncate">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="relative h-[calc(100dvh-13rem)] min-h-[34rem] w-full overflow-hidden bg-slate-950 sm:h-[calc(100dvh-12rem)]">
             <JitsiMeeting
               roomName={jitsiRoomName}
               displayName={userDisplayName}
@@ -289,7 +316,7 @@ export default function RoomPage() {
 
           <CaptionOverlay meetingId={meetingId} />
           {showAiResults && aiResults && (
-            <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto bg-white/95 dark:bg-slate-900/95 border-l border-gray-200 dark:border-gray-800 shadow-2xl">
+            <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto border-l border-gray-200 bg-white/95 shadow-2xl dark:border-gray-800 dark:bg-slate-900/95">
               <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
                 <h3 className="text-lg font-semibold">AI Meeting Results</h3>
                 <div className="flex items-center gap-2">
