@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CaptionOverlay } from '../../../components/CaptionOverlay';
 import AIResultsDisplay from '../../../components/AIResultsDisplay';
 import TaskList from '../../../components/TaskList';
@@ -37,7 +37,9 @@ export default function RoomPage() {
   const [tokenResolved, setTokenResolved] = useState(false);
   const [showAiResults, setShowAiResults] = useState(false);
   const [aiResults, setAiResults] = useState<any | null>(null);
+  const [captionPortalTarget, setCaptionPortalTarget] = useState<HTMLElement | null>(null);
   const apiRef = useRef<any>(null);
+  const videoStageRef = useRef<HTMLDivElement | null>(null);
 
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
@@ -247,6 +249,11 @@ export default function RoomPage() {
     });
   };
 
+  const handleVideoStageRef = useCallback((node: HTMLDivElement | null) => {
+    videoStageRef.current = node;
+    setCaptionPortalTarget(node);
+  }, []);
+
   const roomToolbarButtons = useMemo(
     () => [
       'microphone',
@@ -321,7 +328,10 @@ export default function RoomPage() {
               ))}
             </div>
           </div>
-          <div className="relative h-[calc(100dvh-13rem)] min-h-[34rem] w-full overflow-hidden bg-slate-950 sm:h-[calc(100dvh-12rem)]">
+          <div
+            ref={handleVideoStageRef}
+            className="relative h-[calc(100dvh-13rem)] min-h-[34rem] w-full overflow-hidden bg-slate-950 sm:h-[calc(100dvh-12rem)]"
+          >
             <JitsiMeeting
               roomName={jitsiRoomName}
               displayName={userDisplayName}
@@ -335,9 +345,8 @@ export default function RoomPage() {
               onApiReady={handleApiReady}
               toolbarButtons={roomToolbarButtons}
             />
+            <CaptionOverlay meetingId={meetingId} portalTarget={captionPortalTarget} />
           </div>
-
-          <CaptionOverlay meetingId={meetingId} />
           {showAiResults && aiResults && (
             <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto border-l border-gray-200 bg-white/95 shadow-2xl dark:border-gray-800 dark:bg-slate-900/95">
               <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">

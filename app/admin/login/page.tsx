@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
       const response = await fetch('/api/admin/auth/session');
       const data = await response.json();
       if (data?.authenticated) {
-        router.replace('/admin');
+        router.replace('/lms/admin');
       }
     })();
   }, [router]);
@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
         throw new Error(data.error || 'Failed to log in');
       }
 
-      router.replace('/admin');
+      router.replace('/lms/admin');
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Login failed');

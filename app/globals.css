@@ -90,139 +90,11 @@ html.dark body {
     linear-gradient(180deg, #010611 0%, #020913 100%);
 }
 
-.app-background__vortex {
-  position: absolute;
-  inset: -12%;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.0) 0 12%, rgba(79, 70, 229, 0.18) 13%, rgba(14, 165, 233, 0.16) 18%, rgba(99, 102, 241, 0.08) 24%, transparent 34%),
-    conic-gradient(from 0deg at 50% 50%, rgba(79, 70, 229, 0.0), rgba(79, 70, 229, 0.18), rgba(14, 165, 233, 0.14), rgba(168, 85, 247, 0.18), rgba(79, 70, 229, 0.0));
-  filter: blur(24px) saturate(125%);
-  opacity: 0.62;
-  animation: app-vortex-spin 28s linear infinite;
-}
-
-.app-background__vortex-core {
-  position: absolute;
-  inset: 18% 22%;
-  border-radius: 9999px;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.45) 0%, rgba(79, 70, 229, 0.26) 18%, rgba(14, 165, 233, 0.14) 36%, transparent 68%);
-  filter: blur(48px);
-  opacity: 0.8;
-  animation: app-vortex-pulse 8s ease-in-out infinite;
-}
-
-.app-background__vortex-ring {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  border-radius: 9999px;
-  transform: translate(-50%, -50%);
-  mix-blend-mode: screen;
-}
-
-.app-background__vortex-ring--one {
-  width: 72rem;
-  height: 72rem;
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  border-top-color: rgba(56, 189, 248, 0.45);
-  border-right-color: rgba(168, 85, 247, 0.18);
-  filter: blur(1px);
-  opacity: 0.9;
-  animation: app-vortex-spin 48s linear infinite reverse;
-}
-
-.app-background__vortex-ring--two {
-  width: 44rem;
-  height: 44rem;
-  border: 1px solid rgba(14, 165, 233, 0.2);
-  border-left-color: rgba(79, 70, 229, 0.4);
-  border-bottom-color: rgba(168, 85, 247, 0.22);
-  filter: blur(2px);
-  opacity: 0.85;
-  animation: app-vortex-spin 30s linear infinite;
-}
-
-.app-background__vortex-sweep {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform-origin: center;
-  border-radius: 9999px;
-  mix-blend-mode: screen;
-}
-
-.app-background__vortex-sweep--one {
-  width: 58rem;
-  height: 58rem;
-  background: conic-gradient(from 180deg, rgba(79, 70, 229, 0) 0deg, rgba(79, 70, 229, 0.0) 120deg, rgba(79, 70, 229, 0.28) 180deg, rgba(14, 165, 233, 0.08) 220deg, rgba(168, 85, 247, 0.18) 275deg, rgba(79, 70, 229, 0) 360deg);
-  filter: blur(40px) saturate(130%);
-  opacity: 0.65;
-  animation: app-vortex-spin 22s linear infinite;
-}
-
-.app-background__vortex-sweep--two {
-  width: 36rem;
-  height: 36rem;
-  background: conic-gradient(from 30deg, rgba(14, 165, 233, 0) 0deg, rgba(14, 165, 233, 0.22) 140deg, rgba(99, 102, 241, 0.12) 220deg, rgba(168, 85, 247, 0.2) 300deg, rgba(14, 165, 233, 0) 360deg);
-  filter: blur(28px) saturate(140%);
-  opacity: 0.8;
-  animation: app-vortex-spin 14s linear infinite reverse;
-}
-
-.app-background__orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(54px);
-  opacity: 0.55;
-  animation-duration: 22s;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-}
-
-.app-background__orb--one {
-  width: 34rem;
-  height: 34rem;
-  left: 3%;
-  top: 6%;
-  background: radial-gradient(circle at 30% 30%, rgba(251, 146, 60, 0.8), rgba(14, 165, 233, 0.22));
-  animation-name: app-orb-float-a;
-}
-
-.app-background__orb--two {
-  width: 32rem;
-  height: 32rem;
-  right: 8%;
-  top: 12%;
-  background: radial-gradient(circle at 50% 40%, rgba(59, 130, 246, 0.75), rgba(45, 212, 191, 0.26));
-  animation-name: app-orb-float-b;
-  animation-delay: -6s;
-}
-
-.app-background__orb--three {
-  width: 30rem;
-  height: 30rem;
-  left: 18%;
-  bottom: 6%;
-  background: radial-gradient(circle at 52% 48%, rgba(45, 212, 191, 0.72), rgba(14, 165, 233, 0.22));
-  animation-name: app-orb-float-c;
-  animation-delay: -10s;
-}
-
-.app-background__orb--four {
-  width: 28rem;
-  height: 28rem;
-  right: 18%;
-  bottom: 4%;
-  background: radial-gradient(circle at 46% 36%, rgba(251, 191, 36, 0.74), rgba(59, 130, 246, 0.2));
-  animation-name: app-orb-float-a;
-  animation-delay: -14s;
-}
 
 .app-background__vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, transparent 54%, rgba(15, 23, 42, 0.12) 100%);
+  background: radial-gradient(circle at center, transparent 54%, rgba(15, 23, 42, 0.733) 100%);
 }
 
 html.dark .app-background__mesh {
@@ -295,9 +167,9 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
-  background-size: 42px 42px;
+    linear-gradient(rgba(15, 23, 42, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.2) 1px, transparent 1px);
+  background-size: 52px 52px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 92%);
   z-index: 1;
 }
@@ -368,64 +240,11 @@ html.dark body.landing-page::after {
     radial-gradient(circle at 56% 82%, rgba(14, 165, 233, 0.14), transparent 38%);
   filter: blur(18px);
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.8), transparent 90%);
-  opacity: 0.7;
+  opacity: 0.9;
   animation: landing-doodle-grid-float 26s ease-in-out infinite;
 }
 
-.landing-doodle-haze {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(36px);
-  mix-blend-mode: screen;
-  opacity: 0.6;
-  animation: landing-doodle-haze 18s ease-in-out infinite;
-}
 
-.landing-doodle-haze--one {
-  width: 28rem;
-  height: 28rem;
-  left: -4rem;
-  top: 7rem;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28), rgba(99, 102, 241, 0.03) 68%, transparent 72%);
-  animation-name: landing-doodle-haze-a;
-}
-
-.landing-doodle-haze--two {
-  width: 30rem;
-  height: 30rem;
-  right: -5rem;
-  bottom: 3rem;
-  animation-delay: -7s;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.24), rgba(14, 165, 233, 0.02) 68%, transparent 72%);
-  animation-name: landing-doodle-haze-b;
-}
-
-
-.landing-doodle-node {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 0.45rem;
-  transform: translate(-50%, -50%);
-  animation: landing-doodle-float-random 24s ease-in-out infinite;
-  will-change: transform;
-}
-
-.landing-doodle-node--float {
-  animation: landing-doodle-float-random 24s ease-in-out infinite;
-}
-
-.landing-doodle-node__ring {
-  position: absolute;
-  inset: -0.55rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(125, 211, 252, 0.34);
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.14), inset 0 0 18px rgba(99, 102, 241, 0.08);
-  opacity: 0.9;
-  animation: landing-doodle-ring 4.8s linear infinite;
-}
 
 .landing-doodle-node__pulse {
   position: absolute;

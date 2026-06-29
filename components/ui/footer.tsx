@@ -10,7 +10,7 @@ export function Footer() {
         <div className="grid gap-8 md:grid-cols-3 lg:grid-cols-4">
           {/* Brand */}
           <div>
-            <div className="font-display text-lg font-bold uppercase tracking-widest text-slate-900 dark:text-white">Meetme</div>
+            <div className="font-display text-lg font-bold uppercase tracking-widest text-slate-900 dark:text-white">Melanam</div>
             <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-white/45">
               Secure video rooms with live captions, AI meeting notes, and beautiful follow-ups.
             </p>
@@ -54,7 +54,7 @@ export function Footer() {
         {/* Bottom Section */}
         <div className="mt-8 flex flex-col border-t border-slate-200/80 pt-8 dark:border-white/[0.08] sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500 dark:text-white/35">
-            © {currentYear} Meetme. All rights reserved.
+            © {currentYear} Melanam. All rights reserved.
           </p>
           <div className="mt-4 flex gap-6 text-sm sm:mt-0">
             <Link href="/" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">

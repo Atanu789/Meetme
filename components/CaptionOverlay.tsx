@@ -55,9 +55,14 @@ type SummaryCard = {
   timestamp: number;
 };
 
+const PARTIAL_IDLE_MS = 4200;
+const FINAL_VISIBLE_MS = 2600;
+const FADE_WINDOW_MS = 1200;
+
 interface CaptionOverlayProps {
   meetingId: string;
   className?: string;
+  portalTarget?: HTMLElement | null;
 }
 
 /**
@@ -100,7 +105,15 @@ function captionReducer(state: Caption[], action: any): Caption[] {
           lastCaption.speakerId === speakerId && 
           !lastCaption.isFinal &&
           lastCaption.text === text) {
-        return queue;
+        return queue.map((c, i) =>
+          i === queue.length - 1
+            ? {
+                ...c,
+                expiresAt: now + PARTIAL_IDLE_MS,
+                opacity: 1,
+              }
+            : c
+        );
       }
 
       if (lastCaption && lastCaption.speakerId === speakerId && !lastCaption.isFinal) {
@@ -112,7 +125,8 @@ function captionReducer(state: Caption[], action: any): Caption[] {
                 text,
                 isPartial: !isFinal,
                 isFinal: isFinal || c.isFinal,
-                expiresAt: isFinal ? now + 2500 : undefined, // 2500ms visibility
+                expiresAt: now + (isFinal ? FINAL_VISIBLE_MS : PARTIAL_IDLE_MS),
+                opacity: 1,
               }
             : c
         );
@@ -130,7 +144,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
           isPartial: !isFinal,
           isFinal: isFinal || false,
           createdAt: now,
-          expiresAt: isFinal ? now + 2500 : undefined,
+          expiresAt: now + (isFinal ? FINAL_VISIBLE_MS : PARTIAL_IDLE_MS),
           opacity: 1,
         });
 
@@ -150,7 +164,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
                 ...c,
                 isFinal: true,
                 isPartial: false,
-                expiresAt: now + 2500,
+                expiresAt: now + FINAL_VISIBLE_MS,
               }
             : c
         );
@@ -164,16 +178,8 @@ function captionReducer(state: Caption[], action: any): Caption[] {
       return queue
         .filter(c => !c.expiresAt || c.expiresAt > now)
         .map(c => {
-          if (!c.expiresAt) return { ...c, opacity: 1 };
-
           const remaining = c.expiresAt - now;
-          let opacity = 1;
-
-          // 4-step fade curve over final 2000ms window
-          if (remaining <= 500) opacity = 0.15;
-          else if (remaining <= 900) opacity = 0.35;
-          else if (remaining <= 1400) opacity = 0.55;
-          else if (remaining <= 2000) opacity = 0.75;
+          const opacity = Math.max(0, Math.min(1, remaining / FADE_WINDOW_MS));
 
           return { ...c, opacity };
         });
@@ -187,7 +193,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
   }
 }
 
-export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
+export function CaptionOverlay({ meetingId, portalTarget }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
   // opt-in debug mode via URL param ?capdebug=1 or ?captions_debug=1
@@ -495,13 +501,20 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
 
     const timer = setInterval(() => {
       captionDispatchRef.current?.dispatch({ type: 'TICK' });
-    }, 300);
+    }, 120);
 
     return () => clearInterval(timer);
   }, [captionsEnabled]);
 
   // Portal setup
   useEffect(() => {
+    if (portalTarget) {
+      portalElRef.current = portalTarget;
+      return () => {
+        portalElRef.current = null;
+      };
+    }
+
     try {
       const id = `captions-portal-${meetingId}`;
       let el = document.getElementById(id) as HTMLElement | null;
@@ -530,66 +543,61 @@ export function CaptionOverlay({ meetingId }: CaptionOverlayProps) {
     } catch (_) {
       portalElRef.current = null;
     }
-  }, [meetingId]);
+  }, [meetingId, portalTarget]);
+
+  const hasVisibleCaptions = captions.length > 0;
 
   // Render overlay
   const overlay = (
     <div 
-      className="fixed inset-0 z-40 pointer-events-none flex flex-col items-center justify-end"
+      className={`${portalTarget ? 'absolute' : 'fixed'} inset-x-0 bottom-0 z-40 pointer-events-none flex justify-center px-3 sm:px-6`}
       style={{ 
-        paddingBottom: typeof window !== 'undefined' && window.innerWidth < 640 ? '72px' : '24px'
+        paddingBottom: typeof window !== 'undefined' && window.innerWidth < 640
+          ? 'calc(env(safe-area-inset-bottom, 0px) + 112px)'
+          : 'calc(env(safe-area-inset-bottom, 0px) + 92px)'
       }}
     >
-      {/* Caption queue: max 2 items */}
-      <div className="space-y-3 w-full flex flex-col items-center px-4">
-        {/* Debug badge (opt-in) */}
-        {debugMode && (
-          <div className="fixed left-4 top-20 z-[2147483650] pointer-events-auto">
-            <div className="rounded-md bg-black/80 px-3 py-2 text-xs text-white shadow"> 
-              <div><strong>Captions Debug</strong></div>
-              <div className="mt-1">URL: <span className="font-mono break-all">{socketUrl}</span></div>
-              <div>Status: {connected ? 'connected' : 'disconnected'}</div>
+      {debugMode && (
+        <div className="fixed left-4 top-20 z-[2147483650] pointer-events-auto">
+          <div className="rounded-md bg-black/80 px-3 py-2 text-xs text-white shadow"> 
+            <div><strong>Captions Debug</strong></div>
+            <div className="mt-1">URL: <span className="font-mono break-all">{socketUrl}</span></div>
+            <div>Status: {connected ? 'connected' : 'disconnected'}</div>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`w-full max-w-[min(46rem,calc(100vw-1.5rem))] transition-all duration-200 ease-out ${
+          hasVisibleCaptions ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+        }`}
+        aria-live="polite"
+        aria-atomic="false"
+      >
+        {hasVisibleCaptions && (
+          <div className="overflow-hidden rounded-[18px] bg-black/90 px-4 py-3 text-left shadow-[0_18px_60px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur-md sm:px-5">
+            <div className="flex flex-col gap-2">
+              {captions.map((caption) => (
+                <div
+                  key={caption.id}
+                  className="grid grid-cols-1 gap-1 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3"
+                  style={{
+                    opacity: caption.opacity ?? 1,
+                    transition: 'opacity 220ms ease, transform 220ms ease',
+                  }}
+                >
+                  <div className="min-w-0 truncate text-[13px] font-semibold leading-6 text-[#8ab4f8] sm:text-right">
+                    {caption.speakerName}
+                  </div>
+                  <p className="line-clamp-2 min-w-0 break-words text-[17px] font-medium leading-6 tracking-[-0.01em] text-white sm:text-[18px]">
+                    {caption.text}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         )}
-        <div className={`self-end mr-2 rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide ${
-          connected
-            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-            : 'bg-amber-100 text-amber-800 border border-amber-200'
-        }`}>
-          {connected ? 'CAPTIONS LIVE' : 'RECONNECTING...'}
-        </div>
-        {captions.map((caption) => (
-          <div
-            key={caption.id}
-            className="w-full max-w-2xl"
-            style={{
-              opacity: caption.opacity ?? 1,
-              transition: 'opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-          >
-            <div className="rounded-3xl bg-black/80 backdrop-blur-sm px-6 py-4 shadow-2xl border border-white/10">
-              {/* Speaker name */}
-              <div className="mb-1.5 text-sm font-semibold opacity-75 text-gray-300">
-                {caption.speakerName}
-              </div>
-
-              {/* Transcript text: max 2 lines */}
-              <p
-                className="text-base leading-relaxed text-white font-normal line-clamp-2"
-                style={{
-                  wordWrap: 'break-word',
-                  width: 'calc(70vw)',
-                  maxWidth: 'calc(100% - 24px)',
-                }}
-              >
-                {caption.text}
-              </p>
-            </div>
-          </div>
-        ))}
       </div>
-
     </div>
   );
 

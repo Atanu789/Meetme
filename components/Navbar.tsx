@@ -112,9 +112,9 @@ export function Navbar() {
     },
     {
       name: 'Admin',
-      href: '/admin/login',
+      href: '/lms/admin',
       tag: 'Ops',
-      description: 'Manage subscriptions and user billing.',
+      description: 'Open the system console.',
       hoverClass: 'hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-100 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]',
       tagClass: 'bg-slate-500/15 text-slate-800 ring-slate-500/20',
     },
@@ -210,7 +210,7 @@ export function Navbar() {
                 Pricing
               </Link>
               <Link
-                href="/admin/login"
+                href="/lms/admin"
                 className="ml-2 inline-flex h-8 items-center whitespace-nowrap rounded-lg border border-slate-200 bg-slate-100/80 px-2.5 text-left text-sm font-medium leading-none text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-200 hover:text-slate-950 hover:shadow-[0_14px_30px_rgba(15,23,42,0.12)]"
               >
                 Admin
@@ -359,18 +359,10 @@ export function Navbar() {
                       </Link>
                       {(session?.user as any)?.role === 'admin' && (
                         <Link
-                          href="/admin"
+                          href="/lms/admin"
                           className="block px-4 py-3 text-sm text-cyan-700 hover:bg-slate-50 transition font-medium"
                         >
-                          🛡️ Admin Panel
-                        </Link>
-                      )}
-                      {((session?.user as any)?.role === 'enterprise_admin' || (session?.user as any)?.role === 'admin') && (
-                        <Link
-                          href="/enterprise"
-                          className="block px-4 py-3 text-sm text-emerald-700 hover:bg-slate-50 transition font-medium"
-                        >
-                          🏢 Enterprise Portal
+                          System Console
                         </Link>
                       )}
                       <button
