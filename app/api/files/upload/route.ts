@@ -22,26 +22,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'missing file' }, { status: 400 })
     }
 
+    const MAX_FILE_SIZE = 100 * 1024 * 1024
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'file too large (max 100MB)' }, { status: 413 })
+    }
+
     const path = buildLmsStoragePath(scopeType, scopeId, file.name)
 
-    console.log('[API/files/upload] Uploading to Supabase:', { path, contentType: file.type })
+    console.log('[API/files/upload] Uploading to Supabase:', { path, contentType: file.type, size: file.size })
 
-    const { error } = await supabaseServer.storage
+    const arrayBuffer = await file.arrayBuffer()
+    const fileBuffer = Buffer.from(arrayBuffer)
+
+    const { data, error } = await supabaseServer.storage
       .from(LMS_STORAGE_BUCKET)
-      .upload(path, file, {
+      .upload(path, fileBuffer, {
         contentType: file.type || 'application/octet-stream',
         upsert: false,
       })
 
     if (error) {
       console.error('[API/files/upload] Supabase error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message || 'upload failed' }, { status: 500 })
     }
 
-    console.log('[API/files/upload] Upload successful:', path)
-    return NextResponse.json({ ok: true, path })
+    console.log('[API/files/upload] Upload successful:', data?.path || path)
+    return NextResponse.json({ ok: true, path: data?.path || path, size: file.size, name: file.name })
   } catch (err: any) {
     console.error('[API/files/upload] Catch error:', String(err), err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 })
   }
 }

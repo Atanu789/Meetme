@@ -1,5 +1,6 @@
 "use client"
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Download, Upload, Trash2, FileText } from 'lucide-react'
 
 export default function FileShare({
   meetingId,
@@ -18,36 +19,37 @@ export default function FileShare({
   const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({})
   const [selected, setSelected] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [loadingList, setLoadingList] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const resolvedScopeId = scopeId || meetingId || ''
+  const isReady = useMemo(() => Boolean(resolvedScopeId), [resolvedScopeId])
 
   const fetchFiles = async () => {
     if (!resolvedScopeId) return
+    setLoadingList(true)
     try {
-      const res = await fetch(`/api/files/list?scopeType=${encodeURIComponent(scopeType)}&scopeId=${encodeURIComponent(resolvedScopeId)}`)
+      const res = await fetch(
+        `/api/files/list?scopeType=${encodeURIComponent(scopeType)}&scopeId=${encodeURIComponent(resolvedScopeId)}&t=${Date.now()}`,
+        { cache: 'no-store' }
+      )
       const data = await res.json()
       setFiles(data.files || [])
-
-      const urlPairs = await Promise.all(
-        (data.files || []).map(async (f: { path: string }) => {
-          try {
-            const r = await fetch(`/api/files/url?path=${encodeURIComponent(f.path)}`)
-            if (!r.ok) return [f.path, ''] as const
-            const body = await r.json()
-            return [f.path, body.url || ''] as const
-          } catch {
-            return [f.path, ''] as const
-          }
-        })
-      )
-
-      setDownloadUrls(Object.fromEntries(urlPairs))
+      setDownloadUrls({})
     } catch (err) {
       console.error('fetchFiles', err)
+      setNotice('Failed to refresh files')
+    } finally {
+      setLoadingList(false)
     }
   }
 
   useEffect(() => {
     fetchFiles()
+    const interval = window.setInterval(() => {
+      fetchFiles()
+    }, 3000)
+    return () => window.clearInterval(interval)
   }, [resolvedScopeId, scopeType])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +59,7 @@ export default function FileShare({
   const handleUpload = async () => {
     if (!selected || !resolvedScopeId) {
       console.log('[FileShare] Missing selected or scopeId', { selected, resolvedScopeId })
-      alert('No file selected or resource scope missing')
+      setNotice('Select a file first')
       return
     }
     setUploading(true)
@@ -86,16 +88,20 @@ export default function FileShare({
         const body = await res.json().catch(() => ({}))
         const errorMsg = body.error || `HTTP ${res.status}`
         console.error('[FileShare] Upload failed:', errorMsg, body)
-        alert('Upload failed: ' + errorMsg)
+        setNotice('Upload failed: ' + errorMsg)
       } else {
         const body = await res.json().catch(() => ({}))
         console.log('[FileShare] Upload successful:', body)
         setSelected(null)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        setNotice('File shared with everyone in this room')
         await fetchFiles()
       }
     } catch (err) {
       console.error('[FileShare] Upload error:', err)
-      alert('Upload error: ' + String(err))
+      setNotice('Upload error: ' + String(err))
     }
     setUploading(false)
   }
@@ -106,29 +112,70 @@ export default function FileShare({
       body: JSON.stringify({ path }),
       headers: { 'Content-Type': 'application/json' },
     })
-    if (res.ok) fetchFiles()
-    else alert('Delete failed')
+    if (res.ok) {
+      setNotice('File deleted')
+      fetchFiles()
+    } else {
+      setNotice('Delete failed')
+    }
+  }
+
+  const getDownloadHref = (path: string) => {
+    const internal = `/api/files/download?path=${encodeURIComponent(path)}`
+    return downloadUrls[path] || internal
   }
 
   return (
-    <div className={className || 'p-2 border rounded bg-white/80'}>
-      <div className="mb-2 font-medium">{title}</div>
-      <div className="flex gap-2 items-center mb-3">
-        <input type="file" onChange={handleChange} />
-        <button onClick={handleUpload} disabled={!selected || uploading} className="px-3 py-1 bg-sky-600 text-white rounded">
-          {uploading ? 'Uploading...' : 'Upload'}
+    <div className={className || 'rounded-2xl border border-slate-200 bg-white p-4'}>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-semibold text-slate-900">{title}</div>
+        <div className="text-xs text-slate-500">{loadingList ? 'Syncing...' : `${files.length} files`}</div>
+      </div>
+
+      {notice ? (
+        <div className="mb-3 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs text-cyan-800">
+          {notice}
+        </div>
+      ) : null}
+
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <input ref={fileInputRef} type="file" onChange={handleChange} className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-medium file:text-slate-800 hover:file:bg-slate-200" />
+        <button
+          onClick={handleUpload}
+          disabled={!selected || uploading || !isReady}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Upload className="h-4 w-4" />
+          {uploading ? 'Uploading...' : 'Share'}
         </button>
       </div>
-      <ul className="space-y-2">
+
+      <ul className="max-h-64 space-y-2 overflow-y-auto">
         {files.map((f) => (
-          <li key={f.path} className="flex items-center justify-between">
-            <a href={downloadUrls[f.path] || '#'} target="_blank" rel="noreferrer" className="text-sm text-sky-600 underline">
-              {f.name.split('/').pop()}
-            </a>
-            <button onClick={() => handleDelete(f.path)} className="text-red-600 text-sm">Delete</button>
+          <li key={f.path} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="min-w-0 flex items-center gap-2">
+              <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+              <a href={getDownloadHref(f.path)} target="_blank" rel="noreferrer" className="truncate text-sm text-slate-800 hover:text-cyan-700 hover:underline">
+                {f.name.split('/').pop()}
+              </a>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href={getDownloadHref(f.path)} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-100 text-cyan-700 hover:bg-cyan-200" title="Download">
+                <Download className="h-4 w-4" />
+              </a>
+              <button onClick={() => handleDelete(f.path)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200" title="Delete">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
+
+      {files.length === 0 ? (
+        <div className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+          No shared files yet. Upload once and everyone in this room can view/download here.
+        </div>
+      ) : null}
     </div>
   )
 }

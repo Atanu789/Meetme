@@ -54,7 +54,9 @@ export default function UploadMedia({
   const fetchFiles = async () => {
     if (!meetingId) return
     try {
-      const res = await fetch(`/api/files/list?meetingId=${encodeURIComponent(meetingId)}`)
+      const res = await fetch(`/api/files/list?meetingId=${encodeURIComponent(meetingId)}&t=${Date.now()}`, {
+        cache: 'no-store',
+      })
       const data = await res.json()
       const filesList = (data.files || []).map((file: any) => ({
         name: file.name,
@@ -66,7 +68,9 @@ export default function UploadMedia({
       const urlPairs = await Promise.all(
         filesList.map(async (file: MediaFile) => {
           try {
-            const response = await fetch(`/api/files/url?path=${encodeURIComponent(file.path)}`)
+            const response = await fetch(`/api/files/url?path=${encodeURIComponent(file.path)}&t=${Date.now()}`, {
+              cache: 'no-store',
+            })
             if (!response.ok) return [file.path, ''] as const
             const body = await response.json()
             return [file.path, body.url || ''] as const

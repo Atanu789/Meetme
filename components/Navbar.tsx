@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, PencilLine, Radio, Upload, Video } from 'lucide-react';
-import UploadMedia from './UploadMedia';
+import FileShare from './FileShare';
 import { AudioCapture } from './AudioCapture';
 import Whiteboard from './Whiteboard';
 import { YouTubeStreamModal } from './YouTubeStreamModal';
@@ -241,11 +241,12 @@ export function Navbar() {
                     <Upload className="h-4 w-4" />
                   </button>
                   {isFilesOpen && (
-                    <div className="absolute left-0 mt-3 w-[440px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
-                      <UploadMedia
+                    <div className="absolute left-0 mt-3 w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+                      <FileShare
                         meetingId={roomMeetingId}
-                        userEmail={userEmail}
-                        className="rounded-[1.75rem] border-0 bg-white p-0"
+                        scopeType="meeting"
+                        title="Shared Files"
+                        className="border-0 bg-transparent p-0"
                       />
                     </div>
                   )}
