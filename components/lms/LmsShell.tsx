@@ -25,11 +25,11 @@ export function LmsShell({
 
   return (
     <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6 overflow-hidden px-3 py-6 sm:px-5">
-      <GlowCard className="overflow-hidden border-white/20 bg-slate-950 p-0 text-white shadow-[0_34px_110px_rgba(2,6,23,0.28)]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(34,211,238,0.35),transparent_34%),radial-gradient(circle_at_78%_10%,rgba(52,211,153,0.22),transparent_30%),radial-gradient(circle_at_62%_88%,rgba(99,102,241,0.22),transparent_36%),linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.95)_48%,rgba(8,47,73,0.92))]" />
+      <GlowCard className="overflow-hidden rounded-[2rem] border-white/20 bg-slate-950 p-0 text-white shadow-[0_34px_110px_rgba(2,6,23,0.28)]">
+        <div className="absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_16%_18%,rgba(34,211,238,0.35),transparent_34%),radial-gradient(circle_at_78%_10%,rgba(52,211,153,0.22),transparent_30%),radial-gradient(circle_at_62%_88%,rgba(99,102,241,0.22),transparent_36%),linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.95)_48%,rgba(8,47,73,0.92))]" />
         <div className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="absolute -bottom-28 left-10 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="relative z-10 grid gap-8 p-5 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-9">
+        <div className="relative z-10 grid gap-8 rounded-[inherit] p-5 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-9">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-100 shadow-lg shadow-cyan-950/20 backdrop-blur">
               <Sparkles className="h-3.5 w-3.5 text-cyan-200" />

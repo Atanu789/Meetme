@@ -356,9 +356,9 @@ export function InstructorLmsDashboard() {
     >
       <LmsMeetingActions roleLabel="Instructor" />
 
-      <GlowCard className="p-0">
-        <div className="grid min-w-0 overflow-hidden xl:grid-cols-[0.72fr_1.28fr]">
-          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 text-white">
+      <GlowCard className="rounded-[2rem] p-0">
+        <div className="grid min-w-0 overflow-hidden rounded-[inherit] xl:grid-cols-[0.72fr_1.28fr]">
+          <div className="rounded-t-[inherit] bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 text-white xl:rounded-l-[inherit] xl:rounded-r-none xl:rounded-t-none">
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-200">Teaching Console</p>
             <h3 className="mt-2 font-display text-2xl font-semibold">Course operations at a glance</h3>
             <p className="mt-3 text-sm leading-6 text-slate-300">

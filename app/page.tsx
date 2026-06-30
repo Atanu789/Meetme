@@ -147,6 +147,42 @@ function HeroPreview() {
   );
 }
 
+function FeatureCard({ icon: Icon, title, desc }: (typeof capabilities)[number]) {
+  return (
+    <PremiumCard className="feature-marquee-card group w-[min(25rem,82vw)] shrink-0 p-5">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-400 text-white shadow-lg shadow-cyan-500/20">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-display text-lg font-semibold text-slate-950">{title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p>
+        </div>
+      </div>
+    </PremiumCard>
+  );
+}
+
+function FeatureMarqueeRow({
+  items,
+  reverse = false,
+}: {
+  items: typeof capabilities;
+  reverse?: boolean;
+}) {
+  const repeatedItems = [...items, ...items];
+
+  return (
+    <div className="feature-marquee-mask overflow-hidden py-2">
+      <div className={`feature-marquee-track flex w-max gap-4 ${reverse ? 'feature-marquee-track--reverse' : ''}`}>
+        {repeatedItems.map((item, index) => (
+          <FeatureCard key={`${item.title}-${index}`} {...item} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <div className="relative isolate -mt-16 min-h-screen overflow-hidden text-slate-950">
@@ -189,21 +225,10 @@ export default function HomePage() {
         <HeroPreview />
       </section>
 
-      <section className="mx-auto w-full max-w-[80rem] px-3 pb-12 sm:px-5">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {capabilities.map(({ icon: Icon, title, desc }) => (
-            <PremiumCard key={title} className="group p-5 transition duration-300 hover:-translate-y-1">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-400 text-white shadow-lg shadow-cyan-500/20">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-display text-lg font-semibold text-slate-950">{title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p>
-                </div>
-              </div>
-            </PremiumCard>
-          ))}
+      <section id="features" className="mx-auto w-full max-w-[80rem] px-3 pb-12 sm:px-5">
+        <div className="space-y-3">
+          <FeatureMarqueeRow items={capabilities} />
+          <FeatureMarqueeRow items={[...capabilities.slice(3), ...capabilities.slice(0, 3)]} reverse />
         </div>
       </section>
 

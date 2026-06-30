@@ -86,9 +86,9 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
 
   return (
     <>
-      <GlowCard className="p-0">
-        <div className="grid min-w-0 overflow-hidden lg:grid-cols-[0.8fr_1.2fr]">
-          <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 text-white sm:p-7">
+      <GlowCard className="rounded-[2rem] p-0">
+        <div className="grid min-w-0 overflow-hidden rounded-[inherit] lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="relative overflow-hidden rounded-t-[inherit] bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 text-white sm:p-7 lg:rounded-l-[inherit] lg:rounded-r-none lg:rounded-t-none">
             <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-300/25 blur-3xl" />
             <div className="relative z-10">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-cyan-100">

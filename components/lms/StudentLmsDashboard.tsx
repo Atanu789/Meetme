@@ -153,9 +153,9 @@ export function StudentLmsDashboard() {
     >
       <LmsMeetingActions roleLabel="Student" />
 
-      <GlowCard className="p-0">
-        <div className="grid min-w-0 overflow-hidden lg:grid-cols-[0.85fr_1.15fr]">
-          <div className="bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-6">
+      <GlowCard className="rounded-[2rem] p-0">
+        <div className="grid min-w-0 overflow-hidden rounded-[inherit] lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="rounded-t-[inherit] bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-6 lg:rounded-l-[inherit] lg:rounded-r-none lg:rounded-t-none">
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700">Learning Pulse</p>
             <h3 className="mt-2 font-display text-2xl font-semibold text-slate-950">Stay ready for the next live class</h3>
             <p className="mt-3 text-sm leading-6 text-slate-600">
