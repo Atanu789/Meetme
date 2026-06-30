@@ -25,12 +25,14 @@ type WhiteboardScene = {
 interface WhiteboardProps {
   meetingId: string;
   onClose: () => void;
+  closeRequestId?: number;
 }
 
-export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
+export function Whiteboard({ meetingId, onClose, closeRequestId = 0 }: WhiteboardProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [status, setStatus] = useState('Loading whiteboard...');
   const [scene, setScene] = useState<WhiteboardScene | null>(null);
 
@@ -44,6 +46,8 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   const savePromiseRef = useRef<Promise<void> | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const excalidrawApiRef = useRef<any>(null);
+  const closeInFlightRef = useRef(false);
+  const handledCloseRequestRef = useRef(0);
 
   const sanitizeAppState = (appState: ExcalidrawInitialDataState['appState']) => {
     const { collaborators, ...rest } = (appState || {}) as Record<string, unknown>;
@@ -54,23 +58,56 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     const api = excalidrawApiRef.current;
 
     if (!api) {
+      console.warn('[whiteboard] ⚠️ syncSceneFromApi: No API available');
       return;
     }
 
-    elementsRef.current = api.getSceneElements?.() || elementsRef.current;
-    appStateRef.current = api.getAppState?.() || appStateRef.current;
-    filesRef.current = api.getFiles?.() || filesRef.current;
+    const newElements = api.getSceneElements?.();
+    const newAppState = api.getAppState?.();
+    const newFiles = api.getFiles?.();
+    
+    // CRITICAL: Only update refs if we got valid data from API
+    // This prevents overwriting saved elements with empty arrays from failed API calls
+    const hasValidElements = Array.isArray(newElements) && newElements.length > 0;
+    const hasValidAppState = newAppState && typeof newAppState === 'object';
+    
+    console.log('[whiteboard] 🔄 syncSceneFromApi:', {
+      elementsFromAPI: newElements?.length || 0,
+      appStateFromAPI: Object.keys(newAppState || {}).length,
+      filesFromAPI: Object.keys(newFiles || {}).length,
+      hadValidData: hasValidElements || hasValidAppState,
+    });
+
+    // Only update if we have valid data - don't overwrite good cached data with empty results
+    if (hasValidElements) {
+      elementsRef.current = newElements;
+    }
+    if (hasValidAppState) {
+      appStateRef.current = newAppState;
+    }
+    if (newFiles) {
+      filesRef.current = newFiles;
+    }
   };
 
   const serializeSnapshot = () => {
     syncSceneFromApi();
 
-    return JSON.stringify({
+    const snapshot = JSON.stringify({
       meetingId,
       elements: elementsRef.current,
       appState: sanitizeAppState(appStateRef.current),
       files: filesRef.current || {},
     });
+    
+    console.log('[whiteboard] 📸 SNAPSHOT created:', {
+      elementsCount: elementsRef.current?.length || 0,
+      appStateKeys: Object.keys(appStateRef.current || {}).length,
+      filesCount: Object.keys(filesRef.current || {}).length,
+      snapshotSize: snapshot.length,
+    });
+
+    return snapshot;
   };
 
   const schedulePersistScene = () => {
@@ -81,6 +118,57 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     saveTimerRef.current = window.setTimeout(() => {
       void persistScene();
     }, 500);
+  };
+
+  const persistSceneOnExit = () => {
+    if (!meetingId) {
+      return;
+    }
+
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    const snapshot = serializeSnapshot();
+
+    // Don't save empty snapshot - protect against clearing previously saved data
+    // This can happen when the component is unmounting and API is no longer available
+    const snapshotObj = JSON.parse(snapshot);
+    if (!snapshotObj.elements || snapshotObj.elements.length === 0) {
+      console.log('[whiteboard] ⏭️ Skipping exit save - no elements to persist. Protecting existing data.');
+      return;
+    }
+
+    if (snapshot === lastSavedSnapshotRef.current) {
+      console.log('[whiteboard] ⏭️ Exit save skipped - no changes since last save');
+      return;
+    }
+
+    // Use fetch with keepalive instead of sendBeacon for better JSON handling
+    void fetch('/api/whiteboards', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: snapshot,
+      keepalive: true,
+    })
+      .then((response) => {
+        if (response.ok) {
+          lastSavedSnapshotRef.current = snapshot;
+          console.log('[whiteboard] exit save succeeded');
+          return;
+        }
+        return response.json().then(body => {
+          console.error('[whiteboard] exit save failed:', body?.error || 'Unknown error');
+        }).catch(() => {
+          console.error('[whiteboard] exit save failed: invalid response');
+        });
+      })
+      .catch((err) => {
+        console.error('[whiteboard] exit save failed:', err?.message || String(err));
+      });
   };
 
   const whiteboardUrl = useMemo(
@@ -97,18 +185,30 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
         setError('');
         setStatus('Loading whiteboard...');
 
+        console.log('[whiteboard] 🔄 LOAD START - meetingId:', meetingId, 'url:', whiteboardUrl);
         const response = await fetch(whiteboardUrl, { cache: 'no-store' });
         const body = await response.json().catch(() => ({}));
+
+        console.log('[whiteboard] 📡 RESPONSE STATUS:', response.status, 'body keys:', Object.keys(body));
 
         if (!active) {
           return;
         }
 
         if (!response.ok) {
-          throw new Error(body?.error || 'Failed to load whiteboard');
+          const errMsg = body?.error || 'Failed to load whiteboard';
+          console.error('[whiteboard] load error:', errMsg);
+          throw new Error(errMsg);
         }
 
         const loadedScene = body?.whiteboard || null;
+        console.log('[whiteboard] 📦 LOADED SCENE:', {
+          exists: !!loadedScene,
+          elementsCount: loadedScene?.elements?.length || 0,
+          appStateKeys: Object.keys(loadedScene?.appState || {}).length,
+          filesKeys: Object.keys(loadedScene?.files || {}).length,
+          updatedAt: loadedScene?.updatedAt,
+        });
         const nextScene: WhiteboardScene = loadedScene
           ? {
               meetingId: String(loadedScene.meetingId || meetingId),
@@ -141,7 +241,9 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
           return;
         }
 
-        setError(loadError?.message || 'Unable to load whiteboard');
+        const msg = loadError?.message || 'Unable to load whiteboard';
+        console.error('[whiteboard] load exception:', msg, loadError?.stack);
+        setError(msg);
         setStatus('Unable to load whiteboard');
         setIsLoaded(true);
       }
@@ -177,28 +279,45 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       return;
     }
 
+    console.log('[whiteboard] 💾 PERSIST START - snapshot size:', snapshot.length, 'bytes');
+
     saveInFlightRef.current = true;
     setIsSaving(true);
     setStatus('Saving...');
 
     const savePromise = (async () => {
-      const response = await fetch('/api/whiteboards', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: snapshot,
-      });
+      try {
+        console.log('[whiteboard] 📤 FETCH request to /api/whiteboards (PUT)');
+        const response = await fetch('/api/whiteboards', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: snapshot,
+        });
 
-      const body = await response.json().catch(() => ({}));
+        let body: any = {};
+        try {
+          body = await response.json();
+        } catch (parseErr) {
+          console.error('[whiteboard] response parse error:', parseErr);
+          throw new Error('Invalid server response');
+        }
 
-      if (!response.ok) {
-        throw new Error(body?.error || 'Failed to save whiteboard');
+        if (!response.ok) {
+          const errorMsg = body?.error || 'Failed to save whiteboard';
+          console.error('[whiteboard] save error response:', errorMsg);
+          throw new Error(errorMsg);
+        }
+
+        console.log('[whiteboard] ✅ save succeeded, updatedAt:', body?.updatedAt, 'elementCount:', body?.elementCount);
+        lastSavedSnapshotRef.current = snapshot;
+        lastRemoteVersionRef.current = String(body?.updatedAt || Date.now());
+        setStatus('Saved');
+      } catch (error: any) {
+        console.error('[whiteboard] persist error:', error?.message || String(error));
+        throw error;
       }
-
-      lastSavedSnapshotRef.current = snapshot;
-      lastRemoteVersionRef.current = String(body?.updatedAt || lastRemoteVersionRef.current);
-      setStatus('Saved');
     })();
 
     savePromiseRef.current = savePromise;
@@ -206,7 +325,9 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     try {
       await savePromise;
     } catch (saveError: any) {
-      setStatus(saveError?.message || 'Autosave failed');
+      const msg = saveError?.message || 'Autosave failed';
+      console.error('[whiteboard] final error:', msg);
+      setStatus(msg);
     } finally {
       saveInFlightRef.current = false;
       savePromiseRef.current = null;
@@ -220,6 +341,13 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   };
 
   const handleClose = async () => {
+    if (closeInFlightRef.current) {
+      return;
+    }
+
+    closeInFlightRef.current = true;
+    setIsClosing(true);
+    setStatus('Saving before close...');
     syncSceneFromApi();
 
     if (saveTimerRef.current) {
@@ -230,6 +358,15 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     await persistScene(true);
     onClose();
   };
+
+  useEffect(() => {
+    if (!closeRequestId || closeRequestId === handledCloseRequestRef.current) {
+      return;
+    }
+
+    handledCloseRequestRef.current = closeRequestId;
+    void handleClose();
+  }, [closeRequestId]);
 
   useEffect(() => {
     if (!isLoaded || error) {
@@ -247,17 +384,27 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
   }, [error, isLoaded]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      void persistScene();
+    const flushPendingScene = () => {
+      persistSceneOnExit();
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingScene();
+      }
+    };
+
+    window.addEventListener('beforeunload', flushPendingScene);
+    window.addEventListener('pagehide', flushPendingScene);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', flushPendingScene);
+      window.removeEventListener('pagehide', flushPendingScene);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (saveTimerRef.current) {
         window.clearTimeout(saveTimerRef.current);
       }
-      void persistScene(true);
+      persistSceneOnExit();
     };
   }, []);
 
@@ -290,6 +437,7 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
     ? {
         elements: scene.elements,
         appState: scene.appState,
+        files: scene.files || {},
       }
     : undefined;
 
@@ -301,14 +449,15 @@ export function Whiteboard({ meetingId, onClose }: WhiteboardProps) {
       initialData={initialData}
       status={status}
       isSaving={isSaving}
+      isClosing={isClosing}
       whiteboardUrl={whiteboardUrl}
       lastRemoteVersionRef={lastRemoteVersionRef}
       setStatus={setStatus}
-      schedulePersistScene={schedulePersistScene}
-      onChange={(elements, appState) => {
-        elementsRef.current = elements;
-        appStateRef.current = appState;
+      onRemoteSceneApplied={(snapshot, updatedAt) => {
+        lastSavedSnapshotRef.current = snapshot;
+        lastRemoteVersionRef.current = updatedAt;
       }}
+      schedulePersistScene={schedulePersistScene}
       onSceneChange={(elements, appState, files) => {
         elementsRef.current = elements;
         appStateRef.current = appState;
@@ -328,11 +477,12 @@ function CollaborativeWhiteboard({
   initialData,
   status,
   isSaving,
+  isClosing,
   whiteboardUrl,
   lastRemoteVersionRef,
   setStatus,
+  onRemoteSceneApplied,
   schedulePersistScene,
-  onChange,
   onSceneChange,
   onApiReady,
 }: {
@@ -342,11 +492,12 @@ function CollaborativeWhiteboard({
   initialData: ExcalidrawInitialDataState | null | undefined;
   status: string;
   isSaving: boolean;
+  isClosing: boolean;
   whiteboardUrl: string;
   lastRemoteVersionRef: React.MutableRefObject<string>;
   setStatus: (value: string) => void;
+  onRemoteSceneApplied: (snapshot: string, updatedAt: string) => void;
   schedulePersistScene: () => void;
-  onChange: (elements: ExcalidrawInitialDataState['elements'], appState: ExcalidrawInitialDataState['appState']) => void;
   onSceneChange: (
     elements: ExcalidrawInitialDataState['elements'],
     appState: ExcalidrawInitialDataState['appState'],
@@ -390,23 +541,20 @@ function CollaborativeWhiteboard({
           return;
         }
 
-        const nextSnapshot = JSON.stringify({
+        const persistedSnapshot = JSON.stringify({
           meetingId,
           elements: nextScene.elements || [],
-          appState: {
-            collaborators: [],
-            ...(nextScene.appState || {}),
-          },
+          appState: nextScene.appState || {},
           files: nextScene.files || {},
         });
 
-        if (nextSnapshot === appliedRemoteSnapshotRef.current) {
+        if (persistedSnapshot === appliedRemoteSnapshotRef.current) {
           lastRemoteVersionRef.current = nextRemoteVersion;
           return;
         }
 
         lastRemoteVersionRef.current = nextRemoteVersion;
-        appliedRemoteSnapshotRef.current = nextSnapshot;
+        appliedRemoteSnapshotRef.current = persistedSnapshot;
         isApplyingRemoteRef.current = true;
         excalidrawApiRef.current?.updateScene({
           elements: nextScene.elements || [],
@@ -417,10 +565,11 @@ function CollaborativeWhiteboard({
           files: nextScene.files || {},
         });
         onSceneChange(nextScene.elements || [], nextScene.appState || {}, nextScene.files || {});
+        onRemoteSceneApplied(persistedSnapshot, nextRemoteVersion);
         setStatus('Live update received');
         window.setTimeout(() => {
           isApplyingRemoteRef.current = false;
-        }, 0);
+        }, 150);
       } catch (err) {
         console.warn('[whiteboard] realtime sync failed:', err);
       }
@@ -434,7 +583,7 @@ function CollaborativeWhiteboard({
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [lastRemoteVersionRef, meetingId, onChange, setStatus, whiteboardUrl]);
+  }, [lastRemoteVersionRef, meetingId, onRemoteSceneApplied, onSceneChange, setStatus, whiteboardUrl]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-slate-950 text-white">
@@ -448,11 +597,12 @@ function CollaborativeWhiteboard({
             Shared realtime
           </span>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
-            {isSaving ? 'Saving' : status}
+            {isClosing ? 'Saving before close' : isSaving ? 'Saving' : status}
           </span>
           <button
             onClick={onClose}
-            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+            disabled={isClosing}
+            className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Close
           </button>
@@ -478,9 +628,8 @@ function CollaborativeWhiteboard({
             if (!isApplyingRemoteRef.current) {
               lastLocalChangeAtRef.current = Date.now();
               setStatus('Unsaved changes');
+              schedulePersistScene();
             }
-
-            schedulePersistScene();
           }}
           UIOptions={{
             canvasActions: {

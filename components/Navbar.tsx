@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, PencilLine, Radio, Upload, Video } from 'lucide-react';
 import UploadMedia from './UploadMedia';
 import { AudioCapture } from './AudioCapture';
@@ -20,6 +20,7 @@ export function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isFilesOpen, setIsFilesOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+  const [whiteboardCloseRequestId, setWhiteboardCloseRequestId] = useState(0);
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -31,6 +32,10 @@ export function Navbar() {
   // Initialize recording and livestream hooks
   const { isRecording, startRecording, stopRecording, loading: recordingLoading, error: recordingError, clearError: clearRecordingError } = useRecording(roomMeetingId);
   const { isStreaming, startLivestream, stopLivestream, loading: livestreamLoading, error: livestreamError, clearError: clearLivestreamError } = useLivestream(roomMeetingId);
+
+  const requestWhiteboardClose = useCallback(() => {
+    setWhiteboardCloseRequestId((requestId) => requestId + 1);
+  }, []);
 
   useEffect(() => {
     setIsFilesOpen(false);
@@ -58,13 +63,13 @@ export function Navbar() {
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsWhiteboardOpen(false);
+        requestWhiteboardClose();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isWhiteboardOpen]);
+  }, [isWhiteboardOpen, requestWhiteboardClose]);
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
@@ -205,7 +210,13 @@ export function Navbar() {
                   <Video className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => setIsWhiteboardOpen((prev) => !prev)}
+                  onClick={() => {
+                    if (isWhiteboardOpen) {
+                      requestWhiteboardClose();
+                    } else {
+                      setIsWhiteboardOpen(true);
+                    }
+                  }}
                   className={`${navIconButtonClass} ${
                     isWhiteboardOpen
                       ? 'border-amber-200 bg-amber-50/85 text-amber-950 shadow-[0_10px_24px_rgba(245,158,11,0.12)]'
@@ -333,11 +344,15 @@ export function Navbar() {
         <div className="fixed inset-0 z-[70]">
           <button
             aria-label="Close whiteboard backdrop"
-            onClick={() => setIsWhiteboardOpen(false)}
+            onClick={requestWhiteboardClose}
             className="absolute inset-0 h-full w-full cursor-default bg-slate-950/40 backdrop-blur-sm"
           />
           <div className="absolute right-0 top-0 flex h-full w-full max-w-[72rem] flex-col border-l border-white/10 bg-slate-950 shadow-[0_28px_100px_rgba(2,6,23,0.45)] sm:w-[92vw]">
-            <Whiteboard meetingId={roomMeetingId} onClose={() => setIsWhiteboardOpen(false)} />
+            <Whiteboard
+              meetingId={roomMeetingId}
+              closeRequestId={whiteboardCloseRequestId}
+              onClose={() => setIsWhiteboardOpen(false)}
+            />
           </div>
         </div>
       )}
