@@ -1378,183 +1378,20 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
           console.warn('[jitsi-audio] audio context resume failed', error);
         }
       }
-
-      console.log(`[jitsi-audio] audio context state=${audioContext.state}`);
     };
     const processor = audioContext.createScriptProcessor(4096, 1, 1);
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.2;
     const mixer = audioContext.createGain();
     mixer.gain.value = 1;
     const zeroGain = audioContext.createGain();
     zeroGain.gain.value = 0;
     const sourceNodes = new Map();
-    const audioElements = new Map();
     let connection = null;
     let conference = null;
     let cleaningUp = false;
     let currentAttempt = null;
-    let processedChunkCount = 0;
-    let lastMeterLogAt = 0;
-    let lastGraphStateLogAt = 0;
-    let lastAnalyserLogAt = 0;
+    let maintenanceTimer = null;
     let lastProcessorTickAt = 0;
     let processorTickCount = 0;
-    let droppedSilentChunkCount = 0;
-    let forwardedNonSilentChunkCount = 0;
-    let lastNonSilentAudioAt = 0;
-    let lastSilenceWarningAt = 0;
-
-    const logGraphState = (label, audioElement, mediaStream, mediaTrack) => {
-      const now = Date.now();
-      if (now - lastGraphStateLogAt < 1000) {
-        return;
-      }
-
-      lastGraphStateLogAt = now;
-
-      let streamTracks = [];
-      try {
-        streamTracks = mediaStream && typeof mediaStream.getTracks === 'function'
-          ? mediaStream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id }))
-          : [];
-      } catch {
-        streamTracks = [];
-      }
-
-      console.log(`[jitsi-audio] ${label} graph state`, {
-        audio: audioElement ? {
-          currentTime: audioElement.currentTime,
-          readyState: audioElement.readyState,
-          paused: audioElement.paused,
-          ended: audioElement.ended,
-          muted: audioElement.muted,
-          volume: audioElement.volume,
-          networkState: audioElement.networkState,
-          playbackRate: audioElement.playbackRate,
-        } : null,
-        audioContext: {
-          state: audioContext.state,
-          currentTime: audioContext.currentTime,
-        },
-        mediaStream: {
-          active: mediaStream ? mediaStream.active : null,
-          tracks: streamTracks,
-        },
-        mediaTrack: mediaTrack ? {
-          muted: mediaTrack.muted,
-          readyState: mediaTrack.readyState,
-          enabled: mediaTrack.enabled,
-          kind: mediaTrack.kind,
-          id: mediaTrack.id,
-        } : null,
-        processor: {
-          bufferSize: processor.bufferSize,
-          connected: true,
-        },
-      });
-    };
-
-    const logAnalyserLevel = (label) => {
-      const now = Date.now();
-      if (now - lastAnalyserLogAt < 1000) {
-        return;
-      }
-
-      lastAnalyserLogAt = now;
-
-      try {
-        const samples = new Float32Array(analyser.fftSize);
-        analyser.getFloatTimeDomainData(samples);
-
-        let sum = 0;
-        let peak = 0;
-        for (let i = 0; i < samples.length; i += 1) {
-          const value = Math.abs(samples[i]);
-          sum += value * value;
-          if (value > peak) {
-            peak = value;
-          }
-        }
-
-        const rms = Math.sqrt(sum / (samples.length || 1));
-        console.log(`[jitsi-audio] analyser meter ${label} rms=${rms.toFixed(6)} peak=${peak.toFixed(6)} sample0=${samples[0].toFixed(6)}`);
-      } catch (error) {
-        console.warn('[jitsi-audio] analyser read failed', error && (error.message || error));
-      }
-    };
-
-    const logReceiverDiagnostics = async (label, receiver, mediaTrack, mediaStream, audioElement) => {
-      try {
-        const receiverTrack = receiver && receiver.track ? receiver.track : null;
-        const receiverTrackId = receiverTrack ? receiverTrack.id : 'none';
-        const attachedTrackId = mediaTrack ? mediaTrack.id : 'none';
-        const streamTrackIds = mediaStream && typeof mediaStream.getTracks === 'function'
-          ? mediaStream.getTracks().map((track) => track.id)
-          : [];
-
-        console.log(`[jitsi-audio] receiver ${label}`, {
-          receiverTrackKind: receiverTrack ? receiverTrack.kind : null,
-          receiverTrackReadyState: receiverTrack ? receiverTrack.readyState : null,
-          receiverTrackMuted: receiverTrack ? receiverTrack.muted : null,
-          receiverTrackEnabled: receiverTrack ? receiverTrack.enabled : null,
-          receiverTrackId,
-          attachedTrackId,
-          sameTrackObject: Boolean(receiverTrack && mediaTrack && receiverTrack === mediaTrack),
-          sameTrackId: Boolean(receiverTrack && mediaTrack && receiverTrack.id === mediaTrack.id),
-          sameStreamTrackId: Boolean(mediaTrack && streamTrackIds.includes(mediaTrack.id)),
-          streamTrackIds,
-          audioElementTrackCount: audioElement && audioElement.srcObject && typeof audioElement.srcObject.getAudioTracks === 'function'
-            ? audioElement.srcObject.getAudioTracks().length
-            : null,
-        });
-
-        if (typeof receiver.getSynchronizationSources === 'function') {
-          try {
-            console.log(`[jitsi-audio] receiver ${label} synchronizationSources`, receiver.getSynchronizationSources());
-          } catch (syncError) {
-            console.warn('[jitsi-audio] getSynchronizationSources failed', syncError && (syncError.message || syncError));
-          }
-        } else {
-          console.log(`[jitsi-audio] receiver ${label} synchronizationSources`, 'not supported');
-        }
-
-        if (typeof receiver.getStats === 'function') {
-          try {
-            const stats = await receiver.getStats();
-            stats.forEach((report) => {
-              if (report.type !== 'inbound-rtp') {
-                return;
-              }
-
-              console.log(`[jitsi-audio] receiver ${label} stats`, {
-                id: report.id,
-                kind: report.kind,
-                mediaType: report.mediaType,
-                bytesReceived: report.bytesReceived,
-                packetsReceived: report.packetsReceived,
-                packetsLost: report.packetsLost,
-                jitter: report.jitter,
-                totalAudioEnergy: report.totalAudioEnergy,
-                totalSamplesDuration: report.totalSamplesDuration,
-                concealedSamples: report.concealedSamples,
-                concealedSamplesDuration: report.concealedSamplesDuration,
-                insertedSamplesForDeceleration: report.insertedSamplesForDeceleration,
-                removedSamplesForAcceleration: report.removedSamplesForAcceleration,
-                audioLevel: report.audioLevel,
-                totalPlayoutDelay: report.totalPlayoutDelay,
-                totalSamplesReceived: report.totalSamplesReceived,
-              });
-            });
-          } catch (statsError) {
-            console.warn('[jitsi-audio] receiver.getStats failed', statsError && (statsError.message || statsError));
-          }
-        }
-      } catch (error) {
-        console.warn('[jitsi-audio] receiver diagnostics failed', error && (error.message || error));
-      }
-    };
 
     const downsampleBuffer = (buffer, inputSampleRate, outputSampleRate) => {
       if (outputSampleRate === inputSampleRate) {
@@ -1590,14 +1427,15 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     };
 
     const floatTo16BitPCM = (floatBuffer) => {
-      const output = new Int16Array(floatBuffer.length);
+      const output = new ArrayBuffer(floatBuffer.length * 2);
+      const view = new DataView(output);
 
       for (let i = 0; i < floatBuffer.length; i += 1) {
         const sample = Math.max(-1, Math.min(1, floatBuffer[i]));
-        output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+        view.setInt16(i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
       }
 
-      return new Uint8Array(output.buffer);
+      return new Uint8Array(output);
     };
 
     const bytesToBase64 = (uint8Array) => {
@@ -1610,46 +1448,15 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       return btoa(binary);
     };
 
-    const calculateFloatRms = (buffer) => {
-      if (!buffer || buffer.length === 0) {
-        return 0;
-      }
-
-      let sum = 0;
-      for (let i = 0; i < buffer.length; i += 1) {
-        const value = buffer[i];
-        sum += value * value;
-      }
-
-      return Math.sqrt(sum / buffer.length);
-    };
-
     const sendBuffer = async (inputBuffer) => {
-      if (!inputBuffer || inputBuffer.length === 0) {
+      if (sourceNodes.size === 0 || !inputBuffer || inputBuffer.length === 0) {
         return;
       }
 
       const downsampled = downsampleBuffer(inputBuffer, audioContext.sampleRate, 16000);
-      const rms = calculateFloatRms(downsampled);
-
-      if (rms < 0.0005) {
-        droppedSilentChunkCount += 1;
-
-        const now = Date.now();
-        if (sourceNodes.size > 0 && now - lastSilenceWarningAt >= 5000) {
-          console.warn(`[jitsi-audio] dropping silent pcm chunks=${droppedSilentChunkCount} sources=${sourceNodes.size} rms=${rms.toFixed(6)}`);
-          lastSilenceWarningAt = now;
-          scanPeerConnectionReceivers('silence-watch');
-        }
-
-        return;
-      }
-
       const pcmBytes = floatTo16BitPCM(downsampled);
 
       if (pcmBytes.length > 0 && typeof window.__botDeliverAudioChunk === 'function') {
-        forwardedNonSilentChunkCount += 1;
-        lastNonSilentAudioAt = Date.now();
         await window.__botDeliverAudioChunk(bytesToBase64(pcmBytes));
       }
     };
@@ -1658,25 +1465,6 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       processorTickCount += 1;
       lastProcessorTickAt = Date.now();
       const input = event.inputBuffer.getChannelData(0).slice();
-      processedChunkCount += 1;
-
-      if (processedChunkCount % 25 === 0) {
-        let peak = 0;
-        let sum = 0;
-
-        for (let i = 0; i < input.length; i += 1) {
-          const value = Math.abs(input[i]);
-          peak = Math.max(peak, value);
-          sum += value * value;
-        }
-
-        const rms = Math.sqrt(sum / (input.length || 1));
-        const now = Date.now();
-        if (now - lastMeterLogAt >= 4000) {
-          console.log(`[jitsi-audio] pcm meter chunks=${processedChunkCount} rms=${rms.toFixed(6)} peak=${peak.toFixed(6)}`);
-          lastMeterLogAt = now;
-        }
-      }
 
       sendBuffer(input).catch((error) => {
         console.error('[jitsi-audio] failed to forward audio chunk', error);
@@ -1684,44 +1472,35 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
     };
 
     mixer.connect(processor);
-    mixer.connect(analyser);
     processor.connect(zeroGain);
     zeroGain.connect(audioContext.destination);
     await ensureAudioContextRunning();
 
-    window.setInterval(() => {
+    const startAudioElement = async (entry) => {
+      if (!entry || !entry.audioElement) {
+        return;
+      }
+
+      await ensureAudioContextRunning();
+
+      if (entry.audioElement.paused) {
+        await entry.audioElement.play();
+      }
+    };
+
+    maintenanceTimer = window.setInterval(() => {
       try {
-        scanPeerConnectionReceivers('watchdog');
-
-        if (sourceNodes.size === 0) {
-          return;
-        }
-
         for (const entry of sourceNodes.values()) {
-          const audioElement = entry.audioElement;
-          const mediaStream = entry.mediaStream;
-          const mediaTrack = entry.mediaTrack || (entry.track && typeof entry.track.getTrack === 'function' ? entry.track.getTrack() : null);
-          logGraphState('watchdog', audioElement, mediaStream, mediaTrack);
-          logAnalyserLevel('watchdog');
+          startAudioElement(entry).catch(() => {});
         }
 
         const now = Date.now();
-        if (lastProcessorTickAt && now - lastProcessorTickAt > 5000) {
+        if (sourceNodes.size > 0 && lastProcessorTickAt && now - lastProcessorTickAt > 5000) {
           console.warn('[jitsi-audio] processor watchdog: onaudioprocess has not fired recently', {
             processorTickCount,
             lastProcessorTickAt,
             audioContextState: audioContext.state,
           });
-        }
-
-        if (sourceNodes.size > 0 && (!lastNonSilentAudioAt || now - lastNonSilentAudioAt > 15000) && now - lastSilenceWarningAt >= 5000) {
-          console.warn('[jitsi-audio] no non-silent audio captured yet; remote tracks may be muted or the bridge channel may be unhealthy', {
-            sourceCount: sourceNodes.size,
-            processorTickCount,
-            droppedSilentChunkCount,
-            forwardedNonSilentChunkCount,
-          });
-          lastSilenceWarningAt = now;
         }
       } catch (error) {
         console.warn('[jitsi-audio] watchdog error', error && (error.message || error));
@@ -1761,171 +1540,136 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
 
     const attachAudioSource = ({ track = null, mediaTrack, participantId = 'unknown', label = 'track' }) => {
       if (!mediaTrack || mediaTrack.kind !== 'audio') {
-        return;
+        return null;
       }
 
       const trackKey = getAudioTrackKey(track, mediaTrack);
 
       if (sourceNodes.has(trackKey)) {
-        return;
+        return trackKey;
       }
 
       if (mediaTrack.readyState && mediaTrack.readyState !== 'live') {
         console.warn(`[jitsi-audio] skipped non-live ${label} audio track: ${trackKey} readyState=${mediaTrack.readyState}`);
-        return;
+        return null;
       }
 
-      let audioElement = null;
-      let mediaStream = new MediaStream([mediaTrack]);
+      const audioElement = document.createElement('audio');
+      audioElement.autoplay = true;
+      audioElement.playsInline = true;
+      audioElement.controls = false;
+      audioElement.muted = false;
+      audioElement.volume = 1;
+      audioElement.style.display = 'none';
+      document.body.appendChild(audioElement);
+
+      let attachedWithJitsi = false;
+      let mediaStream = null;
       let sourceNode = null;
 
       try {
-        mediaStream = getUsableAudioStream(track, mediaTrack, null);
-        sourceNode = audioContext.createMediaStreamSource(mediaStream);
-        console.log(`[jitsi-audio] createMediaStreamSource attached ${label}: ${trackKey}`);
-      } catch (streamErr) {
-        console.warn('[jitsi-audio] createMediaStreamSource failed, trying media element fallback', streamErr && (streamErr.message || streamErr));
+        if (track && typeof track.attach === 'function') {
+          track.attach(audioElement);
+          attachedWithJitsi = true;
+        } else {
+          audioElement.srcObject = new MediaStream([mediaTrack]);
+        }
 
+        mediaStream = getUsableAudioStream(track, mediaTrack, audioElement);
+        sourceNode = audioContext.createMediaElementSource(audioElement);
+      } catch (elementErr) {
         try {
-          audioElement = document.createElement('audio');
-          audioElement.autoplay = true;
-          audioElement.playsInline = true;
-          audioElement.controls = false;
-          audioElement.muted = false;
-          document.body.appendChild(audioElement);
+          mediaStream = mediaStream || getUsableAudioStream(track, mediaTrack, audioElement);
+          sourceNode = audioContext.createMediaStreamSource(mediaStream);
+        } catch (streamErr) {
+          console.error('[jitsi-audio] failed to attach audio source', streamErr && (streamErr.message || streamErr));
 
-          if (track && typeof track.attach === 'function') {
-            track.attach(audioElement);
-          } else {
-            audioElement.srcObject = new MediaStream([mediaTrack]);
-          }
-
-          mediaStream = getUsableAudioStream(track, mediaTrack, audioElement);
-          Promise.resolve(audioElement.play()).catch((playErr) => {
-            console.warn('[jitsi-audio] audioElement.play() failed for fallback', trackKey, playErr && (playErr.message || playErr));
-          });
-
-          sourceNode = audioContext.createMediaElementSource(audioElement);
-          console.log(`[jitsi-audio] createMediaElementSource attached ${label}: ${trackKey}`);
-        } catch (elementErr) {
-          console.error('[jitsi-audio] failed to attach audio source', elementErr && (elementErr.message || elementErr));
-          if (audioElement) {
-            try {
-              audioElement.remove();
-            } catch {
-              // ignore
+          try {
+            if (attachedWithJitsi && track && typeof track.detach === 'function') {
+              track.detach(audioElement);
             }
+            audioElement.pause();
+            audioElement.srcObject = null;
+            audioElement.remove();
+          } catch {
+            // ignore
           }
-          return;
+
+          return null;
         }
       }
 
       sourceNode.connect(mixer);
-      sourceNodes.set(trackKey, {
+      const entry = {
         sourceNode,
         audioElement,
         track,
         mediaStream,
         mediaTrack,
         participantId,
+      };
+
+      sourceNodes.set(trackKey, entry);
+
+      startAudioElement(entry).catch((error) => {
+        console.warn('[jitsi-audio] audio element playback failed', error && (error.message || error));
       });
 
-      if (audioElement) {
-        audioElements.set(trackKey, audioElement);
-      }
-
-      ensureAudioContextRunning().catch(() => {});
-      logGraphState(`attach:${label}`, audioElement, mediaStream, mediaTrack);
-
-      try {
-        const trackInfo = (mediaStream && typeof mediaStream.getTracks === 'function')
-          ? mediaStream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id }))
-          : [];
-        console.log('[jitsi-audio] attached stream tracks', { trackKey, label, participantId, trackInfo });
-      } catch (err) {
-        console.warn('[jitsi-audio] failed to log attached stream tracks', err && err.message);
-      }
-    };
-
-    const scanPeerConnectionReceivers = (reason) => {
-      try {
-        const pc = conference && conference.room && conference.room.rtc && conference.room.rtc.peerConnections
-          ? conference.room.rtc.peerConnections.get('JVB')?.peerconnection
-          : null;
-
-        if (!pc || typeof pc.getReceivers !== 'function') {
-          return;
-        }
-
-        pc.getReceivers().forEach((receiver, index) => {
-          if (!receiver || !receiver.track || receiver.track.kind !== 'audio') {
-            return;
-          }
-
-          attachAudioSource({
-            mediaTrack: receiver.track,
-            participantId: `receiver#${index}`,
-            label: `receiver:${reason}`,
-          });
-        });
-      } catch (error) {
-        console.warn('[jitsi-audio] receiver scan failed', error && (error.message || error));
-      }
+      return trackKey;
     };
 
     const trackMuteHandlers = new Map();
-    const trackAudioLevelHandlers = new Map();
-    let lastTrackAudioLevelLogAt = 0;
 
     const onTrackMuteChanged = (track) => {
-      const trackKey = (track && typeof track.getTrackId === 'function' && track.getTrackId())
-        || (track && typeof track.getTrack === 'function' && track.getTrack()?.id)
-        || 'unknown';
+      const mediaTrack = track && typeof track.getTrack === 'function' ? track.getTrack() : null;
+      const trackKey = mediaTrack
+        ? getAudioTrackKey(track, mediaTrack)
+        : ((track && typeof track.getTrackId === 'function' && track.getTrackId()) || 'unknown');
       const muted = track && typeof track.isMuted === 'function' ? track.isMuted() : 'unknown';
-      console.log(`[jitsi-audio] track mute changed: ${trackKey} muted=${muted}`);
       if (muted === false) {
-        ensureAudioContextRunning().catch(() => {});
+        const entry = sourceNodes.get(trackKey);
+        if (entry) {
+          startAudioElement(entry).catch(() => {});
+        } else {
+          ensureAudioContextRunning().catch(() => {});
+        }
       }
     };
 
     const attachTrack = (track) => {
-      if (!track || (typeof track.isLocal === 'function' && track.isLocal()) || (typeof track.isAudioTrack === 'function' && !track.isAudioTrack())) {
+      if (!track || (typeof track.isLocal === 'function' && track.isLocal())) {
+        return;
+      }
+
+      const isAudioTrack = typeof track.isAudioTrack === 'function'
+        ? track.isAudioTrack()
+        : (typeof track.getType === 'function' ? track.getType() === 'audio' : true);
+
+      if (!isAudioTrack) {
         return;
       }
 
       const mediaTrack = typeof track.getTrack === 'function' ? track.getTrack() : null;
-      if (!mediaTrack) {
+      if (!mediaTrack || mediaTrack.kind !== 'audio') {
         return;
       }
 
-      const trackKey = getAudioTrackKey(track, mediaTrack);
-
-      if (sourceNodes.has(trackKey)) {
-        return;
-      }
-
-      attachAudioSource({
+      const trackKey = attachAudioSource({
         track,
         mediaTrack,
         participantId: typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown',
         label: 'jitsi-track',
       });
 
+      if (!trackKey) {
+        return;
+      }
+
       try {
-        if (typeof track.addEventListener === 'function') {
+        if (typeof track.addEventListener === 'function' && !trackMuteHandlers.has(trackKey)) {
           const muteHandler = () => onTrackMuteChanged(track);
           trackMuteHandlers.set(trackKey, muteHandler);
           track.addEventListener(JitsiMeetJS.events.track.TRACK_MUTE_CHANGED, muteHandler);
-
-          const audioLevelHandler = (audioLevel) => {
-            const now = Date.now();
-            if (now - lastTrackAudioLevelLogAt >= 4000) {
-              console.log(`[jitsi-audio] track audio level: ${trackKey} level=${Number(audioLevel || 0).toFixed(6)}`);
-              lastTrackAudioLevelLogAt = now;
-            }
-          };
-          trackAudioLevelHandlers.set(trackKey, audioLevelHandler);
-          track.addEventListener(JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED, audioLevelHandler);
         }
       } catch {
         // ignore
@@ -1934,176 +1678,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       console.log(
         `[jitsi-audio] attached remote audio track: ${trackKey} participant=${typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown'} muted=${typeof track.isMuted === 'function' ? track.isMuted() : 'unknown'} readyState=${mediaTrack.readyState}`
       );
-
-      scanPeerConnectionReceivers('track-added');
-      return;
-
-      const audioElement = document.createElement('audio');
-      audioElement.autoplay = true;
-      audioElement.playsInline = true;
-      audioElement.controls = false;
-      // Keep the audio element unmuted so the AudioContext can receive its audio stream.
-      // We route audio through a zero-gain node so nothing is audible.
-      audioElement.muted = false;
-      document.body.appendChild(audioElement);
-
-      try {
-        if (typeof track.attach === 'function') {
-          track.attach(audioElement);
-        } else {
-          audioElement.srcObject = new MediaStream([mediaTrack]);
-        }
-      } catch (error) {
-        console.warn('[jitsi-audio] track.attach failed, falling back to raw stream', error);
-        audioElement.srcObject = new MediaStream([mediaTrack]);
-      }
-
-      const mediaStream = (typeof track.getOriginalStream === 'function' && track.getOriginalStream())
-        || audioElement.srcObject
-        || new MediaStream([mediaTrack]);
-
-      try {
-        const track = (mediaStream && typeof mediaStream.getAudioTracks === 'function') ? mediaStream.getAudioTracks()[0] : null;
-        console.log('[TRACK SETTINGS]', track && track.getSettings ? track.getSettings() : null);
-        console.log('[TRACK CONSTRAINTS]', track && track.getConstraints ? track.getConstraints() : null);
-        console.log('[TRACK READY]', track ? track.readyState : null);
-        console.log('[TRACK ENABLED]', track ? track.enabled : null);
-        console.log('[TRACK MUTED]', track ? track.muted : null);
-
-        try {
-          const pc = conference && conference.room && conference.room.rtc && conference.room.rtc.peerConnections
-            ? conference.room.rtc.peerConnections.get('JVB')?.peerconnection
-            : null;
-
-          if (pc) {
-            const receivers = pc.getReceivers();
-            console.log('[jitsi-audio] pc receiver count', receivers.length);
-
-            receivers.forEach((receiver, index) => {
-              if (!receiver || !receiver.track || receiver.track.kind !== 'audio') {
-                return;
-              }
-
-              const receiverTrack = receiver.track;
-              void logReceiverDiagnostics(`receiver#${index}`, receiver, mediaTrack, mediaStream, audioElement);
-            });
-          }
-        } catch (errPc) {
-          console.warn('[TRACK DIAG] pc diagnostics failed', errPc && errPc.message);
-        }
-      } catch (err) {
-        console.warn('[TRACK DIAG] failed to log track diagnostics', err && err.message);
-      }
-
-      try {
-        const trackInfo = (mediaStream && typeof mediaStream.getTracks === 'function')
-          ? mediaStream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id }))
-          : [];
-        console.log('[jitsi-audio] STREAM TRACKS', { trackKey, trackInfo });
-        console.log('[jitsi-audio] audio element stream identity', {
-          hasSrcObject: Boolean(audioElement.srcObject),
-          srcObjectActive: audioElement.srcObject ? audioElement.srcObject.active : null,
-          srcObjectAudioTrackIds: audioElement.srcObject && typeof audioElement.srcObject.getAudioTracks === 'function'
-            ? audioElement.srcObject.getAudioTracks().map((track) => track.id)
-            : [],
-          mediaTrackId: mediaTrack ? mediaTrack.id : null,
-          mediaTrackKind: mediaTrack ? mediaTrack.kind : null,
-          streamContainsMediaTrack: Boolean(mediaTrack && trackInfo.some((track) => track.id === mediaTrack.id)),
-        });
-      } catch (err) {
-        console.warn('[jitsi-audio] failed to log stream tracks', err && err.message);
-      }
-      let sourceNode;
-
-      try {
-        try {
-          sourceNode = audioContext.createMediaStreamSource(mediaStream);
-          console.log('[jitsi-audio] createMediaStreamSource -> sourceNode type=', sourceNode && sourceNode.constructor ? sourceNode.constructor.name : typeof sourceNode, 'processor.bufferSize=', processor && processor.bufferSize);
-        } catch (streamFirstErr) {
-          console.warn('[jitsi-audio] createMediaStreamSource failed, falling back to media element source', streamFirstErr && (streamFirstErr.message || streamFirstErr));
-        }
-
-        if (!sourceNode) {
-        // Start playback on the audio element first to ensure the element's pipeline
-        // is active. Some browsers (and headless runs) will not decode/produce
-        // audio frames until playback is initiated. We attempt play() and continue
-        // regardless of the result — we then prefer MediaElementSource (which
-        // reflects element output) and fall back to MediaStreamSource.
-        Promise.resolve(audioElement.play()).then(() => {
-          console.log('[jitsi-audio] audioElement.play() started for', trackKey);
-        }).catch((playErr) => {
-          console.warn('[jitsi-audio] audioElement.play() failed for', trackKey, playErr && (playErr.message || playErr));
-        });
-
-        // Prefer MediaElementSource (tied to the element playback) which is more
-        // likely to produce decoded audio frames in practice. If that fails,
-        // fall back to MediaStreamSource.
-        try {
-          sourceNode = audioContext.createMediaElementSource(audioElement);
-          console.log('[jitsi-audio] createMediaElementSource -> sourceNode type=', sourceNode && sourceNode.constructor ? sourceNode.constructor.name : typeof sourceNode);
-        } catch (elemErr) {
-          console.warn('[jitsi-audio] createMediaElementSource failed, falling back to createMediaStreamSource', elemErr && (elemErr.message || elemErr));
-          try {
-            console.log('[jitsi-audio] creating MediaStreamSource for track', trackKey);
-            console.log('[jitsi-audio] createMediaStreamSource ARG', (mediaStream && typeof mediaStream.getTracks === 'function') ? mediaStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState, id: t.id })) : mediaStream);
-            sourceNode = audioContext.createMediaStreamSource(mediaStream);
-            console.log('[jitsi-audio] createMediaStreamSource -> sourceNode type=', sourceNode && sourceNode.constructor ? sourceNode.constructor.name : typeof sourceNode, 'processor.bufferSize=', processor && processor.bufferSize);
-          } catch (streamErr) {
-            console.error('[jitsi-audio] createMediaStreamSource also failed', streamErr && streamErr.message);
-            return;
-          }
-        }
-        }
-      } catch (error) {
-        console.error('[jitsi-audio] unexpected error creating source node', error && (error.message || error));
-        return;
-      }
-
-      sourceNode.connect(mixer);
-      sourceNodes.set(trackKey, {
-        sourceNode,
-        audioElement,
-        track,
-        mediaStream,
-        participantId: typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown',
-      });
-      audioElements.set(trackKey, audioElement);
-      ensureAudioContextRunning().catch(() => {});
-      logGraphState('attach', audioElement, mediaStream, mediaTrack);
-
-      try {
-        if (typeof track.addEventListener === 'function') {
-          const muteHandler = () => onTrackMuteChanged(track);
-          trackMuteHandlers.set(trackKey, muteHandler);
-          track.addEventListener(JitsiMeetJS.events.track.TRACK_MUTE_CHANGED, muteHandler);
-
-          const audioLevelHandler = (audioLevel) => {
-            const now = Date.now();
-            if (now - lastTrackAudioLevelLogAt >= 4000) {
-              console.log(`[jitsi-audio] track audio level: ${trackKey} level=${Number(audioLevel || 0).toFixed(6)}`);
-              lastTrackAudioLevelLogAt = now;
-            }
-          };
-          trackAudioLevelHandlers.set(trackKey, audioLevelHandler);
-          track.addEventListener(JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED, audioLevelHandler);
-        }
-      } catch {
-        // ignore
-      }
-
-      Promise.resolve(audioElement.play())
-        .then(() => {
-          console.log(
-            `[jitsi-audio] attached remote audio track: ${trackKey} participant=${typeof track.getParticipantId === 'function' ? track.getParticipantId() : 'unknown'} muted=${typeof track.isMuted === 'function' ? track.isMuted() : 'unknown'} readyState=${mediaTrack.readyState} streamTracks=${typeof mediaStream?.getAudioTracks === 'function' ? mediaStream.getAudioTracks().length : 0}`
-          );
-        })
-        .catch((error) => {
-          console.warn('[jitsi-audio] audio element play failed', error);
-        });
-
-      scanPeerConnectionReceivers('track-added');
     };
-
     const detachTrack = (track) => {
       const mediaTrack = track && typeof track.getTrack === 'function' ? track.getTrack() : null;
       const trackKey = mediaTrack ? getAudioTrackKey(track, mediaTrack) : (track && typeof track.getTrackId === 'function' && track.getTrackId());
@@ -2129,17 +1704,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
         // ignore
       }
 
-      try {
-        const audioLevelHandler = trackAudioLevelHandlers.get(trackKey);
-        if (entry.track && audioLevelHandler && typeof entry.track.removeEventListener === 'function') {
-          entry.track.removeEventListener(JitsiMeetJS.events.track.TRACK_AUDIO_LEVEL_CHANGED, audioLevelHandler);
-        }
-      } catch {
-        // ignore
-      }
-
       trackMuteHandlers.delete(trackKey);
-      trackAudioLevelHandlers.delete(trackKey);
 
       try {
         if (entry.audioElement) {
@@ -2155,7 +1720,6 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       }
 
       sourceNodes.delete(trackKey);
-      audioElements.delete(trackKey);
       console.log(`[jitsi-audio] detached remote audio track: ${trackKey}`);
     };
 
@@ -2183,6 +1747,11 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       }
 
       try {
+        if (maintenanceTimer) {
+          window.clearInterval(maintenanceTimer);
+          maintenanceTimer = null;
+        }
+
         processor.disconnect();
         mixer.disconnect();
         zeroGain.disconnect();
@@ -2212,9 +1781,7 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       }
 
       sourceNodes.clear();
-      audioElements.clear();
       trackMuteHandlers.clear();
-      trackAudioLevelHandlers.clear();
 
       try {
         if (connection) {
@@ -2240,11 +1807,9 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       }
 
       const participants = conference.getParticipants();
-      console.log(`[jitsi-audio] scanning existing participants: ${participants.length}`);
 
       for (const participant of participants) {
         const tracks = typeof participant?.getTracks === 'function' ? participant.getTracks() : [];
-        console.log(`[jitsi-audio] participant existing tracks: ${tracks.length}`);
         for (const track of tracks) {
           attachTrack(track);
         }
@@ -2265,7 +1830,6 @@ async function startJitsiRealtimeAudioStream({ page, aaiWebSocket, meetingUrl, m
       conference.on(JitsiMeetJS.events.conference.CONFERENCE_JOINED, () => {
         console.log('[jitsi-audio] conference joined');
         attachExistingTracks();
-        scanPeerConnectionReceivers('conference-joined');
         if (currentAttempt?.resolve) {
           currentAttempt.resolve();
           currentAttempt = null;
