@@ -25,7 +25,7 @@ export function LmsShell({
 
   return (
     <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6 overflow-hidden px-3 py-6 sm:px-5">
-      <GlowCard className="overflow-hidden rounded-[2rem] border-white/20 bg-slate-950 p-0 text-white shadow-[0_34px_110px_rgba(2,6,23,0.28)]">
+      <GlowCard className="!rounded-[2rem] !border-0 !bg-transparent !p-0 !shadow-none hover:!shadow-none overflow-hidden text-white">
         <div className="absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_16%_18%,rgba(34,211,238,0.35),transparent_34%),radial-gradient(circle_at_78%_10%,rgba(52,211,153,0.22),transparent_30%),radial-gradient(circle_at_62%_88%,rgba(99,102,241,0.22),transparent_36%),linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.95)_48%,rgba(8,47,73,0.92))]" />
         <div className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
         <div className="absolute -bottom-28 left-10 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
