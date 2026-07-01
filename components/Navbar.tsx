@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, PencilLine, Radio, Upload, Video } from 'lucide-react';
 import FileShare from './FileShare';
@@ -341,7 +342,7 @@ export function Navbar() {
           </button>
         </div>
       )}
-      {isWhiteboardOpen && roomMeetingId && (
+      {isWhiteboardOpen && roomMeetingId && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[70]">
           <button
             aria-label="Close whiteboard backdrop"
@@ -355,7 +356,8 @@ export function Navbar() {
               onClose={() => setIsWhiteboardOpen(false)}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       <YouTubeStreamModal
         isOpen={isYouTubeModalOpen}

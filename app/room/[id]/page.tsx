@@ -10,7 +10,6 @@ import { Loader } from '../../../components/Loader';
 import { JitsiMeeting } from '../../../components/JitsiMeeting';
 import { useSession } from 'next-auth/react';
 import { normalizeJitsiRoomName } from '../../../lib/jitsi-room';
-import { Radio, ShieldCheck, Sparkles, Users } from 'lucide-react';
 
 interface MeetingDetails {
   _id: string;
@@ -21,7 +20,6 @@ interface MeetingDetails {
   isPrivate: boolean;
   chatEnabled: boolean;
   recordingEnabled: boolean;
-  joinCount: number;
   lastSessionAt?: string | null;
   summary?: string;
   keyNotes?: string[];
@@ -117,7 +115,7 @@ export default function RoomPage() {
         const meetingResponse = await fetch(
           `/api/get-meeting?id=${encodeURIComponent(meetingId)}`,
           {
-          signal: controller.signal,
+            signal: controller.signal,
           }
         );
         clearTimeout(requestTimeout);
@@ -160,55 +158,6 @@ export default function RoomPage() {
 
     verifyMeeting();
   }, [fallbackRoute, nameReady, meetingId, router, userDisplayName]);
-
-  // Start the bot once the room is verified so caption capture does not depend on the
-  // Jitsi join event firing at the right time.
-  useEffect(() => {
-    if (!meeting || !nameReady || !tokenResolved) {
-      return;
-    }
-
-    if (meeting.isPrivate && !jwt) {
-      console.error('[meeting] Private room requires JWT. Bot start skipped.');
-      return;
-    }
-
-    const triggerBot = async () => {
-      try {
-        // Construct the Jitsi meeting URL
-        const jitsiDomain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
-        const cleanDomain = jitsiDomain.replace(/^https?:\/\//, '').trim();
-        const meetingUrl = `https://${cleanDomain}/${jitsiRoomName}`;
-
-        console.log('[meeting] Triggering bot to join:', meetingUrl);
-
-        const response = await fetch('/api/start-bot', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            meetingId,
-            meetingUrl,
-            botName: 'Melanam Live Captions Bot',
-            jwt,
-            platform: 'jitsi',
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[meeting] Bot trigger response:', data);
-        } else {
-          console.error('[meeting] Failed to trigger bot:', response.status);
-        }
-      } catch (error) {
-        console.error('[meeting] Error triggering bot:', error);
-      }
-    };
-
-    triggerBot();
-  }, [jwt, jitsiRoomName, meeting, nameReady, meetingId, tokenResolved]);
 
   const getTranscriptSnapshot = useCallback(() => {
     const finalEntries = transcriptEntriesRef.current;
@@ -337,6 +286,17 @@ export default function RoomPage() {
   );
 
   const handleMeetingReadyToClose = useCallback(async () => {
+    const clearWhiteboard = async () => {
+      const response = await fetch(`/api/whiteboards?meetingId=${encodeURIComponent(meetingId)}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        console.warn('[whiteboard] cleanup failed:', body?.error || response.status);
+      }
+    };
+
     try {
       const { resolveMeetingAiHttpUrl } = await import('../../../lib/meeting-ai-client');
       const baseUrl = resolveMeetingAiHttpUrl();
@@ -361,8 +321,10 @@ export default function RoomPage() {
       console.warn('[AI persist] summary flush failed', error);
     } finally {
       await persistAIResults();
+      await clearWhiteboard();
+      router.push(fallbackRoute);
     }
-  }, [meetingId, persistAIResults]);
+  }, [fallbackRoute, meetingId, persistAIResults, router]);
 
   // Open AI results panel when caption overlay dispatches event
   useEffect(() => {
@@ -452,6 +414,11 @@ export default function RoomPage() {
     ],
     [meeting?.chatEnabled, meeting?.recordingEnabled]
   );
+  const canMountJitsi = Boolean(
+    meeting &&
+    tokenResolved &&
+    (!meeting.isPrivate || jwt)
+  );
 
   if (status === 'loading' || !nameReady) {
     return <Loader />;
@@ -478,89 +445,69 @@ export default function RoomPage() {
 
   return (
     <div className="mx-auto w-full max-w-[80rem] overflow-hidden px-3 pb-5 pt-4 text-slate-950 sm:px-5">
-      <div className="min-w-0 space-y-3">
-        <div className="surface-strong overflow-hidden rounded-[2rem] border-white/70">
-          <div className="flex flex-col gap-4 border-b border-slate-200/80 bg-white/70 p-4 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-cyan-700">
-                <Sparkles className="h-3.5 w-3.5" />
-                Live Room
-              </div>
-              <h1 className="mt-2 truncate font-display text-2xl font-semibold text-slate-950">
-                {meeting?.title || meetingId}
-              </h1>
-              <p className="mt-1 max-w-2xl truncate text-sm text-slate-500">
-                {meeting?.description || 'Video, captions, files, whiteboard, recordings, polls, and AI meeting memory.'}
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              {[
-                { label: 'Secure', icon: ShieldCheck },
-                { label: `${meeting?.joinCount || 0} joins`, icon: Users },
-                { label: 'Live tools', icon: Radio },
-              ].map(({ label, icon: Icon }) => (
-                <div key={label} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm">
-                  <Icon className="h-3.5 w-3.5 text-cyan-600" />
-                  <span className="truncate">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div
-            ref={handleVideoStageRef}
-            className="relative h-[calc(100dvh-13rem)] min-h-[34rem] w-full overflow-hidden bg-slate-950 sm:h-[calc(100dvh-12rem)]"
-          >
-            <JitsiMeeting
-              roomName={jitsiRoomName}
-              displayName={userDisplayName}
-              userEmail={userEmail}
-              captionMeetingId={meetingId}
-              jwt={jwt || undefined}
-              height="100%"
-              prejoinPageEnabled
-              startWithAudioMuted
-              startWithVideoMuted
-              onApiReady={handleApiReady}
-              onReadyToClose={handleMeetingReadyToClose}
-              toolbarButtons={roomToolbarButtons}
-            />
-            <CaptionOverlay
-              meetingId={meetingId}
-              portalTarget={captionPortalTarget}
-              onCaption={handleCaptionPersist}
-              onSummary={handleSummaryPersist}
-            />
-          </div>
-          {showAiResults && aiResults && (
-            <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto border-l border-gray-200 bg-white/95 shadow-2xl dark:border-gray-800 dark:bg-slate-900/95">
-              <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
-                <h3 className="text-lg font-semibold">AI Meeting Results</h3>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setShowAiResults(false)} className="text-sm text-slate-600 dark:text-slate-300">Close</button>
-                </div>
-              </div>
-              <div className="p-4">
-                <AIResultsDisplay
-                  meetingId={meetingId}
-                  summary={aiResults?.summary}
-                  keyNotes={aiResults?.keyNotes || []}
-                  keyDecisions={aiResults?.keyDecisions || []}
-                  actionItems={aiResults?.actionItems || []}
-                  transcript={aiResults?.transcript || []}
-                  speakerLabels={aiResults?.speakerLabels || []}
-                />
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium mb-2">Tasks from this meeting</h4>
-                  <TaskList meetingId={meetingId} />
-                </div>
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium mb-2">Live Polls</h4>
-                  <Polls meetingId={meetingId} />
-                </div>
-              </div>
+      <div className="relative min-h-[34rem] overflow-hidden rounded-[2rem] bg-slate-950">
+        <div
+          ref={handleVideoStageRef}
+          className="relative h-[calc(100dvh-5.5rem)] min-h-[34rem] w-full overflow-hidden bg-slate-950"
+        >
+          {canMountJitsi ? (
+            <>
+              <JitsiMeeting
+                roomName={jitsiRoomName}
+                displayName={userDisplayName}
+                userEmail={userEmail}
+                captionMeetingId={meetingId}
+                jwt={jwt || undefined}
+                height="100%"
+                prejoinPageEnabled
+                startWithAudioMuted
+                startWithVideoMuted
+                onApiReady={handleApiReady}
+                onReadyToClose={handleMeetingReadyToClose}
+                toolbarButtons={roomToolbarButtons}
+              />
+              <CaptionOverlay
+                meetingId={meetingId}
+                portalTarget={captionPortalTarget}
+                onCaption={handleCaptionPersist}
+                onSummary={handleSummaryPersist}
+              />
+            </>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-slate-950 text-sm font-semibold text-slate-300">
+              Preparing meeting...
             </div>
           )}
         </div>
+        {showAiResults && aiResults && (
+          <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto border-l border-gray-200 bg-white/95 shadow-2xl dark:border-gray-800 dark:bg-slate-900/95">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4 dark:border-gray-800">
+              <h3 className="text-lg font-semibold">AI Meeting Results</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowAiResults(false)} className="text-sm text-slate-600 dark:text-slate-300">Close</button>
+              </div>
+            </div>
+            <div className="p-4">
+              <AIResultsDisplay
+                meetingId={meetingId}
+                summary={aiResults?.summary}
+                keyNotes={aiResults?.keyNotes || []}
+                keyDecisions={aiResults?.keyDecisions || []}
+                actionItems={aiResults?.actionItems || []}
+                transcript={aiResults?.transcript || []}
+                speakerLabels={aiResults?.speakerLabels || []}
+              />
+              <div className="mt-6">
+                <h4 className="mb-2 text-sm font-medium">Tasks from this meeting</h4>
+                <TaskList meetingId={meetingId} />
+              </div>
+              <div className="mt-6">
+                <h4 className="mb-2 text-sm font-medium">Live Polls</h4>
+                <Polls meetingId={meetingId} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

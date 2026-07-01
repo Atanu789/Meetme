@@ -107,6 +107,11 @@ export function JitsiMeeting({
   const joinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onReadyRef = useRef(onReady);
   const onReadyToCloseRef = useRef(onReadyToClose);
+  const onApiReadyRef = useRef(onApiReady);
+  const displayNameRef = useRef(displayName);
+  const userEmailRef = useRef(userEmail);
+  const captionMeetingIdRef = useRef(captionMeetingId);
+  const toolbarButtonsRef = useRef(toolbarButtons);
 
   const clearJoinTimeout = () => {
     if (joinTimeoutRef.current) {
@@ -122,6 +127,27 @@ export function JitsiMeeting({
   useEffect(() => {
     onReadyToCloseRef.current = onReadyToClose;
   }, [onReadyToClose]);
+
+  useEffect(() => {
+    onApiReadyRef.current = onApiReady;
+  }, [onApiReady]);
+
+  useEffect(() => {
+    displayNameRef.current = displayName;
+    jitsiRef.current?.executeCommand?.('displayName', displayName);
+  }, [displayName]);
+
+  useEffect(() => {
+    userEmailRef.current = userEmail;
+  }, [userEmail]);
+
+  useEffect(() => {
+    captionMeetingIdRef.current = captionMeetingId;
+  }, [captionMeetingId]);
+
+  useEffect(() => {
+    toolbarButtonsRef.current = toolbarButtons;
+  }, [toolbarButtons]);
 
   // Get domain from prop or environment variable
   const cleanDomain = (() => {
@@ -234,7 +260,7 @@ export function JitsiMeeting({
           ...(userEmail && { email: userEmail }),
         },
         configOverwrite: {
-          toolbarButtons,
+          toolbarButtons: toolbarButtonsRef.current,
           startWithAudioMuted: startWithAudioMuted,
           startWithVideoMuted: startWithVideoMuted,
           disableSimulcast: false,
@@ -256,6 +282,7 @@ export function JitsiMeeting({
           },
           // Self-hosted Jitsi configuration
           enableWelcomePage: false,
+          enableClosePage: false,
           enableUserRolesBasedOnToken: Boolean(jwt),
         },
         interfaceConfigOverwrite: {
@@ -263,13 +290,16 @@ export function JitsiMeeting({
           SHOW_CHROME_EXTENSION_BANNER: false,
           MOBILE_APP_PROMO: false,
           SHOW_POWERED_BY: showLogo,
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_BRAND_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
           DEFAULT_REMOTE_DISPLAY_NAME: 'Fellow Jitsian',
           APP_NAME: 'Melanam',
         },
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
-      onApiReady?.(jitsiRef.current);
+      onApiReadyRef.current?.(jitsiRef.current);
 
       console.log('JitsiMeeting: API instance created successfully');
       // Unblock UI as soon as iframe API is mounted.
@@ -285,7 +315,7 @@ export function JitsiMeeting({
         const id = String(participantId || '').trim();
         const name = String(participantName || '').trim();
         const base = resolveMeetingAiHttpUrl();
-        const captionRoomId = captionMeetingId || roomName;
+        const captionRoomId = captionMeetingIdRef.current || roomName;
 
         if (!base || !id) {
           return;
@@ -297,7 +327,7 @@ export function JitsiMeeting({
           body: JSON.stringify({
             participantId: id,
             displayName: name,
-            email: userEmail || '',
+            email: userEmailRef.current || '',
           }),
         }).catch((e) => console.warn('[Jitsi] participant mapping failed', e));
       };
@@ -309,9 +339,9 @@ export function JitsiMeeting({
           event?.participantId ||
           event?.jid ||
           jitsiRef.current?.getCurrentUserID?.() ||
-          userEmail ||
-          displayName;
-        postParticipantMapping(localParticipantId, displayName || userEmail || 'Guest');
+          userEmailRef.current ||
+          displayNameRef.current;
+        postParticipantMapping(localParticipantId, displayNameRef.current || userEmailRef.current || 'Guest');
         setLoading(false);
         clearJoinTimeout();
         onReadyRef.current?.();
@@ -347,7 +377,6 @@ export function JitsiMeeting({
       jitsiRef.current.addEventListener('conferenceError', (error: any) => {
         console.error('Conference error:', error);
         setLoading(false);
-        setError('Conference failed to start. Please refresh and try again.');
       });
     } catch (err) {
       console.error('Error initializing Jitsi Meeting:', err);
@@ -363,23 +392,19 @@ export function JitsiMeeting({
         } catch (err) {
           console.error('Error disposing Jitsi:', err);
         }
+        jitsiRef.current = null;
       }
     };
   }, [
     scriptLoading,
     roomName,
-    displayName,
-    userEmail,
     cleanDomain,
     startWithAudioMuted,
     startWithVideoMuted,
     prejoinPageEnabled,
-    toolbarButtons,
-    error,
-    height,
     showLogo,
     activeProtocol,
-    captionMeetingId,
+    jwt,
   ]);
 
   if (error) {
@@ -418,9 +443,6 @@ export function JitsiMeeting({
             </div>
             <p className="text-gray-300">
               {scriptLoading ? 'Loading video service...' : 'Joining meeting...'}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              {cleanDomain !== 'meet.jit.si' ? `Using ${cleanDomain}` : 'Powered by Jitsi'}
             </p>
           </div>
         </div>

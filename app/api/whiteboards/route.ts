@@ -164,10 +164,46 @@ async function saveWhiteboard(req: Request) {
   }
 }
 
+async function deleteWhiteboard(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const meetingId = (url.searchParams.get('meetingId') || '').trim();
+
+    if (!meetingId) {
+      console.warn('[whiteboards] DELETE: missing meetingId');
+      return json({ error: 'missing meetingId' }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    const result = await Whiteboard.deleteOne({ meetingId });
+
+    console.log('[whiteboards] deleted whiteboard:', {
+      meetingId,
+      deletedCount: result.deletedCount || 0,
+    });
+
+    return json({
+      ok: true,
+      deletedCount: result.deletedCount || 0,
+    });
+  } catch (err: any) {
+    console.error('[whiteboards] delete failed:', err?.message || String(err), 'stack:', err?.stack);
+    return json(
+      { error: err?.message || 'Failed to delete whiteboard' },
+      { status: err?.status || 500 }
+    );
+  }
+}
+
 export async function PUT(req: Request) {
   return saveWhiteboard(req);
 }
 
 export async function POST(req: Request) {
   return saveWhiteboard(req);
+}
+
+export async function DELETE(req: Request) {
+  return deleteWhiteboard(req);
 }
