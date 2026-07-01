@@ -179,21 +179,25 @@ class AssemblyAIService {
     }
 
     const transcriptText = this.formatTranscriptForNotes(transcript, speakerNameMap);
-    const prompt = `Analyze this meeting transcript and return ONLY valid JSON.
+    const prompt = `Analyze this meeting transcript as a professional meeting analyst and return ONLY valid JSON.
 
 Schema:
 {
-  "summary": "3-5 sentence executive summary",
-  "keyNotes": ["Important discussion point or context"],
-  "keyDecisions": ["Decision that was actually made"],
-  "actionItems": ["Owner: task, if an owner is mentioned; otherwise task"]
+  "summary": "4-6 sentence executive summary written in clear business language",
+  "keyNotes": ["Important discussion point, grouped by topic when possible"],
+  "keyDecisions": ["Decision that was explicitly made"],
+  "actionItems": ["Owner: task, if an owner is explicitly mentioned; otherwise task"]
 }
 
 Rules:
 - Use the speaker names exactly as shown in the transcript.
 - Do not invent decisions, owners, or tasks.
-- Keep each list item concise and useful.
+- Remove filler, repeated phrases, false starts, and transcription noise.
+- Prefer specific outcomes, risks, blockers, dates, numbers, and next steps over generic statements.
+- Keep each list item concise, polished, and useful without marketing language.
+- Limit keyNotes to the 6 strongest points, keyDecisions to 6, and actionItems to 8.
 - If there are no items for a list, return an empty array.
+- If the transcript is too short or unclear, say that briefly in the summary and only include supported details.
 
 Transcript:
 ${transcriptText}`;
@@ -202,7 +206,7 @@ ${transcriptText}`;
     const notes = this.parseMeetingNotes(response);
 
     return {
-      summary: notes.summary || response.trim(),
+      summary: this.cleanSummary(notes.summary || response.trim()),
       keyNotes: notes.keyNotes,
       keyDecisions: notes.keyDecisions,
       actionItems: notes.actionItems,
@@ -264,10 +268,10 @@ ${transcriptText}`;
     }
 
     return {
-      summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : '',
-      keyNotes: this.normalizeStringList(parsed.keyNotes || parsed.key_notes || parsed.notes),
-      keyDecisions: this.normalizeStringList(parsed.keyDecisions || parsed.key_decisions || parsed.decisions),
-      actionItems: this.normalizeStringList(parsed.actionItems || parsed.action_items || parsed.actions),
+      summary: this.cleanSummary(typeof parsed.summary === 'string' ? parsed.summary : ''),
+      keyNotes: this.normalizeStringList(parsed.keyNotes || parsed.key_notes || parsed.notes, 6),
+      keyDecisions: this.normalizeStringList(parsed.keyDecisions || parsed.key_decisions || parsed.decisions, 6),
+      actionItems: this.normalizeStringList(parsed.actionItems || parsed.action_items || parsed.actions, 8),
     };
   }
 
@@ -301,19 +305,33 @@ ${transcriptText}`;
       .filter((line) => line.length > 0);
   }
 
-  private normalizeStringList(value: any): string[] {
+  private normalizeStringList(value: any, limit = 8): string[] {
+    const seen = new Set<string>();
+    const normalize = (item: string) => this.cleanListItem(item);
+
+    const unique = (items: string[]) => items
+      .map(normalize)
+      .filter((item) => {
+        if (!item) return false;
+        const key = item.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, limit);
+
     if (typeof value === 'string') {
-      return this.parseResponseList(value);
+      return unique(this.parseResponseList(value));
     }
 
     if (!Array.isArray(value)) {
       return [];
     }
 
-    return value
+    return unique(value
       .map((item) => {
         if (typeof item === 'string') {
-          return item.trim();
+          return item;
         }
 
         if (item && typeof item === 'object') {
@@ -329,8 +347,22 @@ ${transcriptText}`;
         }
 
         return '';
-      })
-      .filter((item) => item.length > 0);
+      }));
+  }
+
+  private cleanSummary(value: string): string {
+    return String(value || '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([,.!?;:])/g, '$1')
+      .trim();
+  }
+
+  private cleanListItem(value: string): string {
+    return String(value || '')
+      .replace(/^\s*(?:[-*]|\d+[.)])\s*/, '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([,.!?;:])/g, '$1')
+      .trim();
   }
 
   private formatTranscriptForNotes(transcript: any, speakerNameMap: SpeakerNameMap): string {

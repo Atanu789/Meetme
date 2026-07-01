@@ -50,7 +50,7 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
 
   const actions = [
     {
-      title: 'Create scheduled room',
+      title: 'Create room',
       description: 'Set title, description, privacy, and share a polished invite.',
       icon: CalendarPlus,
       accent: 'from-cyan-500 to-blue-500',

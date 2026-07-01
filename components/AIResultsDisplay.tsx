@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   IconChevronDown,
-  IconFileText,
   IconChecks,
   IconClipboardList,
-  IconUsers,
   IconDownload,
+  IconFileText,
+  IconUsers,
 } from '@tabler/icons-react';
 import { motion } from 'motion/react';
 
@@ -40,6 +40,15 @@ interface AIResultsDisplayProps {
   className?: string;
 }
 
+type BriefSection = {
+  id: string;
+  title: string;
+  items: string[];
+  icon: typeof IconFileText;
+  tone: string;
+  emptyText: string;
+};
+
 export function AIResultsDisplay({
   meetingId,
   summary,
@@ -50,283 +59,242 @@ export function AIResultsDisplay({
   speakerLabels = [],
   className = '',
 }: AIResultsDisplayProps) {
-  const [expandedSection, setExpandedSection] = useState<string | null>(
-    summary ? 'summary' : null
+  const [showTranscript, setShowTranscript] = useState(false);
+  const polishedSummary = cleanText(summary);
+  const notes = useMemo(() => cleanList(keyNotes), [keyNotes]);
+  const decisions = useMemo(() => cleanList(keyDecisions), [keyDecisions]);
+  const actions = useMemo(
+    () =>
+      actionItems
+        .map((item) => ({
+          item: cleanText(item?.item),
+          owner: cleanText(item?.owner),
+        }))
+        .filter((item) => item.item.length > 0),
+    [actionItems]
   );
 
   const hasAIContent =
-    summary ||
-    keyNotes.length > 0 ||
-    keyDecisions.length > 0 ||
-    actionItems.length > 0 ||
+    polishedSummary ||
+    notes.length > 0 ||
+    decisions.length > 0 ||
+    actions.length > 0 ||
     transcript.length > 0;
 
   if (!hasAIContent) {
     return null;
   }
 
-  const getSpeakerColor = (speakerId: string): string => {
-    const speaker = speakerLabels.find((s) => s.speakerId === speakerId);
-    return speaker?.color || '#6B7280';
-  };
+  const sections: BriefSection[] = [
+    {
+      id: 'notes',
+      title: 'Key Notes',
+      items: notes,
+      icon: IconFileText,
+      tone: 'border-cyan-100 bg-cyan-50/70 text-cyan-700',
+      emptyText: 'No key notes were identified yet.',
+    },
+    {
+      id: 'decisions',
+      title: 'Decisions',
+      items: decisions,
+      icon: IconChecks,
+      tone: 'border-emerald-100 bg-emerald-50/70 text-emerald-700',
+      emptyText: 'No explicit decisions were captured.',
+    },
+  ];
 
-  const formatTimestamp = (ms: number): string => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  const getSpeakerColor = (speakerId: string): string => {
+    const speaker = speakerLabels.find((item) => item.speakerId === speakerId);
+    return speaker?.color || '#334155';
   };
 
   const downloadTranscript = () => {
-    const txt = transcript
-      .map((t) => `[${formatTimestamp(t.timestamp)}] ${t.speaker}: ${t.text}`)
+    const text = transcript
+      .map((entry) => `[${formatTimestamp(entry.timestamp)}] ${entry.speaker}: ${entry.text}`)
       .join('\n');
-
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const element = document.createElement('a');
-    element.setAttribute(
-      'href',
-      'data:text/plain;charset=utf-8,' + encodeURIComponent(txt)
-    );
-    element.setAttribute('download', `transcript-${meetingId}.txt`);
-    element.style.display = 'none';
+    element.href = url;
+    element.download = `transcript-${meetingId}.txt`;
     document.body.appendChild(element);
     element.click();
-    document.body.removeChild(element);
+    element.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {/* Summary Section */}
-      {summary && (
-        <motion.div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 overflow-hidden">
-          <button
-            onClick={() =>
-              setExpandedSection(expandedSection === 'summary' ? null : 'summary')
-            }
-            className="w-full flex items-center justify-between p-4 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <IconFileText size={20} className="text-blue-600 dark:text-blue-400" />
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                Meeting Summary
-              </span>
-            </div>
-            <motion.div
-              animate={{ rotate: expandedSection === 'summary' ? 180 : 0 }}
-            >
-              <IconChevronDown size={20} className="text-blue-600 dark:text-blue-400" />
-            </motion.div>
-          </button>
-          {expandedSection === 'summary' && (
-            <div className="px-4 pb-4 text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-              {summary}
-            </div>
-          )}
-        </motion.div>
-      )}
+    <div className={`space-y-4 ${className}`}>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">
+              Meeting Brief
+            </p>
+            <h3 className="mt-1 font-display text-xl font-semibold text-slate-950">
+              Executive Summary
+            </h3>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <Metric label="Notes" value={notes.length} />
+            <Metric label="Decisions" value={decisions.length} />
+            <Metric label="Actions" value={actions.length} />
+          </div>
+        </div>
 
-      {/* Key Notes Section */}
-      {keyNotes.length > 0 && (
-        <motion.div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-900/20 overflow-hidden">
-          <button
-            onClick={() =>
-              setExpandedSection(expandedSection === 'notes' ? null : 'notes')
-            }
-            className="w-full flex items-center justify-between p-4 hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <IconFileText size={20} className="text-cyan-600 dark:text-cyan-400" />
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                Key Notes ({keyNotes.length})
-              </span>
-            </div>
-            <motion.div
-              animate={{ rotate: expandedSection === 'notes' ? 180 : 0 }}
-            >
-              <IconChevronDown size={20} className="text-cyan-600 dark:text-cyan-400" />
-            </motion.div>
-          </button>
-          {expandedSection === 'notes' && (
-            <div className="px-4 pb-4 space-y-2">
-              {keyNotes.map((note, idx) => (
-                <div
-                  key={idx}
-                  className="flex gap-3 text-sm text-gray-700 dark:text-gray-300"
-                >
-                  <span className="text-cyan-600 dark:text-cyan-400 font-semibold min-w-fit">
-                    •
-                  </span>
-                  <span>{note}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      )}
+        <p className="mt-4 text-sm leading-6 text-slate-700">
+          {polishedSummary || 'A professional summary will appear once enough meeting context has been captured.'}
+        </p>
+      </div>
 
-      {/* Key Decisions Section */}
-      {keyDecisions.length > 0 && (
-        <motion.div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 overflow-hidden">
-          <button
-            onClick={() =>
-              setExpandedSection(
-                expandedSection === 'decisions' ? null : 'decisions'
-              )
-            }
-            className="w-full flex items-center justify-between p-4 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <IconChecks size={20} className="text-emerald-600 dark:text-emerald-400" />
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                Key Decisions ({keyDecisions.length})
-              </span>
-            </div>
-            <motion.div
-              animate={{ rotate: expandedSection === 'decisions' ? 180 : 0 }}
-            >
-              <IconChevronDown
-                size={20}
-                className="text-emerald-600 dark:text-emerald-400"
-              />
-            </motion.div>
-          </button>
-          {expandedSection === 'decisions' && (
-            <div className="px-4 pb-4 space-y-2">
-              {keyDecisions.map((decision, idx) => (
-                <div
-                  key={idx}
-                  className="flex gap-3 text-sm text-gray-700 dark:text-gray-300"
-                >
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold min-w-fit">
-                    •
-                  </span>
-                  <span>{decision}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      )}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {sections.map((section) => (
+          <BriefList key={section.id} section={section} />
+        ))}
+      </div>
 
-      {/* Action Items Section */}
-      {actionItems.length > 0 && (
-        <motion.div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 overflow-hidden">
-          <button
-            onClick={() =>
-              setExpandedSection(
-                expandedSection === 'actions' ? null : 'actions'
-              )
-            }
-            className="w-full flex items-center justify-between p-4 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition"
-          >
-            <div className="flex items-center gap-3">
-              <IconClipboardList
-                size={20}
-                className="text-amber-600 dark:text-amber-400"
-              />
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                Action Items ({actionItems.length})
-              </span>
-            </div>
-            <motion.div
-              animate={{ rotate: expandedSection === 'actions' ? 180 : 0 }}
-            >
-              <IconChevronDown
-                size={20}
-                className="text-amber-600 dark:text-amber-400"
-              />
-            </motion.div>
-          </button>
-          {expandedSection === 'actions' && (
-            <div className="px-4 pb-4 space-y-3">
-              {actionItems.map((item, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex gap-3 text-sm text-gray-700 dark:text-gray-300">
-                    <span className="text-amber-600 dark:text-amber-400 font-semibold min-w-fit">
-                      ☐
-                    </span>
-                    <span>{item.item}</span>
-                  </div>
-                  {item.owner && (
-                    <div className="ml-5 text-xs text-gray-500 dark:text-gray-400">
-                      <IconUsers size={14} className="inline mr-1" />
-                      Owner: {item.owner}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      )}
+      <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+        <div className="flex items-center gap-2 text-amber-800">
+          <IconClipboardList className="h-5 w-5" />
+          <h4 className="font-display text-base font-semibold">Action Items</h4>
+        </div>
+        {actions.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            {actions.map((action, index) => (
+              <div key={`${action.item}-${index}`} className="rounded-xl border border-amber-100 bg-white px-3 py-2">
+                <p className="text-sm font-medium leading-5 text-slate-800">{action.item}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {action.owner ? `Owner: ${action.owner}` : 'Owner not assigned'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-slate-500">No action items were assigned.</p>
+        )}
+      </div>
 
-      {/* Transcript Section */}
       {transcript.length > 0 && (
-        <motion.div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <button
-            onClick={() =>
-              setExpandedSection(
-                expandedSection === 'transcript' ? null : 'transcript'
-              )
-            }
-            className="w-full flex items-center justify-between p-4 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition"
+            type="button"
+            onClick={() => setShowTranscript((value) => !value)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
           >
-            <div className="flex items-center gap-3">
-              <IconFileText
-                size={20}
-                className="text-purple-600 dark:text-purple-400"
-              />
-              <span className="font-semibold text-gray-900 dark:text-gray-100">
-                Full Transcript ({transcript.length})
-              </span>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white">
+                <IconUsers className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-display text-sm font-semibold text-slate-950">Speaker Transcript</p>
+                <p className="truncate text-xs text-slate-500">
+                  {transcript.length} entries from {speakerLabels.length || 'unknown'} speakers
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
                   downloadTranscript();
                 }}
-                className="p-2 hover:bg-purple-200 dark:hover:bg-purple-800 rounded transition"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-cyan-200 hover:text-cyan-700"
                 title="Download transcript"
+                aria-label="Download transcript"
               >
-                <IconDownload size={16} className="text-purple-600 dark:text-purple-400" />
+                <IconDownload className="h-4 w-4" />
               </button>
-              <motion.div
-                animate={{ rotate: expandedSection === 'transcript' ? 180 : 0 }}
-              >
-                <IconChevronDown
-                  size={20}
-                  className="text-purple-600 dark:text-purple-400"
-                />
+              <motion.div animate={{ rotate: showTranscript ? 180 : 0 }}>
+                <IconChevronDown className="h-5 w-5 text-slate-500" />
               </motion.div>
             </div>
           </button>
-          {expandedSection === 'transcript' && (
-            <div className="px-4 pb-4 space-y-3 max-h-96 overflow-y-auto">
-              {transcript.map((entry, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-baseline gap-3">
+
+          {showTranscript && (
+            <div className="max-h-96 space-y-3 overflow-y-auto border-t border-slate-100 px-4 py-4">
+              {transcript.map((entry, index) => (
+                <div key={`${entry.timestamp}-${entry.speakerId}-${index}`} className="rounded-xl bg-slate-50 px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className="text-xs font-semibold px-2 py-1 rounded text-white"
+                      className="rounded-full px-2 py-1 text-xs font-semibold text-white"
                       style={{ backgroundColor: getSpeakerColor(entry.speakerId) }}
                     >
-                      {entry.speaker}
+                      {entry.speaker || entry.speakerId || 'Speaker'}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatTimestamp(entry.timestamp)}
-                    </span>
+                    <span className="text-xs text-slate-500">{formatTimestamp(entry.timestamp)}</span>
                   </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 ml-3">
-                    {entry.text}
-                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{entry.text}</p>
                 </div>
               ))}
             </div>
           )}
-        </motion.div>
+        </div>
       )}
     </div>
   );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="text-base font-semibold text-slate-950">{value}</div>
+      <div className="text-[11px] font-medium text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function BriefList({ section }: { section: BriefSection }) {
+  const Icon = section.icon;
+
+  return (
+    <div className={`rounded-2xl border p-4 ${section.tone}`}>
+      <div className="flex items-center gap-2">
+        <Icon className="h-5 w-5" />
+        <h4 className="font-display text-base font-semibold">{section.title}</h4>
+      </div>
+      {section.items.length > 0 ? (
+        <ol className="mt-3 space-y-2">
+          {section.items.map((item, index) => (
+            <li key={`${section.id}-${index}`} className="rounded-xl bg-white px-3 py-2 text-sm leading-5 text-slate-700">
+              {item}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-3 text-sm text-slate-500">{section.emptyText}</p>
+      )}
+    </div>
+  );
+}
+
+function cleanText(value?: string) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .trim();
+}
+
+function cleanList(items: string[]) {
+  const seen = new Set<string>();
+
+  return items
+    .map(cleanText)
+    .filter((item) => {
+      if (!item) return false;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatTimestamp(ms: number): string {
+  const seconds = Math.floor(Number(ms || 0) / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
 export default AIResultsDisplay;

@@ -30,12 +30,12 @@ async function callAssemblyAIMeetingNotes(text) {
     body: JSON.stringify({
       final_model: 'default',
       max_output_size: 4096,
-      prompt: `Analyze these live meeting captions and return ONLY valid JSON.
+      prompt: `Analyze these live meeting captions as a professional meeting analyst and return ONLY valid JSON.
 
 Schema:
 {
-  "summary": "3-5 sentence executive summary",
-  "keyNotes": ["Important discussion point or context"],
+  "summary": "4-6 sentence executive summary written in clear business language",
+  "keyNotes": ["Important discussion point, grouped by topic when possible"],
   "keyDecisions": ["Decision that was actually made"],
   "actionItems": [{"description": "Task", "assignee": "Owner if mentioned"}]
 }
@@ -43,8 +43,12 @@ Schema:
 Rules:
 - Keep speaker names exactly as written in the captions.
 - Do not invent decisions, owners, or action items.
+- Remove filler, repeated phrases, false starts, and transcription noise.
+- Prefer specific outcomes, risks, blockers, dates, numbers, and next steps over generic statements.
+- Keep each item concise, polished, and useful without marketing language.
+- Limit keyNotes to the 6 strongest points, keyDecisions to 6, and actionItems to 8.
 - Use empty arrays when nothing clear is present.
-- Keep every item concise.
+- If the captions are too thin or unclear, say that briefly in the summary and only include supported details.
 
 Captions:
 ${text}`,
@@ -73,9 +77,9 @@ function parseMeetingNotes(text) {
   }
 
   return {
-    summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : '',
-    keyNotes: normalizeStringList(parsed.keyNotes || parsed.key_notes || parsed.notes),
-    keyDecisions: normalizeStringList(parsed.keyDecisions || parsed.key_decisions || parsed.decisions),
+    summary: cleanText(typeof parsed.summary === 'string' ? parsed.summary : ''),
+    keyNotes: normalizeStringList(parsed.keyNotes || parsed.key_notes || parsed.notes).slice(0, 6),
+    keyDecisions: normalizeStringList(parsed.keyDecisions || parsed.key_decisions || parsed.decisions).slice(0, 6),
     actionItems: normalizeActionItems(parsed.actionItems || parsed.action_items || parsed.actions),
   };
 }
@@ -162,6 +166,14 @@ function normalizeActionItems(value) {
       };
     })
     .filter(Boolean);
+}
+
+function cleanText(value) {
+  return String(value || '')
+    .replace(/^\s*(?:[-*]|\d+[.)])\s*/, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.!?;:])/g, '$1')
+    .trim();
 }
 
 function extractAssignee(text) {

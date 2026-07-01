@@ -186,8 +186,8 @@ export function Navbar() {
                       ? 'border-red-200 bg-red-50/85 text-red-950 shadow-[0_10px_24px_rgba(239,68,68,0.12)]'
                       : recordingHoverClass
                   } disabled:opacity-50`}
-                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-                  title={isRecording ? 'Stop recording' : 'Start recording'}
+                  aria-label={isRecording ? 'Stop local recording' : 'Start local recording'}
+                  title={isRecording ? 'Stop local recording' : 'Start local recording'}
                 >
                   <Radio className="h-4 w-4" />
                 </button>
