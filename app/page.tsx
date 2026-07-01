@@ -53,6 +53,19 @@ const dashboardRows = [
   { label: 'Resources', value: 74, color: 'bg-amber-400' },
 ];
 
+const meetingParticipants = [
+  { role: 'Teacher', name: 'Dr. Sen', tone: 'from-cyan-300 to-sky-400', delay: '0ms' },
+  { role: 'Student', name: 'Aarav', tone: 'from-emerald-300 to-teal-400', delay: '150ms' },
+  { role: 'Student', name: 'Mira', tone: 'from-violet-300 to-fuchsia-400', delay: '300ms' },
+];
+
+const meetingFlow = [
+  { label: 'Create', helper: 'Room starts', icon: Video },
+  { label: 'Join', helper: 'Class connects', icon: Users },
+  { label: 'Discuss', helper: 'Board + captions', icon: Radio },
+  { label: 'Save', helper: 'AI notes ready', icon: Brain },
+];
+
 function NumberTicker({ value }: { value: number }) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -88,62 +101,283 @@ function PremiumCard({ children, className = '' }: { children: React.ReactNode; 
 
 function HeroPreview() {
   return (
-    <PremiumCard className="p-4 sm:p-5">
-      <div className="rounded-[1.5rem] bg-slate-950 p-4 text-white shadow-2xl shadow-slate-950/20">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-200">Live room</p>
-            <h3 className="mt-1 font-display text-lg font-semibold">Advanced Physics Lab</h3>
-          </div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100">
-            <span className="h-2 w-2 rounded-full bg-emerald-300" />
-            Recording
-          </span>
-        </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="relative min-h-[280px] overflow-hidden rounded-[1.4rem] bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950 p-4">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_24%_20%,rgba(34,211,238,0.25),transparent_30%),radial-gradient(circle_at_78%_68%,rgba(52,211,153,0.18),transparent_34%)]" />
-            <div className="relative grid h-full grid-cols-2 gap-3">
-              {['Instructor', 'Student A', 'Student B', 'Shared board'].map((item, index) => (
-                <div key={item} className="flex min-h-[120px] flex-col justify-between rounded-2xl border border-white/10 bg-white/8 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-200">{item}</span>
-                    <span className={`h-2 w-2 rounded-full ${index === 0 ? 'bg-emerald-300' : 'bg-cyan-300'}`} />
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[48, 70, 38].map((height, barIndex) => (
-                      <div key={barIndex} className="flex h-12 items-end rounded-full bg-white/8 p-1">
-                        <div className="w-full rounded-full bg-cyan-200" style={{ height: `${height + index * 4}%` }} />
-                      </div>
-                    ))}
-                  </div>
+<PremiumCard className="p-4 sm:p-5">
+  {/* Main Wrapper: Greyish tint with box shadow, glassmorphism retained */}
+  <div className="relative overflow-hidden rounded-[1.5rem] bg-slate-400/50 p-5 shadow-slate-300/60 border border-white/60 backdrop-blur-xl">
+      
+
+    {/* Minimal Classy Animations */}
+    <style>{`
+      @keyframes subtleAudio {
+        0%, 100% { transform: scaleY(0.5); }
+        50% { transform: scaleY(1.5); }
+
+      }
+      @keyframes floatMinimal {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+    `}</style>
+
+    {/* Header */}
+    <div className="relative z-10 flex items-center justify-between gap-3 border-b border-slate-300/50 pb-4">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-600">
+          Live room
+        </p>
+        <h3 className="mt-1 font-display text-xl font-semibold tracking-tight text-slate-900">
+          Advanced Physics Lab
+        </h3>
+      </div>
+      
+      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold tracking-wide text-emerald-700 shadow-sm">
+        {/* Minimal Pulsing Dot */}
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        </span>
+        Recording
+      </span>
+    </div>
+
+    <div className="relative z-10 mt-5 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+      
+      {/* Left Column: Video Grid */}
+      <div className="relative min-h-[280px] overflow-hidden rounded-[1.25rem] border border-white/60 bg-slate-100/40 p-4 shadow-inner">
+        <div className="relative grid h-full grid-cols-2 gap-3">
+          {[
+            { name: 'Instructor', type: 'host', color: 'emerald' },
+            { name: 'Student A', type: 'participant', color: 'cyan' },
+            { name: 'Student B', type: 'participant', color: 'cyan' },
+            { name: 'Shared board', type: 'system', color: 'slate' }
+          ].map((item, index) => {
+            const colorMap = {
+              emerald: { dot: 'bg-emerald-500', bar: 'bg-emerald-400' },
+              cyan: { dot: 'bg-cyan-500', bar: 'bg-cyan-400' },
+              slate: { dot: 'bg-slate-400', bar: 'bg-slate-400' },
+            };
+            const colors = colorMap[item.color];
+
+            return (
+              <div 
+                key={item.name} 
+                className="flex min-h-[120px] flex-col justify-between rounded-xl border border-white/80 bg-white/50 p-3.5 shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold tracking-wide text-slate-700">
+                    {item.name}
+                  </span>
+                  
+                  {/* Active Speaker Indicator */}
+                  <span className="relative flex h-1.5 w-1.5 items-center justify-center">
+                    {(item.name === 'Instructor' || item.name === 'Student A') && (
+                      <span className={`absolute h-3 w-3 animate-ping rounded-full opacity-30 ${colors.dot}`} />
+                    )}
+                    <span className={`relative h-1.5 w-1.5 rounded-full ${colors.dot}`} />
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="grid gap-3">
-            {[
-              { label: 'Captions', value: 'Real-time', icon: Radio },
-              { label: 'Summary', value: 'Auto draft', icon: Brain },
-              { label: 'Files', value: '12 shared', icon: FileText },
-              { label: 'Whiteboard', value: 'Saved', icon: Wand2 },
-            ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="rounded-2xl border border-white/10 bg-white/8 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-300/15 text-cyan-100">
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{label}</p>
-                    <p className="text-xs text-slate-300">{value}</p>
-                  </div>
+
+                {/* Subtle Audio Equalizer */}
+                <div className="flex w-16 items-end justify-between gap-[3px] rounded-lg bg-slate-200/60 p-1.5 h-8 border border-white/40">
+                  {[1, 2, 3, 4, 5].map((bar) => (
+                    <div 
+                      key={bar} 
+                      className={`w-1 origin-bottom rounded-full ${colors.bar} ${item.type === 'system' ? 'opacity-40' : ''}`}
+                      style={{
+                        height: '100%',
+                        animation: item.type !== 'system' 
+                          ? `subtleAudio ${0.6 + (Math.random() * 0.4)}s ease-in-out infinite alternate`
+                          : 'none',
+                        animationDelay: `${index * 0.1 + bar * 0.1}s`,
+                        transform: item.type === 'system' ? 'scaleY(0.4)' : 'scaleY(0.2)'
+                      }}
+                    />
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
-    </PremiumCard>
+
+      {/* Right Column: Features */}
+      <div className="grid gap-3">
+        {[
+          { label: 'Captions', value: 'Real-time syncing', icon: Radio, highlight: 'text-emerald-600', bg: 'bg-emerald-100/50' },
+          { label: 'Summary', value: 'Auto-generating...', icon: Brain, highlight: 'text-cyan-600', bg: 'bg-cyan-100/50' },
+          { label: 'Files', value: '12 assets shared', icon: FileText, highlight: 'text-blue-600', bg: 'bg-blue-100/50' },
+          { label: 'Whiteboard', value: 'Cloud saved', icon: Wand2, highlight: 'text-indigo-600', bg: 'bg-indigo-100/50' },
+        ].map(({ label, value, icon: Icon, highlight, bg }, index) => (
+          <div 
+            key={label} 
+            className="flex items-center gap-3.5 rounded-xl border border-white/80 bg-white/50 p-3 shadow-sm backdrop-blur-sm"
+            style={{
+              animation: `floatMinimal 6s ease-in-out infinite`,
+              animationDelay: `${index * 0.4}s`,
+            }}
+          >
+            {/* Icon Box */}
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/60 ${bg} ${highlight}`}>
+              <Icon className="h-4 w-4" />
+            </div>
+            
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-slate-800">
+                {label}
+              </p>
+              <p className="mt-[1px] truncate text-[11px] font-medium text-slate-500">
+                {value}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  </div>
+
+  <div className="mx-auto mt-4 max-w-[50rem] grid gap-4 sm:grid-cols-[1fr_1.2fr]">
+    {/* Refined Glass Auto-Hover Animations (Retained as "normal" automatic effects) */}
+    <style>{`
+      @keyframes autoHoverIconGlass {
+        0%, 25%, 100% { transform: scale(1); color: #64748b; background-color: #f1f5f9; border-color: rgba(255,255,255,0.6); }
+        5%, 20% { transform: scale(1.08); color: #06b6d4; background-color: #ecfeff; border-color: #a5f3fc; }
+      }
+      @keyframes autoHoverCardGlass {
+        0%, 25%, 100% { 
+          transform: translateY(0); 
+          background-color: rgba(255, 255, 255, 0.4); 
+          border-color: rgba(255, 255, 255, 0.6);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02); 
+        }
+        5%, 20% { 
+          transform: translateY(-3px); 
+          background-color: rgba(255, 255, 255, 0.9); 
+          border-color: rgba(165, 243, 252, 0.6);
+          box-shadow: 0 10px 20px -5px rgba(6, 182, 212, 0.1); 
+        }
+      }
+    `}</style>
+
+    {/* Left Box: Participants Grid */}
+    <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-slate-200/40 p-4 shadow-sm backdrop-blur-md">
+      {/* Subtle float animations */}
+      <style>{`
+        @keyframes glassFloatLead {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes glassFloatPeer {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+        }
+      `}</style>
+
+      <div className="relative grid h-full grid-cols-2 items-center gap-x-3 gap-y-4">
+        {meetingParticipants.map((person, index) => {
+          const isTeacher = index === 0;
+
+          return (
+            <div
+              key={person.name}
+              className={`relative flex flex-col items-center justify-between rounded-xl border border-white/80 bg-white/50 p-3 text-center shadow-sm backdrop-blur ${
+                isTeacher 
+                  ? 'col-span-2 mx-auto w-[65%] min-h-[120px]' 
+                  : 'col-span-1 min-h-[105px]'
+              }`}
+              style={{
+                animation: `${isTeacher ? 'glassFloatLead' : 'glassFloatPeer'} 4s ease-in-out infinite`,
+                animationDelay: person.delay || `${index * 0.5}s`,
+              }}
+            >
+              {/* Clean Glass Avatar */}
+              <div className={`relative flex items-center justify-center rounded-full bg-gradient-to-br ${person.tone} font-bold text-slate-800 shadow-sm border border-white/80 ${
+                isTeacher ? 'h-11 w-11 text-sm' : 'h-9 w-9 text-xs'
+              }`}>
+                {person.name.charAt(0)}
+                
+                <span className={`absolute -right-0.5 top-0.5 rounded-full border-2 border-white bg-emerald-400 ${
+                  isTeacher ? 'h-3 w-3' : 'h-2.5 w-2.5'
+                }`} />
+              </div>
+
+              <div className="mt-1">
+                <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-500">
+                  {person.role}
+                </p>
+                <p className={`font-semibold text-slate-800 ${isTeacher ? 'mt-1 text-sm' : 'mt-0.5 text-xs'}`}>
+                  {person.name}
+                </p>
+              </div>
+
+              {/* Clean Equalizer */}
+              <div className="mt-1.5 flex items-end gap-[3px]" style={{ height: isTeacher ? '18px' : '14px' }}>
+                {[35, 60, 48, 72, ...(isTeacher ? [50] : [])].map((height, barIndex) => (
+                  <span
+                    key={barIndex}
+                    className="w-1 rounded-full bg-cyan-400"
+                    style={{
+                      height: `${height}%`,
+                      animation: `subtleAudio 900ms ease-in-out infinite alternate`,
+                      animationDelay: `${barIndex * 150 + index * 100}ms`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* Right Box: Meeting Flow Sequence */}
+    <div className="relative overflow-hidden rounded-2xl border border-white/60 bg-slate-200/40 p-4 shadow-sm backdrop-blur-md flex flex-col justify-center">
+      <div className="space-y-3">
+        {meetingFlow.map(({ label, helper, icon: Icon }, index) => {
+          const delay = `${index * 1.2}s`; 
+          
+          return (
+            <div key={label} className="flex items-center gap-3.5">
+              {/* Glassy Auto-animating Icon */}
+              <div 
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm"
+                style={{
+                  animation: `autoHoverIconGlass 4.8s infinite ease-in-out`,
+                  animationDelay: delay
+                }}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+
+              {/* Glassy Auto-animating Card */}
+              <div 
+                className="min-w-0 flex-1 rounded-xl px-3.5 py-2.5"
+                style={{
+                  animation: `autoHoverCardGlass 4.8s infinite ease-in-out`,
+                  animationDelay: delay,
+                  borderWidth: '1px',
+                  borderStyle: 'solid'
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {label}
+                  </p>
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400 opacity-80"
+                  />
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium text-slate-500 line-clamp-1">
+                  {helper}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+</PremiumCard>
   );
 }
 
