@@ -23,7 +23,24 @@ interface MeetingDetails {
   recordingEnabled: boolean;
   joinCount: number;
   lastSessionAt?: string | null;
+  summary?: string;
+  keyNotes?: string[];
+  keyDecisions?: string[];
+  actionItems?: Array<{ item: string; owner?: string }>;
+  transcript?: Array<{ text: string; timestamp: number; speakerId: string; speaker: string }>;
+  speakerLabels?: Array<{ speakerId: string; name: string; color: string }>;
 }
+
+const speakerColors = [
+  '#FF6B6B',
+  '#4ECDC4',
+  '#45B7D1',
+  '#FFA502',
+  '#95E1D3',
+  '#F38181',
+  '#AA96DA',
+  '#FCBAD3',
+];
 
 export default function RoomPage() {
   const params = useParams();
@@ -40,6 +57,10 @@ export default function RoomPage() {
   const [captionPortalTarget, setCaptionPortalTarget] = useState<HTMLElement | null>(null);
   const apiRef = useRef<any>(null);
   const videoStageRef = useRef<HTMLDivElement | null>(null);
+  const transcriptEntriesRef = useRef<Array<{ text: string; timestamp: number; speakerId: string; speaker: string }>>([]);
+  const partialTranscriptRef = useRef<Map<string, { text: string; timestamp: number; speakerId: string; speaker: string }>>(new Map());
+  const speakerLabelsRef = useRef<Map<string, { speakerId: string; name: string; color: string }>>(new Map());
+  const latestSummaryRef = useRef<any | null>(null);
 
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
@@ -109,6 +130,9 @@ export default function RoomPage() {
 
         const meetingData = await meetingResponse.json();
         setMeeting(meetingData.meeting);
+        if (meetingData.meeting?.summary || meetingData.meeting?.transcript?.length) {
+          setAiResults(meetingData.meeting);
+        }
 
         if (meetingData.meeting?.isPrivate) {
           const tokenResponse = await fetch(`/api/meeting-token?meetingId=${encodeURIComponent(meetingId)}&name=${encodeURIComponent(userDisplayName)}`);
@@ -185,6 +209,160 @@ export default function RoomPage() {
 
     triggerBot();
   }, [jwt, jitsiRoomName, meeting, nameReady, meetingId, tokenResolved]);
+
+  const getTranscriptSnapshot = useCallback(() => {
+    const finalEntries = transcriptEntriesRef.current;
+    if (finalEntries.length > 0) {
+      return [...finalEntries].sort((left, right) => left.timestamp - right.timestamp);
+    }
+
+    return Array.from(partialTranscriptRef.current.values()).sort(
+      (left, right) => left.timestamp - right.timestamp
+    );
+  }, []);
+
+  const persistAIResults = useCallback(
+    async (summaryPayload?: any) => {
+      const transcript = getTranscriptSnapshot();
+      const summary = summaryPayload || latestSummaryRef.current;
+      const speakerLabels = Array.from(speakerLabelsRef.current.values());
+
+      if (
+        !summary?.text &&
+        transcript.length === 0 &&
+        speakerLabels.length === 0
+      ) {
+        return null;
+      }
+
+      try {
+        const response = await fetch('/api/ai/save-results', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            meetingId,
+            summary: summary?.text || '',
+            keyNotes: summary?.keyNotes || [],
+            keyDecisions: summary?.keyDecisions || [],
+            actionItems: (summary?.actions || []).map((action: any) => ({
+              item: String(action?.description || action?.item || '').trim(),
+              owner: action?.assignee || action?.owner,
+            })),
+            transcript,
+            speakerLabels,
+          }),
+        });
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          console.warn('[AI persist] save skipped:', body.error || response.status);
+          return null;
+        }
+
+        const body = await response.json();
+        const savedMeeting = body.meeting || null;
+        if (savedMeeting) {
+          setAiResults((current: any) => ({
+            ...(current || {}),
+            ...savedMeeting,
+          }));
+        }
+
+        return savedMeeting;
+      } catch (error) {
+        console.warn('[AI persist] failed to save AI results', error);
+        return null;
+      }
+    },
+    [getTranscriptSnapshot, meetingId]
+  );
+
+  const handleCaptionPersist = useCallback(
+    (caption: { text: string; speaker: string; speakerId: string; final: boolean; timestamp: number }) => {
+      const speakerId = caption.speakerId || caption.speaker || 'speaker';
+      if (!speakerLabelsRef.current.has(speakerId)) {
+        speakerLabelsRef.current.set(speakerId, {
+          speakerId,
+          name: caption.speaker || speakerId,
+          color: speakerColors[speakerLabelsRef.current.size % speakerColors.length],
+        });
+      }
+
+      const entry = {
+        text: caption.text,
+        timestamp: caption.timestamp,
+        speakerId,
+        speaker: caption.speaker || speakerId,
+      };
+
+      partialTranscriptRef.current.set(speakerId, entry);
+
+      if (!caption.final) {
+        return;
+      }
+
+      const key = `${Math.round(caption.timestamp)}|${speakerId}|${caption.text.toLowerCase()}`;
+      const exists = transcriptEntriesRef.current.some((item) => (
+        `${Math.round(item.timestamp)}|${item.speakerId}|${item.text.toLowerCase()}` === key
+      ));
+
+      if (!exists) {
+        transcriptEntriesRef.current.push(entry);
+      }
+    },
+    []
+  );
+
+  const handleSummaryPersist = useCallback(
+    (summary: any) => {
+      latestSummaryRef.current = summary;
+      setAiResults((current: any) => ({
+        ...(current || {}),
+        meetingId,
+        summary: summary?.text || current?.summary || '',
+        keyNotes: summary?.keyNotes || current?.keyNotes || [],
+        keyDecisions: summary?.keyDecisions || current?.keyDecisions || [],
+        actionItems: Array.isArray(summary?.actions)
+          ? summary.actions.map((action: any) => ({
+              item: String(action?.description || action?.item || '').trim(),
+              owner: action?.assignee || action?.owner,
+            })).filter((action: any) => action.item.length > 0)
+          : current?.actionItems || [],
+        transcript: getTranscriptSnapshot(),
+        speakerLabels: Array.from(speakerLabelsRef.current.values()),
+      }));
+      void persistAIResults(summary);
+    },
+    [getTranscriptSnapshot, meetingId, persistAIResults]
+  );
+
+  const handleMeetingReadyToClose = useCallback(async () => {
+    try {
+      const { resolveMeetingAiHttpUrl } = await import('../../../lib/meeting-ai-client');
+      const baseUrl = resolveMeetingAiHttpUrl();
+      if (baseUrl) {
+        const response = await fetch(`${baseUrl}/api/rooms/${encodeURIComponent(meetingId)}/flush`, {
+          method: 'POST',
+        });
+        const body = await response.json().catch(() => ({}));
+        const summary = body?.summary;
+        if (summary?.summary) {
+          const summaryPayload = {
+            text: summary.summary,
+            keyNotes: summary.keyNotes || [],
+            keyDecisions: summary.keyDecisions || [],
+            actions: summary.actionItems || summary.actions || [],
+            timestamp: summary.timestamp || Date.now(),
+          };
+          latestSummaryRef.current = summaryPayload;
+        }
+      }
+    } catch (error) {
+      console.warn('[AI persist] summary flush failed', error);
+    } finally {
+      await persistAIResults();
+    }
+  }, [meetingId, persistAIResults]);
 
   // Open AI results panel when caption overlay dispatches event
   useEffect(() => {
@@ -343,9 +521,15 @@ export default function RoomPage() {
               startWithAudioMuted
               startWithVideoMuted
               onApiReady={handleApiReady}
+              onReadyToClose={handleMeetingReadyToClose}
               toolbarButtons={roomToolbarButtons}
             />
-            <CaptionOverlay meetingId={meetingId} portalTarget={captionPortalTarget} />
+            <CaptionOverlay
+              meetingId={meetingId}
+              portalTarget={captionPortalTarget}
+              onCaption={handleCaptionPersist}
+              onSummary={handleSummaryPersist}
+            />
           </div>
           {showAiResults && aiResults && (
             <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto border-l border-gray-200 bg-white/95 shadow-2xl dark:border-gray-800 dark:bg-slate-900/95">

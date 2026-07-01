@@ -3,6 +3,7 @@ import Course from '@/models/Course';
 import CourseSession from '@/models/CourseSession';
 import Assignment from '@/models/Assignment';
 import Submission from '@/models/Submission';
+import Meeting from '@/models/Meeting';
 import { getLmsContext, json } from '../../_shared';
 
 export async function GET(_: NextRequest) {
@@ -15,11 +16,21 @@ export async function GET(_: NextRequest) {
   const now = new Date();
   const nextMonth = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
 
-  const [upcomingClasses, assignments, sessions, submissions] = await Promise.all([
+  const [upcomingClasses, assignments, sessions, submissions, aiMeetings] = await Promise.all([
     CourseSession.find({ courseId: { $in: courseIds }, startsAt: { $gte: now, $lte: nextMonth } }).sort({ startsAt: 1 }).limit(20),
     Assignment.find({ courseId: { $in: courseIds } }).sort({ createdAt: -1 }).limit(20),
     CourseSession.find({ courseId: { $in: courseIds } }).sort({ updatedAt: -1 }).limit(20),
     Submission.find({ courseId: { $in: courseIds } }).sort({ updatedAt: -1 }).limit(20),
+    Meeting.find({
+      hostEmail: context.userEmail,
+      $or: [
+        { summary: { $exists: true, $ne: '' } },
+        { keyNotes: { $exists: true, $ne: [] } },
+        { transcript: { $exists: true, $ne: [] } },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .limit(8),
   ]);
 
   const assignmentMap = new Map(assignments.map((assignment) => [assignment._id.toString(), assignment]));
@@ -60,6 +71,7 @@ export async function GET(_: NextRequest) {
       pendingGrading,
       assignmentMap: Array.from(assignmentMap.values()),
       submissionsByAssignment,
+      aiMeetings,
     },
   });
 }

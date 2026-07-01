@@ -6,6 +6,7 @@ import { GlowCard } from '@/components/ui/glow-card';
 import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
 import { LmsMeetingActions } from './LmsMeetingActions';
+import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
 
 type InstructorDashboardData = {
   courses: any[];
@@ -17,6 +18,7 @@ type InstructorDashboardData = {
   pendingGrading: any[];
   submissionsByAssignment: Record<string, number>;
   availableMeetings?: any[];
+  aiMeetings?: any[];
 };
 
 const emptyCourseForm = {
@@ -47,6 +49,7 @@ export function InstructorLmsDashboard() {
     pendingGrading: [],
     submissionsByAssignment: {},
     availableMeetings: [],
+    aiMeetings: [],
   });
   const [loading, setLoading] = useState(true);
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -355,6 +358,7 @@ export function InstructorLmsDashboard() {
       stats={stats}
     >
       <LmsMeetingActions roleLabel="Instructor" />
+      <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
 
       <GlowCard className="!rounded-[2rem] !border-0 !bg-transparent !p-0 !shadow-none hover:!shadow-none">
         <div className="grid min-w-0 overflow-hidden rounded-[inherit] xl:grid-cols-[0.72fr_1.28fr]">

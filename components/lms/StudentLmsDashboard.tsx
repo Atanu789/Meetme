@@ -5,6 +5,7 @@ import { GlowCard } from '@/components/ui/glow-card';
 import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
 import { LmsMeetingActions } from './LmsMeetingActions';
+import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
 
 type StudentDashboardData = {
   courses: any[];
@@ -12,10 +13,11 @@ type StudentDashboardData = {
   pendingAssignments: any[];
   recentRecordings: any[];
   submissions: any[];
+  aiMeetings?: any[];
 };
 
 export function StudentLmsDashboard() {
-  const [dashboard, setDashboard] = useState<StudentDashboardData>({ courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [] });
+  const [dashboard, setDashboard] = useState<StudentDashboardData>({ courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [], aiMeetings: [] });
   const [loading, setLoading] = useState(true);
   const [activeAssignment, setActiveAssignment] = useState<any | null>(null);
   const [submissionContent, setSubmissionContent] = useState('');
@@ -31,7 +33,7 @@ export function StudentLmsDashboard() {
         const response = await fetch('/api/lms/dashboard/student');
         const body = await response.json().catch(() => ({}));
         if (response.ok) {
-          setDashboard(body.dashboard || { courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [] });
+          setDashboard(body.dashboard || { courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [], aiMeetings: [] });
         } else {
           setLoadError(body.error || 'Failed to load student dashboard');
         }
@@ -152,6 +154,7 @@ export function StudentLmsDashboard() {
       stats={stats}
     >
       <LmsMeetingActions roleLabel="Student" />
+      <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
 
       <GlowCard className="!rounded-[2rem] !border-0 !bg-transparent !p-0 !shadow-none hover:!shadow-none">
         <div className="grid min-w-0 overflow-hidden rounded-[inherit] lg:grid-cols-[0.85fr_1.15fr]">

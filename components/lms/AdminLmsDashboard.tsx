@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { GlowCard } from '@/components/ui/glow-card';
 import { LmsShell } from './LmsShell';
 import { LmsMeetingActions } from './LmsMeetingActions';
+import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
 
 export function AdminLmsDashboard() {
   const [dashboard, setDashboard] = useState<any>({ courses: [], sessions: [], assignments: [], submissions: [] });
@@ -59,6 +60,7 @@ export function AdminLmsDashboard() {
       stats={stats}
     >
       <LmsMeetingActions roleLabel="Admin" />
+      <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
       
       {/* Overview Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

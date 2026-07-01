@@ -3,6 +3,7 @@ import Course from '@/models/Course';
 import CourseSession from '@/models/CourseSession';
 import Assignment from '@/models/Assignment';
 import Submission from '@/models/Submission';
+import Meeting from '@/models/Meeting';
 import { getLmsContext, json } from '../../_shared';
 
 export async function GET(_: NextRequest) {
@@ -40,6 +41,22 @@ export async function GET(_: NextRequest) {
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     .slice(0, 8);
 
+  const sessionMeetingIds = sessions
+    .map((session) => String(session.meetingId || '').trim())
+    .filter(Boolean);
+  const aiMeetings = sessionMeetingIds.length > 0
+    ? await Meeting.find({
+        meetingId: { $in: sessionMeetingIds },
+        $or: [
+          { summary: { $exists: true, $ne: '' } },
+          { keyNotes: { $exists: true, $ne: [] } },
+          { transcript: { $exists: true, $ne: [] } },
+        ],
+      })
+        .sort({ updatedAt: -1 })
+        .limit(8)
+    : [];
+
   return json({
     success: true,
     dashboard: {
@@ -48,6 +65,7 @@ export async function GET(_: NextRequest) {
       pendingAssignments,
       recentRecordings,
       submissions,
+      aiMeetings,
     },
   });
 }

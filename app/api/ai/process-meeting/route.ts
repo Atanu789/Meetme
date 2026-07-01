@@ -63,14 +63,17 @@ export async function POST(request: Request) {
         );
         finalTranscriptId = submitResult.id;
 
-        // Check status (may still be queued)
-        if (submitResult.status !== 'completed') {
+        const completedTranscript = submitResult.status === 'completed'
+          ? submitResult
+          : await waitForCompletedTranscription(assemblyai, finalTranscriptId);
+
+        if (!completedTranscript || completedTranscript.status !== 'completed') {
           return NextResponse.json(
             {
               success: true,
-              message: 'Transcription submitted, processing in background',
+              message: 'Transcription submitted and is still processing',
               transcriptId: finalTranscriptId,
-              status: submitResult.status,
+              status: completedTranscript?.status || submitResult.status,
             },
             { status: 202 }
           );
@@ -249,4 +252,17 @@ function buildSpeakerNameMap(input: unknown, meeting: any): SpeakerNameMap {
   }
 
   return speakerNameMap;
+}
+
+async function waitForCompletedTranscription(assemblyai: any, transcriptId: string) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const transcript = await assemblyai.getTranscription(transcriptId);
+
+    if (transcript.status === 'completed' || transcript.status === 'error') {
+      return transcript;
+    }
+  }
+
+  return null;
 }

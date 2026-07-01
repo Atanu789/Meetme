@@ -54,7 +54,12 @@ export function AIResultsDisplay({
     summary ? 'summary' : null
   );
 
-  const hasAIContent = summary || keyNotes.length > 0 || keyDecisions.length > 0 || actionItems.length > 0;
+  const hasAIContent =
+    summary ||
+    keyNotes.length > 0 ||
+    keyDecisions.length > 0 ||
+    actionItems.length > 0 ||
+    transcript.length > 0;
 
   if (!hasAIContent) {
     return null;
@@ -276,18 +281,16 @@ export function AIResultsDisplay({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {expandedSection === 'transcript' && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadTranscript();
-                  }}
-                  className="p-2 hover:bg-purple-200 dark:hover:bg-purple-800 rounded transition"
-                  title="Download transcript"
-                >
-                  <IconDownload size={16} className="text-purple-600 dark:text-purple-400" />
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadTranscript();
+                }}
+                className="p-2 hover:bg-purple-200 dark:hover:bg-purple-800 rounded transition"
+                title="Download transcript"
+              >
+                <IconDownload size={16} className="text-purple-600 dark:text-purple-400" />
+              </button>
               <motion.div
                 animate={{ rotate: expandedSection === 'transcript' ? 180 : 0 }}
               >

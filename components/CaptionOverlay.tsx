@@ -63,6 +63,14 @@ interface CaptionOverlayProps {
   meetingId: string;
   className?: string;
   portalTarget?: HTMLElement | null;
+  onCaption?: (caption: {
+    text: string;
+    speaker: string;
+    speakerId: string;
+    final: boolean;
+    timestamp: number;
+  }) => void;
+  onSummary?: (summary: SummaryCard) => void;
 }
 
 /**
@@ -193,7 +201,7 @@ function captionReducer(state: Caption[], action: any): Caption[] {
   }
 }
 
-export function CaptionOverlay({ meetingId, portalTarget }: CaptionOverlayProps) {
+export function CaptionOverlay({ meetingId, portalTarget, onCaption, onSummary }: CaptionOverlayProps) {
   const [connected, setConnected] = useState(false);
   const [captions, setCaptions] = useState<Caption[]>([]);
   // opt-in debug mode via URL param ?capdebug=1 or ?captions_debug=1
@@ -258,17 +266,21 @@ export function CaptionOverlay({ meetingId, portalTarget }: CaptionOverlayProps)
 
         const normalizedText = String(summaryText || '').trim();
         if (normalizedText && typeof window !== 'undefined') {
+          const summaryPayload = {
+            text: normalizedText,
+            keyNotes,
+            keyDecisions,
+            actions,
+            timestamp: Date.now(),
+          };
+
+          onSummary?.(summaryPayload);
+
           window.dispatchEvent(
             new CustomEvent('open-ai-summary', {
               detail: {
                 meetingId,
-                summary: {
-                  text: normalizedText,
-                  keyNotes,
-                  keyDecisions,
-                  actions,
-                  timestamp: Date.now(),
-                },
+                summary: summaryPayload,
                 autoOpen: false,
               },
             })
@@ -316,6 +328,14 @@ export function CaptionOverlay({ meetingId, portalTarget }: CaptionOverlayProps)
 
     lastProcessedIdRef.current = eventId;
     lastHistoryTimestampRef.current = Math.max(lastHistoryTimestampRef.current, captionTimestamp);
+
+    onCaption?.({
+      text: String(payload.text || '').trim(),
+      speaker: speakerName,
+      speakerId,
+      final: Boolean(payload.final),
+      timestamp: captionTimestamp,
+    });
 
     if (lastSpeakerIdRef.current !== null && lastSpeakerIdRef.current !== speakerId) {
       captionDispatchRef.current?.dispatch({

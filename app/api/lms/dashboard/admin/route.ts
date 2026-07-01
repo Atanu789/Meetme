@@ -3,6 +3,7 @@ import Course from '@/models/Course';
 import CourseSession from '@/models/CourseSession';
 import Assignment from '@/models/Assignment';
 import Submission from '@/models/Submission';
+import Meeting from '@/models/Meeting';
 import { getLmsContext, json } from '../../_shared';
 
 export async function GET(_: NextRequest) {
@@ -13,11 +14,20 @@ export async function GET(_: NextRequest) {
     return json({ error: 'Forbidden' }, 403);
   }
 
-  const [courses, sessions, assignments, submissions] = await Promise.all([
+  const [courses, sessions, assignments, submissions, aiMeetings] = await Promise.all([
     Course.find({}).sort({ updatedAt: -1 }).limit(100),
     CourseSession.find({}).sort({ updatedAt: -1 }).limit(100),
     Assignment.find({}).sort({ updatedAt: -1 }).limit(100),
     Submission.find({}).sort({ updatedAt: -1 }).limit(100),
+    Meeting.find({
+      $or: [
+        { summary: { $exists: true, $ne: '' } },
+        { keyNotes: { $exists: true, $ne: [] } },
+        { transcript: { $exists: true, $ne: [] } },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .limit(12),
   ]);
 
   return json({
@@ -31,6 +41,7 @@ export async function GET(_: NextRequest) {
       sessions,
       assignments,
       submissions,
+      aiMeetings,
     },
   });
 }
