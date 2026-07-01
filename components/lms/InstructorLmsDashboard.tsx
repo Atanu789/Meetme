@@ -118,13 +118,6 @@ export function InstructorLmsDashboard() {
     [dashboard]
   );
 
-  const teachingSignals = [
-    { label: 'Courses live', value: Math.min(100, dashboard.courses.length * 20 + 30), tone: 'from-cyan-400 to-blue-500' },
-    { label: 'Session load', value: Math.min(100, dashboard.sessions.length * 16 + dashboard.upcomingClasses.length * 10 + 24), tone: 'from-emerald-400 to-teal-500' },
-    { label: 'Grading queue', value: Math.min(100, dashboard.pendingGrading.length * 18 + 12), tone: 'from-amber-400 to-orange-500' },
-    { label: 'Resource depth', value: Math.min(100, dashboard.assignments.length * 12 + dashboard.recentRecordings.length * 10 + 22), tone: 'from-violet-400 to-indigo-500' },
-  ];
-
   const reloadDashboard = async () => {
     const response = await fetch('/api/lms/dashboard/instructor');
     const body = await response.json().catch(() => ({}));
@@ -359,32 +352,6 @@ export function InstructorLmsDashboard() {
     >
       <LmsMeetingActions roleLabel="Instructor" />
       <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
-
-      <GlowCard className="!rounded-[2rem] !border-0 !bg-transparent !p-0 !shadow-none hover:!shadow-none">
-        <div className="grid min-w-0 overflow-hidden rounded-[inherit] xl:grid-cols-[0.72fr_1.28fr]">
-          <div className="rounded-t-[inherit] bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6 text-white xl:rounded-l-[inherit] xl:rounded-r-none xl:rounded-t-none">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-200">Teaching Console</p>
-            <h3 className="mt-2 font-display text-2xl font-semibold">Course operations at a glance</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Schedule class sessions, attach meetings, enroll learners, publish assignments, and review the grading queue.
-            </p>
-          </div>
-          <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
-            {teachingSignals.map((signal, index) => (
-              <div key={signal.label} className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4">
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                  <span>{signal.label}</span>
-                  <span>0{index + 1}</span>
-                </div>
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200">
-                  <div className={`h-full rounded-full bg-gradient-to-r ${signal.tone}`} style={{ width: `${Math.max(10, signal.value)}%` }} />
-                </div>
-                <div className="mt-4 font-display text-3xl font-semibold text-slate-950">{signal.value}%</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </GlowCard>
 
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}
 

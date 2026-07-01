@@ -61,16 +61,6 @@ export function AdminLmsDashboard() {
     >
       <LmsMeetingActions roleLabel="Admin" />
       <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
-      
-      {/* Overview Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <GlowCard key={stat.label} className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{stat.label}</p>
-            <p className="mt-2 text-3xl font-bold text-slate-950">{stat.value}</p>
-          </GlowCard>
-        ))}
-      </div>
 
       {/* All Courses */}
       <GlowCard>

@@ -56,12 +56,6 @@ export function StudentLmsDashboard() {
     [dashboard]
   );
 
-  const learningSignals = [
-    { label: 'Course progress', value: Math.min(100, dashboard.courses.length * 22 + dashboard.submissions.length * 8), tone: 'from-cyan-400 to-blue-500' },
-    { label: 'Class readiness', value: Math.min(100, dashboard.upcomingClasses.length * 26 + 38), tone: 'from-emerald-400 to-teal-500' },
-    { label: 'Assignment load', value: Math.min(100, dashboard.pendingAssignments.length * 24 + 18), tone: 'from-amber-400 to-orange-500' },
-  ];
-
   const handleSubmitAssignment = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!activeAssignment) return;
@@ -155,33 +149,6 @@ export function StudentLmsDashboard() {
     >
       <LmsMeetingActions roleLabel="Student" />
       <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
-
-      <GlowCard className="!rounded-[2rem] !border-0 !bg-transparent !p-0 !shadow-none hover:!shadow-none">
-        <div className="grid min-w-0 overflow-hidden rounded-[inherit] lg:grid-cols-[0.85fr_1.15fr]">
-          <div className="rounded-t-[inherit] bg-gradient-to-br from-cyan-50 via-white to-emerald-50 p-6 lg:rounded-l-[inherit] lg:rounded-r-none lg:rounded-t-none">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700">Learning Pulse</p>
-            <h3 className="mt-2 font-display text-2xl font-semibold text-slate-950">Stay ready for the next live class</h3>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              A quick glance at courses, upcoming sessions, pending work, and recordings connected to your workspace.
-            </p>
-          </div>
-          <div className="grid gap-4 p-5 sm:grid-cols-3">
-            {learningSignals.map((signal) => (
-              <div key={signal.label} className="rounded-[1.5rem] border border-slate-200 bg-white p-4">
-                <div className="mb-3 flex items-center justify-between text-xs font-semibold text-slate-500">
-                  <span>{signal.label}</span>
-                  <span>{signal.value}%</span>
-                </div>
-                <div className="h-28 rounded-2xl bg-slate-100 p-2">
-                  <div className="flex h-full items-end rounded-xl bg-white p-1">
-                    <div className={`w-full rounded-xl bg-gradient-to-t ${signal.tone}`} style={{ height: `${Math.max(12, signal.value)}%` }} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </GlowCard>
 
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}
 
