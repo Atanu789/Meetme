@@ -462,7 +462,7 @@ export function JitsiMeeting({
             enableAdaptiveMode: true,
           },
           p2p: {
-            enabled: true,
+            enabled: false,
             codecPreferenceOrder: ['VP9', 'VP8', 'H264', 'AV1'],
             mobileCodecPreferenceOrder: ['VP8', 'H264', 'VP9', 'AV1'],
           },
