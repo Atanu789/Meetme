@@ -116,6 +116,7 @@ export function JitsiMeeting({
   const recoveryAttemptRef = useRef(0);
   const joinedOnceRef = useRef(false);
   const intentionalHangupRef = useRef(false);
+  const closeNotifiedRef = useRef(false);
   const disposingForRecoveryRef = useRef(false);
   const lowBandwidthModeRef = useRef(false);
   const onReadyRef = useRef(onReady);
@@ -172,7 +173,12 @@ export function JitsiMeeting({
   };
 
   const scheduleHardRejoin = (reason: string) => {
-    if (intentionalHangupRef.current || !joinedOnceRef.current || recoveryTimerRef.current) {
+    if (
+      closeNotifiedRef.current ||
+      intentionalHangupRef.current ||
+      !joinedOnceRef.current ||
+      recoveryTimerRef.current
+    ) {
       return;
     }
 
@@ -190,6 +196,20 @@ export function JitsiMeeting({
       disposingForRecoveryRef.current = true;
       setApiGeneration((current) => current + 1);
     }, delay);
+  };
+
+  const finishMeetingLeave = (reason: string) => {
+    if (closeNotifiedRef.current) {
+      return;
+    }
+
+    console.log(`JitsiMeeting: leaving meeting (${reason})`);
+    closeNotifiedRef.current = true;
+    intentionalHangupRef.current = true;
+    clearJoinTimeout();
+    clearRecoveryTimer();
+    setRecoveryMessage(null);
+    onReadyToCloseRef.current?.();
   };
 
   useEffect(() => {
@@ -251,6 +271,7 @@ export function JitsiMeeting({
     setRecoveryMessage(null);
     joinedOnceRef.current = false;
     intentionalHangupRef.current = false;
+    closeNotifiedRef.current = false;
     disposingForRecoveryRef.current = false;
     lowBandwidthModeRef.current = false;
     recoveryAttemptRef.current = 0;
@@ -365,32 +386,8 @@ export function JitsiMeeting({
           startWithVideoMuted: startWithVideoMuted,
           disableDeepLinking: true,
           disableSimulcast: false,
-          startBitrate: 600,
+          startBitrate: 800,
           resolution: 360,
-          constraints: {
-            video: {
-              height: {
-                ideal: 360,
-                max: 540,
-                min: 180,
-              },
-              frameRate: {
-                max: 24,
-              },
-            },
-          },
-          videoQuality: {
-            preferredCodec: 'VP8',
-            maxBitratesVideo: {
-              low: 120000,
-              standard: 300000,
-              high: 700000,
-            },
-          },
-          p2p: {
-            enabled: false,
-          },
-          channelLastN: 4,
           enableNoisyMicDetection: true,
           prejoinPageEnabled: effectivePrejoinPageEnabled,
           prejoinConfig: { enabled: effectivePrejoinPageEnabled },
@@ -499,7 +496,7 @@ export function JitsiMeeting({
         }
 
         if (intentionalHangupRef.current || !joinedOnceRef.current) {
-          onReadyToCloseRef.current?.();
+          finishMeetingLeave('readyToClose');
           return;
         }
 
@@ -507,17 +504,15 @@ export function JitsiMeeting({
       });
 
       jitsiRef.current.addEventListener('toolbarButtonClicked', (event: any) => {
-        if (event?.key === 'hangup') {
+        const button = String(event?.key || event?.button || event?.id || event || '').toLowerCase();
+        if (button === 'hangup') {
           intentionalHangupRef.current = true;
         }
       });
 
       jitsiRef.current.addEventListener('videoConferenceLeft', (event: any) => {
-        console.warn('JitsiMeeting: Video conference left', event);
-        clearJoinTimeout();
-        if (!intentionalHangupRef.current) {
-          scheduleHardRejoin('video conference left unexpectedly');
-        }
+        console.log('JitsiMeeting: Video conference left', event);
+        finishMeetingLeave('videoConferenceLeft');
       });
 
       jitsiRef.current.addEventListener('connectionQualityChanged', (event: any) => {
