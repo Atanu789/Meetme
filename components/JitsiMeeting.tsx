@@ -23,7 +23,16 @@ const DEFAULT_TOOLBAR_BUTTONS = [
 ];
 
 const LOW_CONNECTION_QUALITY_THRESHOLD = 35;
-const LOW_BANDWIDTH_VIDEO_QUALITY = 180;
+const DEFAULT_VIDEO_QUALITY = 1080;
+const IDEAL_CAPTURE_HEIGHT = 1080;
+const IDEAL_CAPTURE_WIDTH = 1920;
+const VIDEO_QUALITY_LEVELS = [
+  1080,
+  720,
+  540,
+  360,
+  180,
+];
 const REJOIN_BASE_DELAY_MS = 1500;
 const REJOIN_MAX_DELAY_MS = 12000;
 
@@ -119,6 +128,7 @@ export function JitsiMeeting({
   const closeNotifiedRef = useRef(false);
   const disposingForRecoveryRef = useRef(false);
   const lowBandwidthModeRef = useRef(false);
+  const videoQualityLevelRef = useRef(0);
   const onReadyRef = useRef(onReady);
   const onReadyToCloseRef = useRef(onReadyToClose);
   const onApiReadyRef = useRef(onApiReady);
@@ -141,16 +151,41 @@ export function JitsiMeeting({
     }
   };
 
-  const applyLowBandwidthFallback = (reason: string, force = false) => {
-    if (lowBandwidthModeRef.current && !force) {
+  const setMeetingVideoQuality = (height: number) => {
+    jitsiRef.current?.executeCommand?.('setVideoQuality', height);
+    jitsiRef.current?.executeCommand?.('setReceiverVideoConstraint', height);
+  };
+
+  const improveVideoQuality = (reason: string) => {
+    if (videoQualityLevelRef.current <= 0) {
+      lowBandwidthModeRef.current = false;
+      return;
+    }
+
+    videoQualityLevelRef.current -= 1;
+    const nextQuality = VIDEO_QUALITY_LEVELS[videoQualityLevelRef.current];
+    lowBandwidthModeRef.current = videoQualityLevelRef.current > 0;
+    console.info(`[Jitsi] Raising video quality to ${nextQuality}p: ${reason}`);
+
+    try {
+      setMeetingVideoQuality(nextQuality);
+    } catch (err) {
+      console.warn('[Jitsi] Unable to raise video quality', err);
+    }
+  };
+
+  const applyLowBandwidthFallback = (reason: string) => {
+    if (videoQualityLevelRef.current >= VIDEO_QUALITY_LEVELS.length - 1) {
       return;
     }
 
     lowBandwidthModeRef.current = true;
-    console.warn(`[Jitsi] Low-bandwidth fallback enabled: ${reason}`);
+    videoQualityLevelRef.current += 1;
+    const nextQuality = VIDEO_QUALITY_LEVELS[videoQualityLevelRef.current];
+    console.warn(`[Jitsi] Lowering video quality to ${nextQuality}p: ${reason}`);
 
     try {
-      jitsiRef.current?.executeCommand?.('setVideoQuality', LOW_BANDWIDTH_VIDEO_QUALITY);
+      setMeetingVideoQuality(nextQuality);
     } catch (err) {
       console.warn('[Jitsi] Unable to lower video quality', err);
     }
@@ -382,12 +417,28 @@ export function JitsiMeeting({
         },
         configOverwrite: {
           toolbarButtons: toolbarButtonsRef.current,
-          startWithAudioMuted: startWithAudioMuted,
-          startWithVideoMuted: startWithVideoMuted,
+          startWithAudioMuted,
+          startWithVideoMuted,
           disableDeepLinking: true,
           disableSimulcast: false,
-          startBitrate: 800,
-          resolution: 360,
+          resolution: DEFAULT_VIDEO_QUALITY,
+          startBitrate: 1500,
+          constraints: {
+            video: {
+              height: {
+                ideal: IDEAL_CAPTURE_HEIGHT,
+                max: IDEAL_CAPTURE_HEIGHT,
+              },
+              width: {
+                ideal: IDEAL_CAPTURE_WIDTH,
+                max: IDEAL_CAPTURE_WIDTH,
+              },
+              frameRate: {
+                ideal: 30,
+                max: 30,
+              },
+            },
+          },
           channelLastN: -1,
           flags: {
             sourceNameSignaling: true,
@@ -395,17 +446,24 @@ export function JitsiMeeting({
             receiveMultipleVideoStreams: true,
           },
           videoQuality: {
-            codecPreferenceOrder: ['VP8', 'H264', 'VP9', 'AV1'],
-            mobileCodecPreferenceOrder: ['VP8', 'H264', 'VP9', 'AV1'],
+            preferredCodec: 'VP9',
+            codecPreferenceOrder: [
+              'VP9',
+              'VP8',
+              'H264',
+              'AV1',
+            ],
+            mobileCodecPreferenceOrder: [
+              'VP8',
+              'H264',
+              'VP9',
+              'AV1',
+            ],
             enableAdaptiveMode: true,
-            av1: {},
-            h264: {},
-            vp8: {},
-            vp9: {},
           },
           p2p: {
             enabled: true,
-            codecPreferenceOrder: ['VP8', 'H264', 'VP9', 'AV1'],
+            codecPreferenceOrder: ['VP9', 'VP8', 'H264', 'AV1'],
             mobileCodecPreferenceOrder: ['VP8', 'H264', 'VP9', 'AV1'],
           },
           enableNoisyMicDetection: true,
@@ -494,7 +552,9 @@ export function JitsiMeeting({
         setRecoveryMessage(null);
         clearRecoveryTimer();
         if (lowBandwidthModeRef.current) {
-          applyLowBandwidthFallback('recovered meeting rejoined', true);
+          improveVideoQuality('recovered meeting rejoined');
+        } else {
+          setMeetingVideoQuality(DEFAULT_VIDEO_QUALITY);
         }
         const localParticipantId =
           event?.id ||
