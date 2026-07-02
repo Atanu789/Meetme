@@ -6,8 +6,6 @@ import User from '../../../models/User';
 import Organization from '../../../models/Organization';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
-import { createJitsiBotToken } from '../../../lib/jitsi-bot-token';
-import { normalizeJitsiRoomName } from '../../../lib/jitsi-room';
 
 export async function POST(req: NextRequest) {
   try {
@@ -76,35 +74,6 @@ export async function POST(req: NextRequest) {
     });
 
     await meeting.save();
-
-    // Start the caption bot immediately so the room is monitored as soon as it exists.
-    const jitsiDomain = (process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.melanam.com').replace(/^https?:\/\//, '').trim();
-    const meetingUrl = `https://${jitsiDomain}/${normalizeJitsiRoomName(meetingId)}`;
-
-    try {
-      const meetingAiUrl = (
-        process.env.MEETING_AI_CONTROL_URL ||
-        process.env.NEXT_PUBLIC_MEETING_AI_CONTROL_URL ||
-        process.env.NEXT_PUBLIC_MEETING_AI_WS_URL ||
-        'http://localhost:4010'
-      )
-        .replace(/^wss?:/i, (protocol) => (protocol.toLowerCase().startsWith('wss') ? 'https:' : 'http:'))
-        .replace(/\/ws$/i, '')
-        .replace(/\/$/, '');
-      await fetch(`${meetingAiUrl}/api/start-bot`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          meetingId,
-          meetingUrl,
-          botName: 'Melanam Live Captions Bot',
-          jwt: createJitsiBotToken(meetingId, 'Melanam Live Captions Bot'),
-          platform: 'jitsi',
-        }),
-      });
-    } catch (error) {
-      console.error('Error scheduling caption bot:', error);
-    }
 
     return NextResponse.json(
       {

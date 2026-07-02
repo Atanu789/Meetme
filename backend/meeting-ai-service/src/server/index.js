@@ -65,6 +65,13 @@ function createServer() {
     }
 
     if (request.method === 'POST' && requestUrl.pathname === '/api/start-bot') {
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({
+        ok: true,
+        message: 'Bot disabled for testing',
+      }));
+      return;
+
       try {
         const body = await readJsonBody(request);
         const { meetingId, meetingUrl, botName, jwt, platform } = body;

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createJitsiBotToken } from '../../../lib/jitsi-bot-token';
 
 export async function POST(request: NextRequest) {
+  return NextResponse.json({
+    ok: true,
+    message: 'Bot disabled for testing',
+  });
+
   try {
     const body = await request.json();
     const { meetingId, meetingUrl, botName, jwt, platform } = body;
