@@ -22,6 +22,11 @@ const DEFAULT_TOOLBAR_BUTTONS = [
   'security',
 ];
 
+const LOW_CONNECTION_QUALITY_THRESHOLD = 35;
+const LOW_BANDWIDTH_VIDEO_QUALITY = 180;
+const REJOIN_BASE_DELAY_MS = 1500;
+const REJOIN_MAX_DELAY_MS = 12000;
+
 declare global {
   interface Window {
     JitsiMeetExternalAPI: any;
@@ -103,8 +108,16 @@ export function JitsiMeeting({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scriptLoading, setScriptLoading] = useState(true);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
+  const [apiGeneration, setApiGeneration] = useState(0);
   const scriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const joinTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recoveryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recoveryAttemptRef = useRef(0);
+  const joinedOnceRef = useRef(false);
+  const intentionalHangupRef = useRef(false);
+  const disposingForRecoveryRef = useRef(false);
+  const lowBandwidthModeRef = useRef(false);
   const onReadyRef = useRef(onReady);
   const onReadyToCloseRef = useRef(onReadyToClose);
   const onApiReadyRef = useRef(onApiReady);
@@ -119,6 +132,72 @@ export function JitsiMeeting({
       joinTimeoutRef.current = null;
     }
   };
+
+  const clearRecoveryTimer = () => {
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+      recoveryTimerRef.current = null;
+    }
+  };
+
+  const applyLowBandwidthFallback = (reason: string, force = false) => {
+    if (lowBandwidthModeRef.current && !force) {
+      return;
+    }
+
+    lowBandwidthModeRef.current = true;
+    console.warn(`[Jitsi] Low-bandwidth fallback enabled: ${reason}`);
+
+    try {
+      jitsiRef.current?.executeCommand?.('setVideoQuality', LOW_BANDWIDTH_VIDEO_QUALITY);
+    } catch (err) {
+      console.warn('[Jitsi] Unable to lower video quality', err);
+    }
+  };
+
+  const isRecoverableJitsiError = (event: unknown) => {
+    let text = '';
+
+    try {
+      text = JSON.stringify(event || {}).toLowerCase();
+    } catch {
+      text = String(event || '').toLowerCase();
+    }
+
+    if (/gum|permission|notallowed|notfound|device|capture/.test(text)) {
+      return false;
+    }
+
+    return /connection|disconnect|reconnect|ice|network|jvb|bridge|xmpp|timeout|transport|websocket/.test(text);
+  };
+
+  const scheduleHardRejoin = (reason: string) => {
+    if (intentionalHangupRef.current || !joinedOnceRef.current || recoveryTimerRef.current) {
+      return;
+    }
+
+    const nextAttempt = recoveryAttemptRef.current + 1;
+    recoveryAttemptRef.current = nextAttempt;
+    const delay = Math.min(REJOIN_MAX_DELAY_MS, REJOIN_BASE_DELAY_MS * nextAttempt);
+
+    console.warn(`[Jitsi] Scheduling meeting recovery in ${delay}ms: ${reason}`);
+    clearJoinTimeout();
+    setRecoveryMessage('Reconnecting to the meeting...');
+    setLoading(true);
+
+    recoveryTimerRef.current = setTimeout(() => {
+      recoveryTimerRef.current = null;
+      disposingForRecoveryRef.current = true;
+      setApiGeneration((current) => current + 1);
+    }, delay);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearJoinTimeout();
+      clearRecoveryTimer();
+    };
+  }, []);
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -164,9 +243,19 @@ export function JitsiMeeting({
 
   useEffect(() => {
     setScriptLoading(true);
+  }, [cleanDomain]);
+
+  useEffect(() => {
     setLoading(true);
     setError(null);
-  }, [cleanDomain]);
+    setRecoveryMessage(null);
+    joinedOnceRef.current = false;
+    intentionalHangupRef.current = false;
+    disposingForRecoveryRef.current = false;
+    lowBandwidthModeRef.current = false;
+    recoveryAttemptRef.current = 0;
+    clearRecoveryTimer();
+  }, [cleanDomain, roomName]);
 
   // Load Jitsi external API script
   useEffect(() => {
@@ -239,6 +328,16 @@ export function JitsiMeeting({
       return;
     }
 
+    const handleBrowserOffline = () => {
+      applyLowBandwidthFallback('browser offline event');
+    };
+
+    const handleBrowserOnline = () => {
+      if (joinedOnceRef.current && !intentionalHangupRef.current) {
+        scheduleHardRejoin('browser came back online');
+      }
+    };
+
     try {
       console.log('JitsiMeeting: Initializing with config', { 
         roomName, 
@@ -249,6 +348,7 @@ export function JitsiMeeting({
       });
       setLoading(true);
 
+      const effectivePrejoinPageEnabled = prejoinPageEnabled && !joinedOnceRef.current;
       const options = {
         roomName: roomName,
         parentNode: containerRef.current,
@@ -263,13 +363,42 @@ export function JitsiMeeting({
           toolbarButtons: toolbarButtonsRef.current,
           startWithAudioMuted: startWithAudioMuted,
           startWithVideoMuted: startWithVideoMuted,
+          disableDeepLinking: true,
           disableSimulcast: false,
+          startBitrate: 600,
+          resolution: 360,
+          constraints: {
+            video: {
+              height: {
+                ideal: 360,
+                max: 540,
+                min: 180,
+              },
+              frameRate: {
+                max: 24,
+              },
+            },
+          },
+          videoQuality: {
+            preferredCodec: 'VP8',
+            maxBitratesVideo: {
+              low: 120000,
+              standard: 300000,
+              high: 700000,
+            },
+          },
+          p2p: {
+            enabled: false,
+          },
+          channelLastN: 4,
           enableNoisyMicDetection: true,
-          prejoinPageEnabled: prejoinPageEnabled,
-          prejoinConfig: { enabled: prejoinPageEnabled },
+          prejoinPageEnabled: effectivePrejoinPageEnabled,
+          prejoinConfig: { enabled: effectivePrejoinPageEnabled },
           chromeExtensionBanner: null,
           disableAudioLevels: false,
           enableLayerSuspension: true,
+          enableIceRestart: true,
+          enableForcedReload: false,
           enableFeaturesBasedOnToken: Boolean(jwt),
           localRecording: {
             enabled: true,
@@ -299,6 +428,7 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
+      disposingForRecoveryRef.current = false;
       onApiReadyRef.current?.(jitsiRef.current);
 
       console.log('JitsiMeeting: API instance created successfully');
@@ -308,6 +438,12 @@ export function JitsiMeeting({
 
       joinTimeoutRef.current = setTimeout(() => {
         console.warn('JitsiMeeting: join timeout exceeded');
+        if (joinedOnceRef.current && !intentionalHangupRef.current) {
+          applyLowBandwidthFallback('join timeout during recovery');
+          scheduleHardRejoin('join timeout during recovery');
+          return;
+        }
+
         setLoading(false);
       }, 30000);
 
@@ -334,6 +470,14 @@ export function JitsiMeeting({
 
       jitsiRef.current.addEventListener('videoConferenceJoined', (event: any) => {
         console.log('JitsiMeeting: Video conference joined');
+        joinedOnceRef.current = true;
+        intentionalHangupRef.current = false;
+        recoveryAttemptRef.current = 0;
+        setRecoveryMessage(null);
+        clearRecoveryTimer();
+        if (lowBandwidthModeRef.current) {
+          applyLowBandwidthFallback('recovered meeting rejoined', true);
+        }
         const localParticipantId =
           event?.id ||
           event?.participantId ||
@@ -350,7 +494,53 @@ export function JitsiMeeting({
       jitsiRef.current.addEventListener('readyToClose', () => {
         console.log('Meeting ended');
         clearJoinTimeout();
-        onReadyToCloseRef.current?.();
+        if (disposingForRecoveryRef.current) {
+          return;
+        }
+
+        if (intentionalHangupRef.current || !joinedOnceRef.current) {
+          onReadyToCloseRef.current?.();
+          return;
+        }
+
+        scheduleHardRejoin('Jitsi closed unexpectedly');
+      });
+
+      jitsiRef.current.addEventListener('toolbarButtonClicked', (event: any) => {
+        if (event?.key === 'hangup') {
+          intentionalHangupRef.current = true;
+        }
+      });
+
+      jitsiRef.current.addEventListener('videoConferenceLeft', (event: any) => {
+        console.warn('JitsiMeeting: Video conference left', event);
+        clearJoinTimeout();
+        if (!intentionalHangupRef.current) {
+          scheduleHardRejoin('video conference left unexpectedly');
+        }
+      });
+
+      jitsiRef.current.addEventListener('connectionQualityChanged', (event: any) => {
+        const quality = Number(event?.connectionQuality ?? event?.quality);
+        if (Number.isFinite(quality) && quality <= LOW_CONNECTION_QUALITY_THRESHOLD) {
+          applyLowBandwidthFallback(`connection quality ${quality}`);
+        }
+      });
+
+      jitsiRef.current.addEventListener('errorOccurred', (event: any) => {
+        console.warn('JitsiMeeting: Jitsi error event', event);
+        if (isRecoverableJitsiError(event)) {
+          applyLowBandwidthFallback('recoverable Jitsi error');
+          scheduleHardRejoin('recoverable Jitsi error');
+        }
+      });
+
+      jitsiRef.current.addEventListener('videoConferenceFailed', (event: any) => {
+        console.warn('JitsiMeeting: Video conference failed', event);
+        if (isRecoverableJitsiError(event)) {
+          applyLowBandwidthFallback('video conference failed');
+          scheduleHardRejoin('video conference failed');
+        }
       });
 
       jitsiRef.current.addEventListener('participantJoined', (participant: any) => {
@@ -377,7 +567,14 @@ export function JitsiMeeting({
       jitsiRef.current.addEventListener('conferenceError', (error: any) => {
         console.error('Conference error:', error);
         setLoading(false);
+        if (isRecoverableJitsiError(error)) {
+          applyLowBandwidthFallback('conference error');
+          scheduleHardRejoin('conference error');
+        }
       });
+
+      window.addEventListener('offline', handleBrowserOffline);
+      window.addEventListener('online', handleBrowserOnline);
     } catch (err) {
       console.error('Error initializing Jitsi Meeting:', err);
       setError('Failed to initialize video conference');
@@ -385,9 +582,12 @@ export function JitsiMeeting({
     }
 
     return () => {
+      window.removeEventListener('offline', handleBrowserOffline);
+      window.removeEventListener('online', handleBrowserOnline);
       clearJoinTimeout();
       if (jitsiRef.current) {
         try {
+          disposingForRecoveryRef.current = true;
           jitsiRef.current.dispose();
         } catch (err) {
           console.error('Error disposing Jitsi:', err);
@@ -405,6 +605,7 @@ export function JitsiMeeting({
     showLogo,
     activeProtocol,
     jwt,
+    apiGeneration,
   ]);
 
   if (error) {
@@ -442,7 +643,7 @@ export function JitsiMeeting({
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
             </div>
             <p className="text-gray-300">
-              {scriptLoading ? 'Loading video service...' : 'Joining meeting...'}
+              {scriptLoading ? 'Loading video service...' : recoveryMessage || 'Joining meeting...'}
             </p>
           </div>
         </div>
