@@ -19,6 +19,15 @@ const emailTransportMode =
   process.env.EMAIL_TRANSPORT ||
   (process.env.EMAIL_USER && process.env.EMAIL_PASS ? 'smtp' : 'console');
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const buildSmtpTransport = () => {
   if (!smtpUser || !smtpPass) {
     throw new Error('Missing SMTP credentials. Set EMAIL_USER and EMAIL_PASS, or use EMAIL_TRANSPORT=console for local testing.');
@@ -50,6 +59,10 @@ export const authOptions: NextAuthOptions = {
       },
       from: emailFrom,
       async sendVerificationRequest({ identifier, url, provider }) {
+        const appName = 'Melanam';
+        const safeUrl = escapeHtml(url);
+        const safeIdentifier = escapeHtml(identifier);
+
         if (emailTransportMode !== 'smtp') {
           console.info('[NextAuth][email] Magic link for %s: %s', identifier, url);
           return;
@@ -59,9 +72,53 @@ export const authOptions: NextAuthOptions = {
         const message = {
           to: identifier,
           from: provider.from,
-          subject: `Sign in to ${provider.name}`,
-          text: `Sign in to ${provider.name}: ${url}`,
-          html: `<p>Sign in to <strong>${provider.name}</strong>:</p><p><a href="${url}">${url}</a></p>`,
+          subject: `Your secure ${appName} sign-in link`,
+          text: [
+            `Sign in to ${appName}`,
+            '',
+            `Use this secure link to continue as ${identifier}:`,
+            url,
+            '',
+            'This link can only be used once. If you did not request it, you can ignore this email.',
+          ].join('\n'),
+          html: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your secure ${appName} sign-in link</title>
+  </head>
+  <body style="margin:0;background:#f8fafc;font-family:Segoe UI,Arial,sans-serif;color:#0f172a;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;overflow:hidden;border-radius:22px;background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 18px 50px rgba(15,23,42,0.08);">
+            <tr>
+              <td style="padding:28px 28px 18px;">
+                <div style="display:inline-block;height:40px;width:40px;border-radius:14px;background:#0f172a;color:#ffffff;text-align:center;line-height:40px;font-weight:700;font-size:20px;">M</div>
+                <h1 style="margin:22px 0 8px;font-size:26px;line-height:1.25;font-weight:700;letter-spacing:0;color:#0f172a;">Sign in to ${appName}</h1>
+                <p style="margin:0;color:#475569;font-size:15px;line-height:1.7;">Use this secure link to continue to your Melanam workspace.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:6px 28px 28px;">
+                <a href="${safeUrl}" style="display:inline-block;border-radius:14px;background:#0891b2;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 22px;box-shadow:0 10px 24px rgba(8,145,178,0.22);">Sign in securely</a>
+                <p style="margin:22px 0 0;color:#64748b;font-size:13px;line-height:1.7;">This link was requested for <strong style="color:#334155;">${safeIdentifier}</strong>. It can only be used once.</p>
+                <p style="margin:16px 0 0;color:#64748b;font-size:13px;line-height:1.7;">If the button does not work, copy and paste this link into your browser:</p>
+                <p style="margin:8px 0 0;word-break:break-all;font-size:12px;line-height:1.6;"><a href="${safeUrl}" style="color:#0891b2;text-decoration:underline;">${safeUrl}</a></p>
+              </td>
+            </tr>
+            <tr>
+              <td style="border-top:1px solid #e2e8f0;background:#f8fafc;padding:18px 28px;">
+                <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.6;">If you did not request this email, you can safely ignore it.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`,
         };
 
         await transport.sendMail(message);
