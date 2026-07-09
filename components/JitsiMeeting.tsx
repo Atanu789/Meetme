@@ -546,6 +546,16 @@ export function JitsiMeeting({
 
       jitsiRef.current.addEventListener('videoConferenceJoined', (event: any) => {
         console.log('JitsiMeeting: Video conference joined');
+        const removeJitsiWatermark = () => {
+          document.querySelector('.watermark.leftwatermark')?.remove();
+          document.querySelector('.watermark.rightwatermark')?.remove();
+        };
+
+        removeJitsiWatermark();
+        setTimeout(removeJitsiWatermark, 500);
+        setTimeout(removeJitsiWatermark, 1000);
+        setTimeout(removeJitsiWatermark, 2000);
+        
         joinedOnceRef.current = true;
         intentionalHangupRef.current = false;
         recoveryAttemptRef.current = 0;
