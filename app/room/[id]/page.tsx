@@ -63,6 +63,7 @@ export default function RoomPage() {
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
   const jitsiRoomName = normalizeJitsiRoomName(meetingId);
+  const displayRoomName = meeting?.title?.trim() || meetingId;
   const userDisplayName = session?.user?.email || guestName || 'Guest';
   const userEmail = session?.user?.email || undefined;
   const fallbackRoute = session?.user?.email ? '/lms' : '/';
@@ -381,13 +382,25 @@ export default function RoomPage() {
     return () => window.removeEventListener('open-ai-summary', handler as EventListener);
   }, [meetingId]);
 
-  const handleApiReady = (api: any) => {
+  const handleApiReady = useCallback((api: any) => {
     apiRef.current = api;
+
+    if (displayRoomName) {
+      api.executeCommand?.('subject', displayRoomName);
+    }
 
     api.addEventListener('videoConferenceJoined', () => {
       console.log('[meeting] video conference joined');
     });
-  };
+  }, [displayRoomName]);
+
+  useEffect(() => {
+    if (!apiRef.current || !displayRoomName) {
+      return;
+    }
+
+    apiRef.current.executeCommand?.('subject', displayRoomName);
+  }, [displayRoomName]);
 
   const handleVideoStageRef = useCallback((node: HTMLDivElement | null) => {
     videoStageRef.current = node;

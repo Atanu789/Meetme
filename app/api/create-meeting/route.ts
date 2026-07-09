@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    title = String(title || '').trim();
+    description = String(description || '').trim();
+
     if (!title) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -67,7 +70,7 @@ export async function POST(req: NextRequest) {
       hostId: userEmail,
       hostEmail: userEmail,
       title,
-      description: description || '',
+      description,
       isPrivate,
       chatEnabled,
       recordingEnabled,

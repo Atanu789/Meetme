@@ -1,12 +1,14 @@
 "use client";
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
 type RoleType = 'student' | 'instructor' | 'admin';
 
 export default function Page() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<RoleType>('student');
   const [adminUsername, setAdminUsername] = useState('');
@@ -42,6 +44,12 @@ export default function Page() {
       const regData = await regResponse.json();
 
       if (!regResponse.ok) {
+        if (regResponse.status === 409 || regData?.code === 'USER_ALREADY_EXISTS') {
+          const signInUrl = regData?.signInUrl || `/sign-in?email=${encodeURIComponent(email.trim())}`;
+          router.replace(signInUrl);
+          return;
+        }
+
         throw new Error(regData.error || 'Failed to complete registration pre-check.');
       }
 

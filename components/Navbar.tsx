@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, PencilLine, Radio, Upload, Video } from 'lucide-react';
+import { Copy, PencilLine, Radio, ShieldCheck, Upload, Video } from 'lucide-react';
 import FileShare from './FileShare';
 import { AudioCapture } from './AudioCapture';
 import Whiteboard from './Whiteboard';
@@ -134,6 +134,8 @@ export function Navbar() {
 
   const navIconButtonClass =
     'group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-100/80 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
+  const copyInviteButtonClass =
+    'group inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100/80 px-3 text-sm font-semibold text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
   const copyInviteHoverClass =
     'hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-950 hover:shadow-[0_14px_30px_rgba(14,165,233,0.2)]';
   const uploadMediaHoverClass =
@@ -165,11 +167,12 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCopyInvite}
-                  className={`${navIconButtonClass} ${copyInviteHoverClass}`}
+                  className={`${copyInviteButtonClass} ${copyInviteHoverClass}`}
                   aria-label="Copy invite link"
                   title="Copy invite link"
                 >
                   <Copy className="h-4 w-4" />
+                  <span>Copy link</span>
                 </button>
                 <AudioCapture meetingId={roomMeetingId} className="relative flex flex-col gap-2" />
                 <button
@@ -298,6 +301,15 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
+                {pathname === '/' && (
+                  <Link
+                    href="/admin/login"
+                    className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-300/80 bg-white/55 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white/85 hover:text-slate-950"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    <span className="hidden sm:inline">Admin Login</span>
+                  </Link>
+                )}
                 <Link
                   href={signInHref}
                   className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900"

@@ -30,7 +30,14 @@ export async function POST(request: Request) {
     // Check if user email already exists
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
-      return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
+      return NextResponse.json(
+        {
+          error: 'Email already registered',
+          code: 'USER_ALREADY_EXISTS',
+          signInUrl: `/sign-in?email=${encodeURIComponent(normalizedEmail)}`,
+        },
+        { status: 409 }
+      );
     }
 
     // Disallow creating admin accounts via this public endpoint.
