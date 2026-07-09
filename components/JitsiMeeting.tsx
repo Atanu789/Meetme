@@ -504,6 +504,7 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
+      console.log("====== REMOVE LOGO CODE IS RUNNING ======");
 
       disposingForRecoveryRef.current = false;
       onApiReadyRef.current?.(jitsiRef.current);
@@ -547,12 +548,18 @@ export function JitsiMeeting({
 
       jitsiRef.current.addEventListener('videoConferenceJoined', (event: any) => {
         console.log('JitsiMeeting: Video conference joined');
+        console.log("=== WATERMARK REMOVAL STARTED ===");
 
-        const removeJitsiWatermark = () => {
+const removeJitsiWatermark = () => {
+  console.log(
+    "Removing watermark...",
+    document.querySelectorAll("a.watermark.leftwatermark").length
+  );
+
   document
-    .querySelectorAll('a.watermark.leftwatermark, div.watermark.leftwatermark')
+    .querySelectorAll("a.watermark.leftwatermark, div.watermark.leftwatermark")
     .forEach((el) => el.remove());
-};
+};    
 
 // Remove immediately
 removeJitsiWatermark();
