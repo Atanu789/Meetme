@@ -504,29 +504,7 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
-      // Remove Jitsi watermark forever
-const removeJitsiLogo = () => {
-  document.querySelectorAll('a.watermark.leftwatermark').forEach(el => el.remove());
-  document.querySelectorAll('div.watermark.leftwatermark').forEach(el => el.remove());
-};
 
-removeJitsiLogo();
-
-const observer = new MutationObserver(() => {
-  removeJitsiLogo();
-});
-
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true
-});
-
-// Stop observing when meeting is disposed
-const originalDispose = jitsiRef.current.dispose.bind(jitsiRef.current);
-jitsiRef.current.dispose = () => {
-  observer.disconnect();
-  originalDispose();
-};
       disposingForRecoveryRef.current = false;
       onApiReadyRef.current?.(jitsiRef.current);
 
@@ -569,15 +547,24 @@ jitsiRef.current.dispose = () => {
 
       jitsiRef.current.addEventListener('videoConferenceJoined', (event: any) => {
         console.log('JitsiMeeting: Video conference joined');
-        const removeJitsiWatermark = () => {
-          document.querySelector('.watermark.leftwatermark')?.remove();
-          document.querySelector('.watermark.rightwatermark')?.remove();
-        };
 
-        removeJitsiWatermark();
-        setTimeout(removeJitsiWatermark, 500);
-        setTimeout(removeJitsiWatermark, 1000);
-        setTimeout(removeJitsiWatermark, 2000);
+        const removeJitsiWatermark = () => {
+  document
+    .querySelectorAll('a.watermark.leftwatermark, div.watermark.leftwatermark')
+    .forEach((el) => el.remove());
+};
+
+// Remove immediately
+removeJitsiWatermark();
+
+// Keep removing every 100ms
+const watermarkInterval = window.setInterval(removeJitsiWatermark, 100);
+
+// Stop after 60 seconds
+window.setTimeout(() => {
+  clearInterval(watermarkInterval);
+}, 60000);
+
         
         joinedOnceRef.current = true;
         intentionalHangupRef.current = false;
