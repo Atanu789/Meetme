@@ -504,22 +504,29 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
-      // Remove Jitsi watermark permanently
-      const removeWatermark = () => {
-        document.querySelectorAll('.watermark.leftwatermark, .watermark.rightwatermark')
-          .forEach(el => el.remove());
-      };
+      // Remove Jitsi watermark forever
+const removeJitsiLogo = () => {
+  document.querySelectorAll('a.watermark.leftwatermark').forEach(el => el.remove());
+  document.querySelectorAll('div.watermark.leftwatermark').forEach(el => el.remove());
+};
 
-      removeWatermark();
+removeJitsiLogo();
 
-      const watermarkObserver = new MutationObserver(() => {
-        removeWatermark();
-      });
+const observer = new MutationObserver(() => {
+  removeJitsiLogo();
+});
 
-      watermarkObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-      });
+observer.observe(document.documentElement, {
+  childList: true,
+  subtree: true
+});
+
+// Stop observing when meeting is disposed
+const originalDispose = jitsiRef.current.dispose.bind(jitsiRef.current);
+jitsiRef.current.dispose = () => {
+  observer.disconnect();
+  originalDispose();
+};
       disposingForRecoveryRef.current = false;
       onApiReadyRef.current?.(jitsiRef.current);
 
