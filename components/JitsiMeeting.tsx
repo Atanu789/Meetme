@@ -504,6 +504,22 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
+      // Remove Jitsi watermark permanently
+      const removeWatermark = () => {
+        document.querySelectorAll('.watermark.leftwatermark, .watermark.rightwatermark')
+          .forEach(el => el.remove());
+      };
+
+      removeWatermark();
+
+      const watermarkObserver = new MutationObserver(() => {
+        removeWatermark();
+      });
+
+      watermarkObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
       disposingForRecoveryRef.current = false;
       onApiReadyRef.current?.(jitsiRef.current);
 
