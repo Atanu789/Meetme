@@ -7,7 +7,6 @@ import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
 import { LmsMeetingActions } from './LmsMeetingActions';
 import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
-import { MeetingHistoryPanel } from './MeetingHistoryPanel';
 
 type InstructorDashboardData = {
   courses: any[];
@@ -352,7 +351,6 @@ export function InstructorLmsDashboard() {
       stats={stats}
     >
       <LmsMeetingActions roleLabel="Instructor" />
-      <MeetingHistoryPanel />
       <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
 
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}

@@ -7,6 +7,8 @@ interface AudioCaptureProps {
   meetingId: string;
   enabled?: boolean;
   className?: string;
+  buttonClassName?: string;
+  labelClassName?: string;
   speakerName?: string;
   speakerId?: string;
 }
@@ -56,6 +58,8 @@ export function AudioCapture({
   meetingId,
   enabled = true,
   className,
+  buttonClassName,
+  labelClassName = 'hidden sm:inline',
   speakerName,
   speakerId,
 }: AudioCaptureProps) {
@@ -322,14 +326,14 @@ export function AudioCapture({
     <div className={wrapperClassName}>
       <button
         onClick={isListening ? stopListening : startListening}
-        className={`flex h-9 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition-all ${ isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600' }`}
+        className={buttonClassName || `flex h-9 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.12)] transition-all ${ isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600' }`}
         aria-label={isListening ? 'Stop captions' : 'Start captions'}
         title={isListening ? 'Stop captions' : 'Start captions'}
       >
         <div
-          className={`h-2.5 w-2.5 rounded-full ${ isListening ? 'animate-pulse bg-white' : 'bg-white/50' }`}
+          className={`h-2.5 w-2.5 rounded-full ${ isListening ? 'animate-pulse bg-red-500' : 'bg-sky-500' }`}
         />
-        <span className="hidden sm:inline">{isListening ? 'Stop captions' : 'Start captions'}</span>
+        <span className={labelClassName}>{isListening ? 'Stop captions' : 'Start captions'}</span>
       </button>
 
       {error && (

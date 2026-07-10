@@ -5,7 +5,6 @@ import { GlowCard } from '@/components/ui/glow-card';
 import { LmsShell } from './LmsShell';
 import { LmsMeetingActions } from './LmsMeetingActions';
 import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
-import { MeetingHistoryPanel } from './MeetingHistoryPanel';
 
 export function AdminLmsDashboard() {
   const [dashboard, setDashboard] = useState<any>({ courses: [], sessions: [], assignments: [], submissions: [] });
@@ -61,7 +60,6 @@ export function AdminLmsDashboard() {
       stats={stats}
     >
       <LmsMeetingActions roleLabel="Admin" />
-      <MeetingHistoryPanel />
       <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
 
       {/* All Courses */}

@@ -171,10 +171,8 @@ export function Navbar() {
     },
   ];
 
-  const navIconButtonClass =
-    'group inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-100/80 text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
-  const copyInviteButtonClass =
-    'group inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100/80 px-3 text-sm font-semibold text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200';
+  const navActionButtonClass =
+    'group inline-flex h-9 w-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100/80 px-0 text-sm font-semibold text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 lg:w-auto lg:px-3';
   const copyInviteHoverClass =
     'hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-950 hover:shadow-[0_14px_30px_rgba(14,165,233,0.2)]';
   const uploadMediaHoverClass =
@@ -206,16 +204,18 @@ export function Navbar() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCopyInvite}
-                  className={`${copyInviteButtonClass} ${copyInviteHoverClass}`}
+                  className={`${navActionButtonClass} ${copyInviteHoverClass}`}
                   aria-label="Copy invite link"
                   title="Copy invite link"
                 >
                   <Copy className="h-4 w-4" />
-                  <span>Copy link</span>
+                  <span className="hidden lg:inline">Copy link</span>
                 </button>
                 <AudioCapture
                   meetingId={roomMeetingId}
                   className="relative flex flex-col gap-2"
+                  buttonClassName={`${navActionButtonClass} border-slate-200 bg-slate-100/80 text-slate-950 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-950 hover:shadow-[0_14px_30px_rgba(59,130,246,0.2)]`}
+                  labelClassName="hidden lg:inline"
                   speakerName={captionSpeakerName}
                   speakerId={captionSpeakerId}
                 />
@@ -228,7 +228,7 @@ export function Navbar() {
                     }
                   }}
                   disabled={recordingLoading}
-                  className={`group inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 ${
+                  className={`${navActionButtonClass} ${
                     isRecording
                       ? 'border-red-200 bg-red-50/85 text-red-950 shadow-[0_10px_24px_rgba(239,68,68,0.12)]'
                       : `border-slate-200 bg-slate-100/80 text-slate-950 ${recordingHoverClass}`
@@ -237,7 +237,7 @@ export function Navbar() {
                   title={isRecording ? 'Stop local recording' : 'Start local recording'}
                 >
                   {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Radio className="h-4 w-4" />}
-                  <span className="hidden xl:inline">
+                  <span className="hidden lg:inline">
                     {recordingLoading ? 'Preparing...' : isRecording ? 'Stop Recording' : 'Start Recording'}
                   </span>
                 </button>
@@ -260,7 +260,7 @@ export function Navbar() {
                     }
                   }}
                   disabled={livestreamLoading}
-                  className={`${navIconButtonClass} ${
+                  className={`${navActionButtonClass} ${
                     isStreaming
                       ? 'border-rose-200 bg-rose-50/85 text-rose-950 shadow-[0_10px_24px_rgba(244,63,94,0.12)]'
                       : livestreamHoverClass
@@ -269,6 +269,7 @@ export function Navbar() {
                   title={isStreaming ? 'Stop livestream' : 'Start livestream'}
                 >
                   <Video className="h-4 w-4" />
+                  <span className="hidden lg:inline">{isStreaming ? 'Stop Live' : 'Go Live'}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -278,7 +279,7 @@ export function Navbar() {
                       setIsWhiteboardOpen(true);
                     }
                   }}
-                  className={`${navIconButtonClass} ${
+                  className={`${navActionButtonClass} ${
                     isWhiteboardOpen
                       ? 'border-amber-200 bg-amber-50/85 text-amber-950 shadow-[0_10px_24px_rgba(245,158,11,0.12)]'
                       : whiteboardHoverClass
@@ -287,11 +288,12 @@ export function Navbar() {
                   title={isWhiteboardOpen ? 'Close whiteboard' : 'Open whiteboard'}
                 >
                   <PencilLine className="h-4 w-4" />
+                  <span className="hidden lg:inline">Whiteboard</span>
                 </button>
                 <div ref={filesPopoverRef} className="relative">
                   <button
                     onClick={() => setIsFilesOpen((prev) => !prev)}
-                    className={`${navIconButtonClass} ${
+                    className={`${navActionButtonClass} ${
                       isFilesOpen
                         ? 'border-emerald-200 bg-emerald-50/85 text-emerald-950 shadow-[0_10px_24px_rgba(16,185,129,0.12)]'
                         : uploadMediaHoverClass
@@ -300,6 +302,7 @@ export function Navbar() {
                     title={isFilesOpen ? 'Close upload media' : 'Open upload media'}
                   >
                     <Upload className="h-4 w-4" />
+                    <span className="hidden lg:inline">Files</span>
                   </button>
                   {isFilesOpen && (
                     <div className="absolute left-0 mt-3 w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
