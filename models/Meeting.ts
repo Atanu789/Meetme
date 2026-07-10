@@ -37,6 +37,13 @@ interface IMeeting extends Document {
   joinCount: number;
   lastSessionAt?: Date;
   lastRecordingAt?: Date;
+  recorded?: boolean;
+  recordedBy?: string;
+  recordedByEmail?: string;
+  recordingDuration?: string;
+  recordingDurationSeconds?: number;
+  recordingDate?: string;
+  recordingStatus?: string;
   // AI Assistant fields
   aiEnabled?: boolean;
   aiLanguage?: string;
@@ -98,6 +105,34 @@ const MeetingSchema = new Schema<IMeeting>(
     lastRecordingAt: {
       type: Date,
       default: null,
+    },
+    recorded: {
+      type: Boolean,
+      default: false,
+    },
+    recordedBy: {
+      type: String,
+      default: '',
+    },
+    recordedByEmail: {
+      type: String,
+      default: '',
+    },
+    recordingDuration: {
+      type: String,
+      default: '',
+    },
+    recordingDurationSeconds: {
+      type: Number,
+      default: 0,
+    },
+    recordingDate: {
+      type: String,
+      default: '',
+    },
+    recordingStatus: {
+      type: String,
+      default: '',
     },
     aiEnabled: {
       type: Boolean,

@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, PencilLine, Radio, ShieldCheck, Upload, Video } from 'lucide-react';
+import { Copy, PencilLine, Radio, ShieldCheck, Square, Upload, Video } from 'lucide-react';
 import FileShare from './FileShare';
 import { AudioCapture } from './AudioCapture';
 import Whiteboard from './Whiteboard';
@@ -32,7 +32,15 @@ export function Navbar() {
   const signInHref = status === 'authenticated' ? '/lms' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
   // Initialize recording and livestream hooks
-  const { isRecording, startRecording, stopRecording, loading: recordingLoading, error: recordingError, clearError: clearRecordingError } = useRecording(roomMeetingId);
+  const {
+    isRecording,
+    startRecording,
+    stopRecording,
+    loading: recordingLoading,
+    error: recordingError,
+    elapsedTime: recordingElapsedTime,
+    clearError: clearRecordingError,
+  } = useRecording(roomMeetingId);
   const { isStreaming, startLivestream, stopLivestream, loading: livestreamLoading, error: livestreamError, clearError: clearLivestreamError } = useLivestream(roomMeetingId);
 
   const requestWhiteboardClose = useCallback(() => {
@@ -220,16 +228,29 @@ export function Navbar() {
                     }
                   }}
                   disabled={recordingLoading}
-                  className={`${navIconButtonClass} ${
+                  className={`group inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 ${
                     isRecording
                       ? 'border-red-200 bg-red-50/85 text-red-950 shadow-[0_10px_24px_rgba(239,68,68,0.12)]'
-                      : recordingHoverClass
+                      : `border-slate-200 bg-slate-100/80 text-slate-950 ${recordingHoverClass}`
                   } disabled:opacity-50`}
                   aria-label={isRecording ? 'Stop local recording' : 'Start local recording'}
                   title={isRecording ? 'Stop local recording' : 'Start local recording'}
                 >
-                  <Radio className="h-4 w-4" />
+                  {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Radio className="h-4 w-4" />}
+                  <span className="hidden xl:inline">
+                    {recordingLoading ? 'Preparing...' : isRecording ? 'Stop Recording' : 'Start Recording'}
+                  </span>
                 </button>
+                {isRecording && (
+                  <div
+                    className="hidden h-9 items-center gap-2 rounded-xl border border-red-200 bg-red-50/90 px-3 text-xs font-bold text-red-700 shadow-[0_10px_24px_rgba(239,68,68,0.12)] lg:inline-flex"
+                    aria-live="polite"
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-600 animate-pulse" />
+                    <span>Recording</span>
+                    <span className="font-mono text-red-900">{recordingElapsedTime}</span>
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     if (isStreaming) {

@@ -7,6 +7,8 @@ export interface RecordingState {
   recordingId: string | null;
   error: string | null;
   loading: boolean;
+  elapsedSeconds: number;
+  elapsedTime: string;
 }
 
 export interface UseRecordingReturn extends RecordingState {
@@ -15,19 +17,58 @@ export interface UseRecordingReturn extends RecordingState {
   clearError: () => void;
 }
 
-const MIME_TYPE_CANDIDATES = [
-  'video/webm;codecs=vp9,opus',
-  'video/webm;codecs=vp8,opus',
-  'video/webm;codecs=opus',
-  'video/webm',
+type RecordingProfile = {
+  mimeType: string;
+  extension: 'webm' | 'mp4';
+  width: number;
+  height: number;
+  label: string;
+};
+
+const RECORDING_PROFILES: RecordingProfile[] = [
+  {
+    mimeType: 'video/webm;codecs=vp9,opus',
+    extension: 'webm',
+    width: 1920,
+    height: 1080,
+    label: '1080p VP9',
+  },
+  {
+    mimeType: 'video/webm;codecs=vp8,opus',
+    extension: 'webm',
+    width: 1280,
+    height: 720,
+    label: '720p VP8',
+  },
+  {
+    mimeType: 'video/webm',
+    extension: 'webm',
+    width: 1280,
+    height: 720,
+    label: '720p WebM',
+  },
+  {
+    mimeType: 'video/mp4;codecs=h264,aac',
+    extension: 'mp4',
+    width: 1280,
+    height: 720,
+    label: '720p H.264',
+  },
+  {
+    mimeType: 'video/mp4',
+    extension: 'mp4',
+    width: 1280,
+    height: 720,
+    label: '720p MP4',
+  },
 ];
 
-function getSupportedMimeType() {
+function getSupportedProfiles() {
   if (typeof MediaRecorder === 'undefined') {
-    return '';
+    return [];
   }
 
-  return MIME_TYPE_CANDIDATES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || '';
+  return RECORDING_PROFILES.filter((profile) => MediaRecorder.isTypeSupported(profile.mimeType));
 }
 
 function sanitizeFilePart(value: string) {
@@ -54,28 +95,140 @@ function downloadBlob(blob: Blob, fileName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
-async function postRecordingActivity(
-  meetingId: string,
-  type: 'recording-started' | 'recording-stopped',
-  details: string
-) {
-  if (!meetingId) {
-    return;
-  }
+async function requestDisplayStream(profile: RecordingProfile) {
+  const constrainedOptions = {
+    video: {
+      width: { ideal: profile.width },
+      height: { ideal: profile.height },
+      frameRate: { ideal: 30, max: 30 },
+    },
+    audio: true,
+  } as DisplayMediaStreamOptions;
 
   try {
-    await fetch('/api/meeting-activity', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meetingId, type, details }),
+    return await navigator.mediaDevices.getDisplayMedia(constrainedOptions);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      throw error;
+    }
+
+    return navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
     });
-  } catch {
-    // Local recording should not fail because activity tracking is unavailable.
   }
 }
 
+function createMediaRecorder(stream: MediaStream) {
+  const supportedProfiles = getSupportedProfiles();
+
+  for (const profile of supportedProfiles) {
+    try {
+      return {
+        recorder: new MediaRecorder(stream, { mimeType: profile.mimeType }),
+        profile,
+      };
+    } catch {
+      // Try the next browser-supported profile.
+    }
+  }
+
+  const recorder = new MediaRecorder(stream);
+  const mimeType = recorder.mimeType || 'video/webm';
+
+  return {
+    recorder,
+    profile: {
+      mimeType,
+      extension: extensionForMimeType(mimeType),
+      width: 1280,
+      height: 720,
+      label: 'Browser default',
+    } satisfies RecordingProfile,
+  };
+}
+
+function extensionForMimeType(mimeType: string): 'webm' | 'mp4' {
+  return mimeType.toLowerCase().includes('mp4') ? 'mp4' : 'webm';
+}
+
+async function postLocalRecording(
+  meetingId: string,
+  action: 'check' | 'started' | 'completed',
+  metadata?: {
+    durationSeconds?: number;
+    recordingDuration?: string;
+    recordingDate?: string;
+  }
+) {
+  if (!meetingId) {
+    throw new Error('Room name is required');
+  }
+
+  const response = await fetch('/api/recording/local', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      meetingId,
+      action,
+      ...metadata,
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(body?.error || 'Recording permission failed');
+  }
+
+  return body;
+}
+
+function formatElapsedTime(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (hours > 0) {
+    return [hours, minutes, remainingSeconds]
+      .map((part) => String(part).padStart(2, '0'))
+      .join(':');
+  }
+
+  return [minutes, remainingSeconds]
+    .map((part) => String(part).padStart(2, '0'))
+    .join(':');
+}
+
+function formatDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  return [hours, minutes, remainingSeconds]
+    .map((part) => String(part).padStart(2, '0'))
+    .join(':');
+}
+
+function formatLocalDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatLocalDateTimeForFile(value: Date) {
+  const date = formatLocalDate(value);
+  const hours = String(value.getHours()).padStart(2, '0');
+  const minutes = String(value.getMinutes()).padStart(2, '0');
+
+  return `${date}-${hours}-${minutes}`;
+}
+
 /**
- * Records the meeting locally in the browser and downloads a WebM file.
+ * Records the meeting locally in the browser and stores metadata only.
  */
 export function useRecording(roomName: string): UseRecordingReturn {
   const [state, setState] = useState<RecordingState>({
@@ -83,6 +236,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
     recordingId: null,
     error: null,
     loading: false,
+    elapsedSeconds: 0,
+    elapsedTime: '00:00',
   });
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -93,6 +248,10 @@ export function useRecording(roomName: string): UseRecordingReturn {
   const audioContextRef = useRef<AudioContext | null>(null);
   const activeRoomRef = useRef(roomName);
   const recordingIdRef = useRef<string | null>(null);
+  const recordingStartedAtRef = useRef<number>(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingFileExtensionRef = useRef<'webm' | 'mp4'>('webm');
+  const recordingMimeTypeRef = useRef('video/webm');
 
   useEffect(() => {
     activeRoomRef.current = roomName;
@@ -113,6 +272,34 @@ export function useRecording(roomName: string): UseRecordingReturn {
     audioContextRef.current = null;
   }, []);
 
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const startTimer = useCallback(() => {
+    stopTimer();
+    recordingStartedAtRef.current = Date.now();
+
+    const updateElapsed = () => {
+      const elapsedSeconds = Math.max(
+        0,
+        Math.floor((Date.now() - recordingStartedAtRef.current) / 1000)
+      );
+
+      setState((prev) => ({
+        ...prev,
+        elapsedSeconds,
+        elapsedTime: formatElapsedTime(elapsedSeconds),
+      }));
+    };
+
+    updateElapsed();
+    timerRef.current = setInterval(updateElapsed, 1000);
+  }, [stopTimer]);
+
   const stopRecording = useCallback(
     async () => {
       const recorder = recorderRef.current;
@@ -126,6 +313,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
           isRecording: false,
           recordingId: null,
           loading: false,
+          elapsedSeconds: 0,
+          elapsedTime: '00:00',
         }));
         return;
       }
@@ -168,12 +357,25 @@ export function useRecording(roomName: string): UseRecordingReturn {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            frameRate: { ideal: 30, max: 30 },
-          },
-          audio: true,
-        } as DisplayMediaStreamOptions);
+        await postLocalRecording(resolvedRoom, 'check');
+
+        const acceptedWarning = window.confirm([
+          'Recording is saved only after you click Stop Recording.',
+          '',
+          'Closing the browser before stopping will lose the recording.',
+        ].join('\n'));
+
+        if (!acceptedWarning) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: 'Recording cancelled.',
+          }));
+          return;
+        }
+
+        const preferredProfile = getSupportedProfiles()[0] || RECORDING_PROFILES[1];
+        const displayStream = await requestDisplayStream(preferredProfile);
 
         let microphoneStream: MediaStream | null = null;
         try {
@@ -194,8 +396,9 @@ export function useRecording(roomName: string): UseRecordingReturn {
           (stream): stream is MediaStream => Boolean(stream?.getAudioTracks().length)
         );
 
-        if (audioStreams.length > 0 && typeof AudioContext !== 'undefined') {
-          const audioContext = new AudioContext();
+        const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+        if (audioStreams.length > 0 && AudioContextCtor) {
+          const audioContext = new AudioContextCtor();
           const destination = audioContext.createMediaStreamDestination();
 
           audioStreams.forEach((stream) => {
@@ -211,11 +414,7 @@ export function useRecording(roomName: string): UseRecordingReturn {
         }
 
         const mixedStream = new MediaStream(outputTracks);
-        const mimeType = getSupportedMimeType();
-        const recorder = new MediaRecorder(
-          mixedStream,
-          mimeType ? { mimeType } : undefined
-        );
+        const { recorder, profile } = createMediaRecorder(mixedStream);
         const recordingId = `${sanitizeFilePart(resolvedRoom)}-${Date.now()}`;
 
         chunksRef.current = [];
@@ -225,6 +424,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
         recorderRef.current = recorder;
         recordingIdRef.current = recordingId;
         activeRoomRef.current = resolvedRoom;
+        recordingFileExtensionRef.current = profile.extension;
+        recordingMimeTypeRef.current = recorder.mimeType || profile.mimeType || 'video/webm';
 
         recorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
@@ -241,18 +442,27 @@ export function useRecording(roomName: string): UseRecordingReturn {
         };
 
         recorder.onstop = () => {
+          stopTimer();
+          const durationSeconds = Math.max(
+            0,
+            Math.floor((Date.now() - recordingStartedAtRef.current) / 1000)
+          );
+          const recordingDuration = formatDuration(durationSeconds);
+          const recordingDate = formatLocalDate(new Date());
           const blob = new Blob(chunksRef.current, {
-            type: mimeType || 'video/webm',
+            type: recordingMimeTypeRef.current,
           });
-          const fileName = `melanam-${recordingId}.webm`;
+          const fileName = `Melanam-Meeting-${formatLocalDateTimeForFile(new Date())}.${recordingFileExtensionRef.current}`;
 
           if (blob.size > 0) {
             downloadBlob(blob, fileName);
-            void postRecordingActivity(
-              resolvedRoom,
-              'recording-stopped',
-              `Local recording saved as ${fileName}`
-            );
+            void postLocalRecording(resolvedRoom, 'completed', {
+              durationSeconds,
+              recordingDuration,
+              recordingDate,
+            }).catch((error) => {
+              console.warn('[recording] metadata save failed', error);
+            });
           }
 
           chunksRef.current = [];
@@ -265,6 +475,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
             isRecording: false,
             recordingId: null,
             loading: false,
+            elapsedSeconds: 0,
+            elapsedTime: '00:00',
             error: blob.size > 0 ? null : 'No recording data was captured',
           }));
         };
@@ -277,7 +489,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
           });
         });
 
-        recorder.start(1000);
+        recorder.start();
+        startTimer();
 
         setState((prev) => ({
           ...prev,
@@ -287,19 +500,18 @@ export function useRecording(roomName: string): UseRecordingReturn {
           error: null,
         }));
 
-        void postRecordingActivity(
-          resolvedRoom,
-          'recording-started',
-          'Local browser recording started'
-        );
+        void postLocalRecording(resolvedRoom, 'started').catch((error) => {
+          console.warn('[recording] start metadata failed', error);
+        });
       } catch (error) {
+        stopTimer();
         cleanupStreams();
         recorderRef.current = null;
         recordingIdRef.current = null;
 
         const errorMessage =
           error instanceof DOMException && error.name === 'NotAllowedError'
-            ? 'Recording permission was cancelled'
+            ? 'Recording cancelled.'
             : error instanceof Error
               ? error.message
               : 'Failed to start local recording';
@@ -309,11 +521,13 @@ export function useRecording(roomName: string): UseRecordingReturn {
           isRecording: false,
           recordingId: null,
           loading: false,
+          elapsedSeconds: 0,
+          elapsedTime: '00:00',
           error: errorMessage,
         }));
       }
     },
-    [cleanupStreams, roomName, stopRecording]
+    [cleanupStreams, roomName, startTimer, stopRecording, stopTimer]
   );
 
   useEffect(() => {
@@ -323,8 +537,23 @@ export function useRecording(roomName: string): UseRecordingReturn {
       } else {
         cleanupStreams();
       }
+      stopTimer();
     };
-  }, [cleanupStreams]);
+  }, [cleanupStreams, stopTimer]);
+
+  useEffect(() => {
+    if (!state.isRecording) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [state.isRecording]);
 
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
