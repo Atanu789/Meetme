@@ -59,6 +59,7 @@ export default function RoomPage() {
   const partialTranscriptRef = useRef<Map<string, { text: string; timestamp: number; speakerId: string; speaker: string }>>(new Map());
   const speakerLabelsRef = useRef<Map<string, { speakerId: string; name: string; color: string }>>(new Map());
   const latestSummaryRef = useRef<any | null>(null);
+  const livePersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rawMeetingId = params.id as string;
   const meetingId = decodeURIComponent(rawMeetingId || '').trim();
@@ -128,9 +129,43 @@ export default function RoomPage() {
         }
 
         const meetingData = await meetingResponse.json();
-        setMeeting(meetingData.meeting);
-        if (meetingData.meeting?.summary || meetingData.meeting?.transcript?.length) {
-          setAiResults(meetingData.meeting);
+        const loadedMeeting = meetingData.meeting;
+        setMeeting(loadedMeeting);
+
+        transcriptEntriesRef.current = Array.isArray(loadedMeeting?.transcript)
+          ? loadedMeeting.transcript
+              .map((entry: any) => ({
+                text: String(entry?.text || '').trim(),
+                timestamp: Number(entry?.timestamp || 0),
+                speakerId: String(entry?.speakerId || entry?.speaker || 'speaker').trim(),
+                speaker: String(entry?.speaker || entry?.speakerId || 'Speaker').trim(),
+              }))
+              .filter((entry: any) => entry.text.length > 0)
+          : [];
+
+        speakerLabelsRef.current = new Map(
+          (Array.isArray(loadedMeeting?.speakerLabels) ? loadedMeeting.speakerLabels : [])
+            .map((speaker: any, index: number) => {
+              const speakerId = String(speaker?.speakerId || speaker?.label || speaker?.id || '').trim();
+              const name = String(speaker?.name || speaker?.speaker || speaker?.displayName || speakerId).trim();
+              if (!speakerId || !name) {
+                return null;
+              }
+
+              return [
+                speakerId,
+                {
+                  speakerId,
+                  name,
+                  color: String(speaker?.color || speakerColors[index % speakerColors.length]),
+                },
+              ] as const;
+            })
+            .filter(Boolean) as Array<readonly [string, { speakerId: string; name: string; color: string }]>
+        );
+
+        if (loadedMeeting?.summary || loadedMeeting?.transcript?.length) {
+          setAiResults(loadedMeeting);
         }
 
         if (meetingData.meeting?.isPrivate) {
@@ -212,6 +247,7 @@ export default function RoomPage() {
         const body = await response.json();
         const savedMeeting = body.meeting || null;
         if (savedMeeting) {
+          setMeeting((current) => current ? { ...current, ...savedMeeting } : current);
           setAiResults((current: any) => ({
             ...(current || {}),
             ...savedMeeting,
@@ -227,14 +263,43 @@ export default function RoomPage() {
     [getTranscriptSnapshot, meetingId]
   );
 
+  const scheduleLivePersist = useCallback(
+    (delay = 2500) => {
+      if (livePersistTimerRef.current) {
+        clearTimeout(livePersistTimerRef.current);
+      }
+
+      livePersistTimerRef.current = setTimeout(() => {
+        livePersistTimerRef.current = null;
+        void persistAIResults();
+      }, delay);
+    },
+    [persistAIResults]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (livePersistTimerRef.current) {
+        clearTimeout(livePersistTimerRef.current);
+        livePersistTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const handleCaptionPersist = useCallback(
     (caption: { text: string; speaker: string; speakerId: string; final: boolean; timestamp: number }) => {
       const speakerId = caption.speakerId || caption.speaker || 'speaker';
-      if (!speakerLabelsRef.current.has(speakerId)) {
+      const speakerName = caption.speaker || speakerId;
+      const existingSpeaker = speakerLabelsRef.current.get(speakerId);
+      const hasGenericName = !existingSpeaker?.name ||
+        existingSpeaker.name === speakerId ||
+        /^speaker(?:\s+\S+)?$/i.test(existingSpeaker.name);
+
+      if (!existingSpeaker || (speakerName && hasGenericName)) {
         speakerLabelsRef.current.set(speakerId, {
           speakerId,
-          name: caption.speaker || speakerId,
-          color: speakerColors[speakerLabelsRef.current.size % speakerColors.length],
+          name: speakerName,
+          color: existingSpeaker?.color || speakerColors[speakerLabelsRef.current.size % speakerColors.length],
         });
       }
 
@@ -242,7 +307,7 @@ export default function RoomPage() {
         text: caption.text,
         timestamp: caption.timestamp,
         speakerId,
-        speaker: caption.speaker || speakerId,
+        speaker: speakerName,
       };
 
       partialTranscriptRef.current.set(speakerId, entry);
@@ -258,9 +323,16 @@ export default function RoomPage() {
 
       if (!exists) {
         transcriptEntriesRef.current.push(entry);
+        setAiResults((current: any) => ({
+          ...(current || {}),
+          meetingId,
+          transcript: getTranscriptSnapshot(),
+          speakerLabels: Array.from(speakerLabelsRef.current.values()),
+        }));
+        scheduleLivePersist();
       }
     },
-    []
+    [getTranscriptSnapshot, meetingId, scheduleLivePersist]
   );
 
   const handleSummaryPersist = useCallback(
@@ -321,6 +393,10 @@ export default function RoomPage() {
     } catch (error) {
       console.warn('[AI persist] summary flush failed', error);
     } finally {
+      if (livePersistTimerRef.current) {
+        clearTimeout(livePersistTimerRef.current);
+        livePersistTimerRef.current = null;
+      }
       await persistAIResults();
       await clearWhiteboard();
       router.push(fallbackRoute);

@@ -24,6 +24,7 @@ export function Navbar() {
   const [whiteboardCloseRequestId, setWhiteboardCloseRequestId] = useState(0);
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
+  const [guestSpeakerName, setGuestSpeakerName] = useState('');
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
@@ -44,6 +45,32 @@ export function Navbar() {
     setIsWhiteboardOpen(false);
     setIsYouTubeModalOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!roomMeetingId || status === 'authenticated') {
+      return;
+    }
+
+    let storedName = '';
+
+    try {
+      storedName = localStorage.getItem('username') || '';
+    } catch {
+      storedName = '';
+    }
+
+    if (!storedName.trim()) {
+      storedName = `Guest-${Math.floor(Math.random() * 1000)}`;
+
+      try {
+        localStorage.setItem('username', storedName);
+      } catch {
+        // Ignore storage failures; this name is still stable for the current render.
+      }
+    }
+
+    setGuestSpeakerName(storedName);
+  }, [roomMeetingId, status]);
 
   useEffect(() => {
     if (!isFilesOpen) return;
@@ -104,6 +131,10 @@ export function Navbar() {
   const userEmail = session?.user?.email || '';
   const userInitial = userEmail?.[0]?.toUpperCase() || 'U';
   const isLoggedIn = status === 'authenticated';
+  const captionSpeakerName = userEmail || guestSpeakerName || 'Guest';
+  const captionSpeakerId = userEmail
+    ? `user:${userEmail}`
+    : `guest:${guestSpeakerName || 'guest'}`;
 
   const productLinks = [
     {
@@ -174,7 +205,12 @@ export function Navbar() {
                   <Copy className="h-4 w-4" />
                   <span>Copy link</span>
                 </button>
-                <AudioCapture meetingId={roomMeetingId} className="relative flex flex-col gap-2" />
+                <AudioCapture
+                  meetingId={roomMeetingId}
+                  className="relative flex flex-col gap-2"
+                  speakerName={captionSpeakerName}
+                  speakerId={captionSpeakerId}
+                />
                 <button
                   onClick={() => {
                     if (isRecording) {

@@ -7,6 +7,8 @@ interface AudioCaptureProps {
   meetingId: string;
   enabled?: boolean;
   className?: string;
+  speakerName?: string;
+  speakerId?: string;
 }
 
 type SpeechRecognitionResult = {
@@ -50,7 +52,13 @@ declare global {
   }
 }
 
-export function AudioCapture({ meetingId, enabled = true, className }: AudioCaptureProps) {
+export function AudioCapture({
+  meetingId,
+  enabled = true,
+  className,
+  speakerName,
+  speakerId,
+}: AudioCaptureProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -60,6 +68,8 @@ export function AudioCapture({ meetingId, enabled = true, className }: AudioCapt
   const lastInterimSentAtRef = useRef(0);
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resolvedSpeakerName = normalizeSpeakerName(speakerName) || 'You';
+  const resolvedSpeakerId = normalizeSpeakerId(speakerId || resolvedSpeakerName) || 'local-user';
 
   const postLiveCaption = async (text: string, final: boolean) => {
     const normalizedText = text.trim().replace(/\s+/g, ' ');
@@ -85,8 +95,8 @@ export function AudioCapture({ meetingId, enabled = true, className }: AudioCapt
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: normalizedText,
-          speaker: 'You',
-          speakerId: 'local-user',
+          speaker: resolvedSpeakerName,
+          speakerId: resolvedSpeakerId,
           final,
           timestamp: Date.now(),
         }),
@@ -113,6 +123,8 @@ export function AudioCapture({ meetingId, enabled = true, className }: AudioCapt
         const formData = new FormData();
         formData.append('audio', blob);
         formData.append('meetingId', meetingId);
+        formData.append('speakerName', resolvedSpeakerName);
+        formData.append('speakerId', resolvedSpeakerId);
 
         try {
           const response = await fetch('/api/transcribe-audio', {
@@ -333,4 +345,20 @@ export function AudioCapture({ meetingId, enabled = true, className }: AudioCapt
       )}
     </div>
   );
+}
+
+function normalizeSpeakerName(value?: string) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeSpeakerId(value?: string) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9@._:-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || '';
 }

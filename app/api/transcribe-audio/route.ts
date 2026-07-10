@@ -87,21 +87,33 @@ async function transcribeAudio(audioUrl: string): Promise<AssemblyAITranscript> 
   throw new Error('AssemblyAI transcription timed out');
 }
 
-function extractCaptionSegments(transcript: AssemblyAITranscript) {
+function extractCaptionSegments(
+  transcript: AssemblyAITranscript,
+  localSpeakerName?: string,
+  localSpeakerId?: string
+) {
   const utterances = Array.isArray(transcript.utterances) ? transcript.utterances : [];
+  const speakerName = cleanSpeakerName(localSpeakerName);
+  const speakerId = cleanSpeakerId(localSpeakerId);
 
   if (utterances.length > 0) {
     return utterances
       .map((utterance) => ({
         text: String(utterance?.text || '').trim(),
-        speakerId: String(utterance?.speaker || '1'),
-        speaker: `Speaker ${String(utterance?.speaker || '1')}`,
+        speakerId: speakerId || String(utterance?.speaker || '1'),
+        speaker: speakerName || `Speaker ${String(utterance?.speaker || '1')}`,
       }))
       .filter((segment) => segment.text.length > 0);
   }
 
   const text = String(transcript.text || '').trim();
-  return text ? [{ text, speakerId: 'local-user', speaker: 'You' }] : [];
+  return text
+    ? [{
+        text,
+        speakerId: speakerId || 'local-user',
+        speaker: speakerName || 'You',
+      }]
+    : [];
 }
 
 async function postCaption(meetingId: string, text: string, speaker = 'You', speakerId?: string): Promise<void> {
@@ -134,6 +146,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     const meetingId = formData.get('meetingId') as string;
+    const speakerName = formData.get('speakerName') as string | null;
+    const speakerId = formData.get('speakerId') as string | null;
 
     if (!audioFile || !meetingId) {
       return NextResponse.json({ error: 'Missing audio or meetingId' }, { status: 400 });
@@ -147,7 +161,11 @@ export async function POST(request: NextRequest) {
 
     const audioUrl = await uploadToAssemblyAI(buffer);
     const transcript = await transcribeAudio(audioUrl);
-    const segments = extractCaptionSegments(transcript);
+    const segments = extractCaptionSegments(
+      transcript,
+      speakerName || undefined,
+      speakerId || undefined
+    );
 
     if (segments.length === 0) {
       return NextResponse.json({ silence: true });
@@ -165,4 +183,18 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function cleanSpeakerName(value?: string | null) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanSpeakerId(value?: string | null) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9@._:-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
