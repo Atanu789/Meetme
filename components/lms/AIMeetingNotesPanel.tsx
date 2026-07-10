@@ -79,6 +79,11 @@ export function AIMeetingNotesPanel({
             .map((item) => ({ item: cleanText(item?.item), owner: cleanText(item?.owner) }))
             .filter((item) => item.item.length > 0)
             .slice(0, 2);
+          const summaryPoints = splitSummary(cleanText(meeting.summary));
+          const leadSummary =
+            summaryPoints[0] ||
+            'Summary is still being prepared for this meeting.';
+          const supportingSummary = summaryPoints.slice(1, 3);
 
           return (
             <article
@@ -121,9 +126,24 @@ export function AIMeetingNotesPanel({
                 </div>
               </div>
 
-              <p className="mt-3 text-sm leading-6 text-slate-700">
-                {cleanText(meeting.summary) || 'Summary is still being prepared for this meeting.'}
-              </p>
+              <div className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/70 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-cyan-700">
+                  Main Takeaway
+                </p>
+                <p className="mt-1 text-sm font-medium leading-6 text-slate-800">
+                  {leadSummary}
+                </p>
+                {supportingSummary.length > 0 ? (
+                  <div className="mt-2 space-y-1.5">
+                    {supportingSummary.map((point, index) => (
+                      <div key={`${meeting.meetingId}-summary-${index}`} className="flex gap-2 text-xs leading-5 text-slate-600">
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
+                        <span>{point}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
 
               {(notes.length > 0 || decisions.length > 0 || actions.length > 0) && (
                 <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -175,9 +195,10 @@ function MiniList({ title, items, emptyText }: { title: string; items: string[];
       {items.length > 0 ? (
         <div className="mt-2 space-y-2">
           {items.map((item, index) => (
-            <p key={`${title}-${index}`} className="text-xs leading-5 text-slate-700">
-              {item}
-            </p>
+            <div key={`${title}-${index}`} className="flex gap-2 text-xs leading-5 text-slate-700">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+              <span>{item}</span>
+            </div>
           ))}
         </div>
       ) : (
@@ -223,6 +244,16 @@ function cleanList(items: string[]) {
       seen.add(key);
       return true;
     });
+}
+
+function splitSummary(value: string) {
+  const sentences = cleanText(value)
+    .match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+
+  return (sentences || [])
+    .map(cleanText)
+    .filter((sentence) => sentence.length > 0)
+    .slice(0, 5);
 }
 
 function formatTimestamp(ms: number) {

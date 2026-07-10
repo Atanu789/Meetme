@@ -30,25 +30,27 @@ async function callAssemblyAIMeetingNotes(text) {
     body: JSON.stringify({
       final_model: 'default',
       max_output_size: 4096,
-      prompt: `Analyze these live meeting captions as a professional meeting analyst and return ONLY valid JSON.
+      prompt: `You are preparing an executive meeting brief from live captions for a product dashboard. Analyze these captions and return ONLY valid JSON.
 
 Schema:
 {
-  "summary": "4-6 sentence executive summary written in clear business language",
-  "keyNotes": ["Important discussion point, grouped by topic when possible"],
-  "keyDecisions": ["Decision that was actually made"],
-  "actionItems": [{"description": "Task", "assignee": "Owner if mentioned"}]
+  "summary": "5-7 sentence executive brief written as one polished paragraph",
+  "keyNotes": ["Topic: specific important takeaway with supporting context"],
+  "keyDecisions": ["Decision: what was decided and why it matters"],
+  "actionItems": [{"description": "Task with due date/context if explicitly mentioned", "assignee": "Owner if mentioned"}]
 }
 
 Rules:
 - Keep speaker names exactly as written in the captions.
 - Do not invent decisions, owners, or action items.
 - Remove filler, repeated phrases, false starts, and transcription noise.
-- Prefer specific outcomes, risks, blockers, dates, numbers, and next steps over generic statements.
-- Keep each item concise, polished, and useful without marketing language.
+- The summary must explain: meeting purpose/context, the most important discussion, outcomes or decisions, risks/blockers/open questions, and the next steps when supported.
+- Every summary sentence must add new information; avoid generic phrases such as "the meeting discussed".
+- Prefer specific outcomes, risks, blockers, dates, numbers, owners, and next steps over generic statements.
+- Keep each item concise, polished, useful, and evidence-backed without marketing language.
 - Limit keyNotes to the 6 strongest points, keyDecisions to 6, and actionItems to 8.
 - Use empty arrays when nothing clear is present.
-- If the captions are too thin or unclear, say that briefly in the summary and only include supported details.
+- If the captions are too thin or unclear, say exactly what is known and what is missing; do not pad the brief.
 
 Captions:
 ${text}`,
@@ -209,28 +211,60 @@ async function summarizeMeeting(meetingId, captions) {
 }
 
 function fallbackSummarize(captions) {
-  const first = captions[0]?.text || '';
-  const last = captions[captions.length - 1]?.text || '';
-  const summary = [first, last]
-    .map((text) => String(text).split('.').slice(0, 1).join('.').trim())
-    .filter(Boolean)
-    .join('. ');
-  const keyNotes = captions
-    .slice(-5)
-    .map((caption) => `${caption.speaker || 'Speaker'}: ${caption.text}`)
-    .filter((text) => text.trim().length > 0);
+  const cleanedCaptions = captions
+    .map((caption) => ({
+      speaker: cleanText(caption.speaker || 'Speaker'),
+      text: cleanText(caption.text || ''),
+    }))
+    .filter((caption) => caption.text.length > 0);
+
+  if (cleanedCaptions.length === 0) {
+    return {
+      summary: 'No useful live captions were captured yet, so a reliable summary cannot be prepared.',
+      keyNotes: [],
+      keyDecisions: [],
+      actionItems: [],
+    };
+  }
+
+  const speakers = Array.from(new Set(cleanedCaptions.map((caption) => caption.speaker))).filter(Boolean);
+  const opening = cleanedCaptions[0];
+  const latest = cleanedCaptions[cleanedCaptions.length - 1];
+  const summaryParts = [
+    `Live captions captured ${cleanedCaptions.length} substantive update${cleanedCaptions.length === 1 ? '' : 's'}${speakers.length ? ` from ${speakers.join(', ')}` : ''}.`,
+    opening ? `The discussion opened with ${opening.speaker}: ${opening.text}` : '',
+    latest && latest.text !== opening?.text ? `The latest focus was ${latest.speaker}: ${latest.text}` : '',
+    'Review the transcript for full context before treating this fallback brief as final.',
+  ].filter(Boolean);
+
+  const keyNotes = uniqueStrings(
+    cleanedCaptions
+      .slice(-6)
+      .map((caption) => `${caption.speaker}: ${caption.text}`)
+  );
   const actionKeywords = ['action', 'todo', 'follow up', 'follow-up', 'deadline', 'will', 'please', 'assign', 'assign to'];
-  const actionItems = captions
+  const actionItems = cleanedCaptions
     .filter((caption) => actionKeywords.some((keyword) => String(caption.text || '').toLowerCase().includes(keyword)))
     .map((caption) => ({ description: String(caption.text || '').trim(), assignee: undefined }))
     .filter((item) => item.description.length > 0);
 
   return {
-    summary: summary.trim(),
+    summary: summaryParts.join(' '),
     keyNotes,
     keyDecisions: [],
     actionItems,
   };
+}
+
+function uniqueStrings(items) {
+  const seen = new Set();
+
+  return items.filter((item) => {
+    const key = String(item || '').trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function publishSummary(meetingId, notes) {

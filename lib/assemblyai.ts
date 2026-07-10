@@ -179,25 +179,27 @@ class AssemblyAIService {
     }
 
     const transcriptText = this.formatTranscriptForNotes(transcript, speakerNameMap);
-    const prompt = `Analyze this meeting transcript as a professional meeting analyst and return ONLY valid JSON.
+    const prompt = `You are preparing an executive meeting brief for a product dashboard. Analyze this transcript and return ONLY valid JSON.
 
 Schema:
 {
-  "summary": "4-6 sentence executive summary written in clear business language",
-  "keyNotes": ["Important discussion point, grouped by topic when possible"],
-  "keyDecisions": ["Decision that was explicitly made"],
-  "actionItems": ["Owner: task, if an owner is explicitly mentioned; otherwise task"]
+  "summary": "5-7 sentence executive brief written as one polished paragraph",
+  "keyNotes": ["Topic: specific important takeaway with supporting context"],
+  "keyDecisions": ["Decision: what was decided and why it matters"],
+  "actionItems": ["Owner: task with due date/context if explicitly mentioned; otherwise task"]
 }
 
 Rules:
 - Use the speaker names exactly as shown in the transcript.
 - Do not invent decisions, owners, or tasks.
 - Remove filler, repeated phrases, false starts, and transcription noise.
-- Prefer specific outcomes, risks, blockers, dates, numbers, and next steps over generic statements.
-- Keep each list item concise, polished, and useful without marketing language.
+- The summary must explain: meeting purpose/context, the most important discussion, outcomes or decisions, risks/blockers/open questions, and the next steps when supported.
+- Every summary sentence must add new information; avoid generic phrases such as "the meeting discussed".
+- Prefer specific outcomes, risks, blockers, dates, numbers, owners, and next steps over generic statements.
+- Keep each list item concise, polished, useful, and evidence-backed without marketing language.
 - Limit keyNotes to the 6 strongest points, keyDecisions to 6, and actionItems to 8.
 - If there are no items for a list, return an empty array.
-- If the transcript is too short or unclear, say that briefly in the summary and only include supported details.
+- If the transcript is too short or unclear, say exactly what is known and what is missing; do not pad the brief.
 
 Transcript:
 ${transcriptText}`;
@@ -260,9 +262,9 @@ ${transcriptText}`;
 
     if (!parsed) {
       return {
-        summary: '',
+        summary: this.cleanSummary(text),
         keyNotes: [],
-        keyDecisions: this.parseResponseList(text),
+        keyDecisions: [],
         actionItems: [],
       };
     }

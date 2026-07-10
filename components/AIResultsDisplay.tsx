@@ -61,6 +61,7 @@ export function AIResultsDisplay({
 }: AIResultsDisplayProps) {
   const [showTranscript, setShowTranscript] = useState(false);
   const polishedSummary = cleanText(summary);
+  const summaryPoints = useMemo(() => splitSummary(polishedSummary), [polishedSummary]);
   const notes = useMemo(() => cleanList(keyNotes), [keyNotes]);
   const decisions = useMemo(() => cleanList(keyDecisions), [keyDecisions]);
   const actions = useMemo(
@@ -84,6 +85,11 @@ export function AIResultsDisplay({
   if (!hasAIContent) {
     return null;
   }
+
+  const leadSummary =
+    summaryPoints[0] ||
+    'A professional summary will appear once enough meeting context has been captured.';
+  const supportingSummary = summaryPoints.slice(1, 5);
 
   const sections: BriefSection[] = [
     {
@@ -126,15 +132,21 @@ export function AIResultsDisplay({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-3">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">
+            Meeting Brief
+          </p>
+        </div>
+        <div className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">
-              Meeting Brief
-            </p>
             <h3 className="mt-1 font-display text-xl font-semibold text-slate-950">
               Executive Summary
             </h3>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Outcome, context, decisions, and follow-up from the meeting.
+            </p>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <Metric label="Notes" value={notes.length} />
@@ -143,9 +155,26 @@ export function AIResultsDisplay({
           </div>
         </div>
 
-        <p className="mt-4 text-sm leading-6 text-slate-700">
-          {polishedSummary || 'A professional summary will appear once enough meeting context has been captured.'}
-        </p>
+        <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50/70 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-700">
+            Main Takeaway
+          </p>
+          <p className="mt-2 text-sm font-medium leading-6 text-slate-800">
+            {leadSummary}
+          </p>
+        </div>
+
+        {supportingSummary.length > 0 ? (
+          <div className="mt-3 grid gap-2">
+            {supportingSummary.map((point, index) => (
+              <div key={`${point}-${index}`} className="flex gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-cyan-500" />
+                <p className="text-sm leading-6 text-slate-700">{point}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        </div>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -257,8 +286,11 @@ function BriefList({ section }: { section: BriefSection }) {
       {section.items.length > 0 ? (
         <ol className="mt-3 space-y-2">
           {section.items.map((item, index) => (
-            <li key={`${section.id}-${index}`} className="rounded-xl bg-white px-3 py-2 text-sm leading-5 text-slate-700">
-              {item}
+            <li key={`${section.id}-${index}`} className="flex gap-3 rounded-xl bg-white px-3 py-2 text-sm leading-5 text-slate-700">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[10px] font-semibold text-white">
+                {index + 1}
+              </span>
+              <span>{item}</span>
             </li>
           ))}
         </ol>
@@ -288,6 +320,16 @@ function cleanList(items: string[]) {
       seen.add(key);
       return true;
     });
+}
+
+function splitSummary(value: string) {
+  const sentences = cleanText(value)
+    .match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+
+  return (sentences || [])
+    .map(cleanText)
+    .filter((sentence) => sentence.length > 0)
+    .slice(0, 6);
 }
 
 function formatTimestamp(ms: number): string {
