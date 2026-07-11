@@ -504,7 +504,40 @@ export function JitsiMeeting({
       };
 
       jitsiRef.current = new window.JitsiMeetExternalAPI(cleanDomain, options);
-      console.log("====== REMOVE LOGO CODE IS RUNNING ======");
+
+// =====================================================
+// Remove Jitsi watermark (all devices)
+// =====================================================
+
+const removeJitsiWatermark = () => {
+  document
+    .querySelectorAll(
+      "a.watermark.leftwatermark, div.watermark.leftwatermark"
+    )
+    .forEach((el) => {
+      el.remove();
+    });
+};
+
+// Remove if already present
+removeJitsiWatermark();
+
+// Watch the DOM continuously
+const watermarkObserver = new MutationObserver(() => {
+  removeJitsiWatermark();
+});
+
+watermarkObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
+
+const originalDispose = jitsiRef.current.dispose.bind(jitsiRef.current);
+
+jitsiRef.current.dispose = () => {
+  watermarkObserver.disconnect();
+  originalDispose();
+};
 
       disposingForRecoveryRef.current = false;
       onApiReadyRef.current?.(jitsiRef.current);
@@ -548,31 +581,6 @@ export function JitsiMeeting({
 
       jitsiRef.current.addEventListener('videoConferenceJoined', (event: any) => {
         console.log('JitsiMeeting: Video conference joined');
-        console.log("=== WATERMARK REMOVAL STARTED ===");
-
-const removeJitsiWatermark = () => {
-  console.log(
-    "Removing watermark...",
-    document.querySelectorAll("a.watermark.leftwatermark").length
-  );
-
-  document
-    .querySelectorAll("a.watermark.leftwatermark, div.watermark.leftwatermark")
-    .forEach((el) => el.remove());
-};    
-
-// Remove immediately
-removeJitsiWatermark();
-
-// Keep removing every 100ms
-const watermarkInterval = window.setInterval(removeJitsiWatermark, 100);
-
-// Stop after 60 seconds
-window.setTimeout(() => {
-  clearInterval(watermarkInterval);
-}, 60000);
-
-        
         joinedOnceRef.current = true;
         intentionalHangupRef.current = false;
         recoveryAttemptRef.current = 0;
