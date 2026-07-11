@@ -207,7 +207,7 @@ export default function RoomPage() {
   }, []);
 
   const persistAIResults = useCallback(
-    async (summaryPayload?: any) => {
+    async (summaryPayload?: any, options?: { generateSummary?: boolean }) => {
       const transcript = getTranscriptSnapshot();
       const summary = summaryPayload || latestSummaryRef.current;
       const speakerLabels = Array.from(speakerLabelsRef.current.values());
@@ -235,6 +235,7 @@ export default function RoomPage() {
             })),
             transcript,
             speakerLabels,
+            generateSummary: Boolean(options?.generateSummary),
           }),
         });
 
@@ -386,6 +387,7 @@ export default function RoomPage() {
             keyDecisions: summary.keyDecisions || [],
             actions: summary.actionItems || summary.actions || [],
             timestamp: summary.timestamp || Date.now(),
+            generateSummary: true,
           };
           latestSummaryRef.current = summaryPayload;
         }
@@ -397,7 +399,7 @@ export default function RoomPage() {
         clearTimeout(livePersistTimerRef.current);
         livePersistTimerRef.current = null;
       }
-      await persistAIResults();
+      await persistAIResults(undefined, { generateSummary: true });
       await clearWhiteboard();
       router.push(fallbackRoute);
     }

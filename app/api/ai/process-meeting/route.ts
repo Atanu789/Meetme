@@ -5,10 +5,11 @@ import Task from '@/models/Task';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getAssemblyAIService, type SpeakerNameMap } from '@/lib/assemblyai';
+import { generateOpenAIMeetingNotes } from '@/lib/openai-meeting-notes';
 
 /**
  * Process meeting recording after it ends
- * Generate summary, key decisions, action items using AssemblyAI
+ * Generate summary, key decisions, action items using OpenAI after transcription
  * POST /api/ai/process-meeting
  */
 export async function POST(request: Request) {
@@ -107,26 +108,46 @@ export async function POST(request: Request) {
       console.warn('Could not fetch speaker labels:', error.message);
     }
 
-    // Generate summary, decisions, action items
+    // Generate summary, decisions, action items from the completed transcript.
     let summary = '';
     let keyNotes = [];
     let keyDecisions = [];
-    let actionItems = [];
+    let actionItems: Array<{ item: string; owner?: string }> = [];
 
     try {
-      const analysisResult = await assemblyai.generateMeetingNotes(
-        finalTranscriptId,
-        speakerNameMap
+      const openAiNotes = await generateOpenAIMeetingNotes(
+        detailedTranscript.map((item: any) => ({
+          text: item.text,
+          timestamp: item.start,
+          speakerId: item.speakerId,
+          speaker: item.speaker,
+        }))
       );
-      summary = analysisResult.summary;
-      keyNotes = analysisResult.keyNotes;
-      keyDecisions = analysisResult.keyDecisions;
-      actionItems = analysisResult.actionItems.map((item: string) => ({
-        item,
-        owner: extractOwner(item),
-      }));
+
+      if (openAiNotes) {
+        summary = openAiNotes.summary;
+        keyNotes = openAiNotes.keyNotes;
+        keyDecisions = openAiNotes.keyDecisions;
+        actionItems = openAiNotes.actionItems;
+      }
     } catch (error: any) {
-      console.warn('Could not generate summary:', error.message);
+      console.warn('Could not generate OpenAI summary:', error.message);
+
+      try {
+        const fallbackResult = await assemblyai.generateMeetingNotes(
+          finalTranscriptId,
+          speakerNameMap
+        );
+        summary = fallbackResult.summary;
+        keyNotes = fallbackResult.keyNotes;
+        keyDecisions = fallbackResult.keyDecisions;
+        actionItems = fallbackResult.actionItems.map((item: string) => ({
+          item,
+          owner: extractOwner(item),
+        }));
+      } catch (fallbackError: any) {
+        console.warn('Could not generate fallback summary:', fallbackError.message);
+      }
     }
 
     // Update meeting with AI results
@@ -143,13 +164,8 @@ export async function POST(request: Request) {
     // Best-effort: persist action items as tasks so they appear in Task Workspace
     try {
       for (const ai of actionItems) {
-        let title = '';
-        let ownerName = '';
-        if (typeof ai === 'string') title = ai;
-        else if (ai && typeof ai === 'object') {
-          title = ai.item || ai.text || ai.title || JSON.stringify(ai);
-          ownerName = ai.owner || ai.assignee || ai.assignedTo || '';
-        }
+        const title = String(ai.item || '').trim();
+        const ownerName = String(ai.owner || '').trim();
         if (!title) continue;
         // create task; ownerEmail left null (best-effort assignment)
         await Task.create({ meetingId: meetingId, title, ownerName });

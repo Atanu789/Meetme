@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAssemblyAIService } from '@/lib/assemblyai';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Check transcription status
  * GET /api/ai/transcript-status?transcriptId=xxx

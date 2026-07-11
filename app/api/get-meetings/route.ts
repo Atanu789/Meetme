@@ -4,6 +4,8 @@ import Meeting from '../../../models/Meeting';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

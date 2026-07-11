@@ -1,6 +1,8 @@
 import { auth } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/recording/status?roomName=xxx
  * Get Jibri recording status for a Jitsi room

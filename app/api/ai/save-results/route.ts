@@ -4,6 +4,7 @@ import Meeting from '@/models/Meeting';
 import Task from '@/models/Task';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { generateOpenAIMeetingNotes } from '@/lib/openai-meeting-notes';
 
 type TranscriptInput = {
   text?: unknown;
@@ -69,10 +70,10 @@ export async function POST(request: Request) {
 
     const transcript = normalizeTranscript(body?.transcript);
     const speakerLabels = normalizeSpeakerLabels(body?.speakerLabels, transcript);
-    const actionItems = normalizeActionItems(body?.actionItems || body?.actions);
-    const keyNotes = normalizeStringArray(body?.keyNotes || body?.key_notes);
-    const keyDecisions = normalizeStringArray(body?.keyDecisions || body?.key_decisions);
-    const summary = String(body?.summary || body?.text || '').trim();
+    let actionItems = normalizeActionItems(body?.actionItems || body?.actions);
+    let keyNotes = normalizeStringArray(body?.keyNotes || body?.key_notes);
+    let keyDecisions = normalizeStringArray(body?.keyDecisions || body?.key_decisions);
+    let summary = String(body?.summary || body?.text || '').trim();
 
     if (transcript.length > 0) {
       meeting.transcript = mergeTranscript(meeting.transcript || [], transcript);
@@ -80,6 +81,20 @@ export async function POST(request: Request) {
 
     if (speakerLabels.length > 0) {
       meeting.speakerLabels = mergeSpeakerLabels(meeting.speakerLabels || [], speakerLabels);
+    }
+
+    if (body?.generateSummary === true && Array.isArray(meeting.transcript) && meeting.transcript.length > 0) {
+      try {
+        const openAiNotes = await generateOpenAIMeetingNotes(meeting.transcript);
+        if (openAiNotes?.summary) {
+          summary = openAiNotes.summary;
+          keyNotes = openAiNotes.keyNotes;
+          keyDecisions = openAiNotes.keyDecisions;
+          actionItems = openAiNotes.actionItems;
+        }
+      } catch (error: any) {
+        console.warn('[AI save] OpenAI meeting summary failed:', error?.message || error);
+      }
     }
 
     if (summary) {
@@ -164,7 +179,7 @@ function normalizeSpeakerLabels(value: unknown, transcript: ReturnType<typeof no
   return Array.from(speakers.values());
 }
 
-function normalizeActionItems(value: unknown) {
+function normalizeActionItems(value: unknown): Array<{ item: string; owner?: string }> {
   if (!Array.isArray(value)) return [];
 
   return value
