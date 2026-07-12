@@ -220,11 +220,12 @@ export function Navbar() {
                   speakerId={captionSpeakerId}
                 />
                 <button
+                  type="button"
                   onClick={() => {
                     if (isRecording) {
-                      stopRecording(roomMeetingId);
+                      void stopRecording(roomMeetingId);
                     } else {
-                      startRecording(roomMeetingId);
+                      void startRecording(roomMeetingId);
                     }
                   }}
                   disabled={recordingLoading}

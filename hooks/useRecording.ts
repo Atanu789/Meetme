@@ -96,27 +96,25 @@ function downloadBlob(blob: Blob, fileName: string) {
 }
 
 async function requestDisplayStream(profile: RecordingProfile) {
-  const constrainedOptions = {
-    video: {
-      width: { ideal: profile.width },
-      height: { ideal: profile.height },
-      frameRate: { ideal: 30, max: 30 },
-    },
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video: true,
     audio: true,
-  } as DisplayMediaStreamOptions;
+  });
 
-  try {
-    return await navigator.mediaDevices.getDisplayMedia(constrainedOptions);
-  } catch (error) {
-    if (error instanceof DOMException && error.name === 'NotAllowedError') {
-      throw error;
+  const [videoTrack] = stream.getVideoTracks();
+  if (videoTrack?.applyConstraints) {
+    try {
+      await videoTrack.applyConstraints({
+        width: { ideal: profile.width },
+        height: { ideal: profile.height },
+        frameRate: { ideal: 30, max: 30 },
+      });
+    } catch {
+      // Keep the browser-approved capture if quality constraints cannot be applied.
     }
-
-    return navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: true,
-    });
   }
+
+  return stream;
 }
 
 function createMediaRecorder(stream: MediaStream) {
@@ -354,11 +352,7 @@ export function useRecording(roomName: string): UseRecordingReturn {
         return;
       }
 
-      setState((prev) => ({ ...prev, loading: true, error: null }));
-
       try {
-        await postLocalRecording(resolvedRoom, 'check');
-
         const acceptedWarning = window.confirm([
           'Recording is saved only after you click Stop Recording.',
           '',
@@ -376,6 +370,11 @@ export function useRecording(roomName: string): UseRecordingReturn {
 
         const preferredProfile = getSupportedProfiles()[0] || RECORDING_PROFILES[1];
         const displayStream = await requestDisplayStream(preferredProfile);
+        displayStreamRef.current = displayStream;
+
+        setState((prev) => ({ ...prev, loading: true, error: null }));
+
+        await postLocalRecording(resolvedRoom, 'check');
 
         let microphoneStream: MediaStream | null = null;
         try {
@@ -418,7 +417,6 @@ export function useRecording(roomName: string): UseRecordingReturn {
         const recordingId = `${sanitizeFilePart(resolvedRoom)}-${Date.now()}`;
 
         chunksRef.current = [];
-        displayStreamRef.current = displayStream;
         microphoneStreamRef.current = microphoneStream;
         mixedStreamRef.current = mixedStream;
         recorderRef.current = recorder;
