@@ -47,6 +47,15 @@ type BrowserSpeechRecognition = EventTarget & {
 
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition;
 
+const RECORDER_MIME_TYPES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+  'audio/mp4',
+];
+const RECORDER_SEGMENT_MS = 3000;
+
 declare global {
   interface Window {
     SpeechRecognition?: BrowserSpeechRecognitionConstructor;
@@ -64,6 +73,8 @@ export function AudioCapture({
   speakerId,
 }: AudioCaptureProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
+  const recorderSegmentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const uploadQueueRef = useRef<Promise<void>>(Promise.resolve());
   const speechRecognitionRef = useRef<BrowserSpeechRecognition | null>(null);
@@ -114,7 +125,7 @@ export function AudioCapture({
     }
   };
 
-  const uploadAudioChunk = async (blob: Blob) => {
+  const uploadAudioChunk = async (blob: Blob, recorderMimeType?: string) => {
     if (blob.size === 0) {
       console.log('[audio] Skipping empty audio chunk');
       return;
@@ -123,9 +134,15 @@ export function AudioCapture({
     uploadQueueRef.current = uploadQueueRef.current
       .catch(() => undefined)
       .then(async () => {
-        console.log('[audio] Uploading audio chunk:', blob.size, 'bytes');
+        const mimeType = recorderMimeType || blob.type || 'audio/webm';
+        const typedBlob = new Blob([blob], {
+          type: mimeType,
+        });
+        const extension = getAudioExtension(mimeType);
+
+        console.log('[audio] Uploading audio chunk:', typedBlob.size, 'bytes', mimeType);
         const formData = new FormData();
-        formData.append('audio', blob);
+        formData.append('audio', typedBlob, `chunk.${extension}`);
         formData.append('meetingId', meetingId);
         formData.append('speakerName', resolvedSpeakerName);
         formData.append('speakerId', resolvedSpeakerId);
@@ -148,6 +165,13 @@ export function AudioCapture({
           console.error('[audio] upload error:', err);
         }
       });
+  };
+
+  const clearRecorderSegmentTimer = () => {
+    if (recorderSegmentTimerRef.current) {
+      clearTimeout(recorderSegmentTimerRef.current);
+      recorderSegmentTimerRef.current = null;
+    }
   };
 
   const startSpeechRecognition = () => {
@@ -231,30 +255,75 @@ export function AudioCapture({
     console.log('[audio] Microphone access granted, stream:', stream);
     streamRef.current = stream;
 
-    const preferredMimeType = 'audio/webm;codecs=opus';
-    const mediaRecorder = new MediaRecorder(
-      stream,
-      MediaRecorder.isTypeSupported(preferredMimeType) ? { mimeType: preferredMimeType } : undefined
-    );
+    startRecorderSegment(stream);
+    console.log('[audio] MediaRecorder fallback started');
+  };
 
+  const startRecorderSegment = (stream: MediaStream) => {
+    if (!shouldKeepListeningRef.current || !stream.active) {
+      return;
+    }
+
+    const mimeType = getSupportedAudioMimeType();
+    const mediaRecorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+    const recorderMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
+
+    recorderChunksRef.current = [];
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size === 0) {
         return;
       }
 
-      console.log('[audio] Got fixed audio chunk:', event.data.size, 'bytes');
-      uploadAudioChunk(event.data);
+      recorderChunksRef.current.push(event.data);
     };
 
-    mediaRecorder.start(3000);
+    mediaRecorder.onstop = () => {
+      clearRecorderSegmentTimer();
+
+      const chunks = recorderChunksRef.current;
+      recorderChunksRef.current = [];
+      mediaRecorderRef.current = null;
+
+      if (chunks.length > 0) {
+        const blob = new Blob(chunks, {
+          type: recorderMimeType,
+        });
+
+        console.log('[audio] Got finalized audio segment:', blob.size, 'bytes');
+        uploadAudioChunk(blob, recorderMimeType);
+      }
+
+      if (shouldKeepListeningRef.current && streamRef.current?.active) {
+        startRecorderSegment(streamRef.current);
+      }
+    };
+
     mediaRecorderRef.current = mediaRecorder;
-    console.log('[audio] MediaRecorder fallback started');
+    mediaRecorder.start();
+
+    recorderSegmentTimerRef.current = setTimeout(() => {
+      if (mediaRecorderRef.current === mediaRecorder && mediaRecorder.state === 'recording') {
+        try {
+          mediaRecorder.stop();
+        } catch (err) {
+          console.warn('[audio] failed to stop recorder segment:', err);
+        }
+      }
+    }, RECORDER_SEGMENT_MS);
   };
 
   const stopRecorderFallback = () => {
+    clearRecorderSegmentTimer();
+
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.requestData();
-      mediaRecorderRef.current.stop();
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        mediaRecorderRef.current = null;
+      }
+    } else {
       mediaRecorderRef.current = null;
     }
 
@@ -349,6 +418,28 @@ export function AudioCapture({
       )}
     </div>
   );
+}
+
+function getSupportedAudioMimeType() {
+  if (typeof MediaRecorder === 'undefined') {
+    return '';
+  }
+
+  return RECORDER_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function getAudioExtension(mimeType: string) {
+  const normalizedMimeType = mimeType.toLowerCase();
+
+  if (normalizedMimeType.includes('ogg')) {
+    return 'ogg';
+  }
+
+  if (normalizedMimeType.includes('mp4')) {
+    return 'mp4';
+  }
+
+  return 'webm';
 }
 
 function normalizeSpeakerName(value?: string) {

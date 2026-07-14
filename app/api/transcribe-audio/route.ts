@@ -15,14 +15,20 @@ type AssemblyAITranscript = {
   utterances?: AssemblyAIUtterance[];
 };
 
-async function uploadToAssemblyAI(buffer: Buffer): Promise<string> {
+async function uploadToAssemblyAI(audioFile: File): Promise<string> {
+  const headers: Record<string, string> = {
+    authorization: ASSEMBLYAI_API_KEY,
+  };
+  const contentType = resolveAudioContentType(audioFile);
+
+  if (contentType) {
+    headers['content-type'] = contentType;
+  }
+
   const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
     method: 'POST',
-    headers: {
-      authorization: ASSEMBLYAI_API_KEY,
-      'content-type': 'application/octet-stream',
-    },
-    body: new Uint8Array(buffer),
+    headers,
+    body: audioFile,
   });
 
   if (!uploadResponse.ok) {
@@ -159,7 +165,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ silence: true });
     }
 
-    const audioUrl = await uploadToAssemblyAI(buffer);
+    const audioUrl = await uploadToAssemblyAI(audioFile);
     const transcript = await transcribeAudio(audioUrl);
     const segments = extractCaptionSegments(
       transcript,
@@ -183,6 +189,30 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function resolveAudioContentType(audioFile: File) {
+  const fileType = String(audioFile.type || '').trim();
+
+  if (fileType) {
+    return fileType;
+  }
+
+  const fileName = String(audioFile.name || '').toLowerCase();
+
+  if (fileName.endsWith('.ogg')) {
+    return 'audio/ogg';
+  }
+
+  if (fileName.endsWith('.mp4')) {
+    return 'audio/mp4';
+  }
+
+  if (fileName.endsWith('.webm')) {
+    return 'audio/webm';
+  }
+
+  return '';
 }
 
 function cleanSpeakerName(value?: string | null) {
