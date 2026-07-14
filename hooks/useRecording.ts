@@ -13,62 +13,97 @@ export interface RecordingState {
 
 export interface UseRecordingReturn extends RecordingState {
   startRecording: (roomName: string) => Promise<void>;
-  stopRecording: (roomName: string) => Promise<void>;
+  stopRecording: (roomName?: string) => Promise<void>;
   clearError: () => void;
 }
 
 type RecordingProfile = {
   mimeType: string;
-  extension: 'webm' | 'mp4';
   width: number;
   height: number;
   label: string;
 };
 
+type RecordingFileExtension = 'webm' | 'mp4' | 'ogg' | 'mkv';
+
+const RECORDER_CHUNK_INTERVAL_MS = 1000;
+const STOP_FALLBACK_TIMEOUT_MS = 7000;
+const DEFAULT_RECORDING_MIME_TYPE = 'video/webm';
+const MAX_RECORDING_WIDTH = 1920;
+const MAX_RECORDING_HEIGHT = 1080;
+const MAX_RECORDING_FRAME_RATE = 30;
+const HIGH_QUALITY_VIDEO_BITS_PER_SECOND = 8_000_000;
+const HIGH_QUALITY_AUDIO_BITS_PER_SECOND = 192_000;
+
 const RECORDING_PROFILES: RecordingProfile[] = [
   {
     mimeType: 'video/webm;codecs=vp9,opus',
-    extension: 'webm',
-    width: 1920,
-    height: 1080,
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
     label: '1080p VP9',
   },
   {
     mimeType: 'video/webm;codecs=vp8,opus',
-    extension: 'webm',
-    width: 1280,
-    height: 720,
-    label: '720p VP8',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p VP8',
   },
   {
     mimeType: 'video/webm',
-    extension: 'webm',
-    width: 1280,
-    height: 720,
-    label: '720p WebM',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p WebM',
+  },
+  {
+    mimeType: 'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p H.264 Baseline',
   },
   {
     mimeType: 'video/mp4;codecs=h264,aac',
-    extension: 'mp4',
-    width: 1280,
-    height: 720,
-    label: '720p H.264',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p H.264',
   },
   {
     mimeType: 'video/mp4',
-    extension: 'mp4',
-    width: 1280,
-    height: 720,
-    label: '720p MP4',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p MP4',
+  },
+  {
+    mimeType: 'video/ogg;codecs=theora,opus',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p Ogg Theora',
+  },
+  {
+    mimeType: 'video/ogg',
+    width: MAX_RECORDING_WIDTH,
+    height: MAX_RECORDING_HEIGHT,
+    label: '1080p Ogg',
   },
 ];
+
+function isTypeSupported(mimeType: string) {
+  try {
+    return (
+      typeof MediaRecorder !== 'undefined' &&
+      typeof MediaRecorder.isTypeSupported === 'function' &&
+      MediaRecorder.isTypeSupported(mimeType)
+    );
+  } catch {
+    return false;
+  }
+}
 
 function getSupportedProfiles() {
   if (typeof MediaRecorder === 'undefined') {
     return [];
   }
 
-  return RECORDING_PROFILES.filter((profile) => MediaRecorder.isTypeSupported(profile.mimeType));
+  return RECORDING_PROFILES.filter((profile) => isTypeSupported(profile.mimeType));
 }
 
 function sanitizeFilePart(value: string) {
@@ -81,6 +116,13 @@ function sanitizeFilePart(value: string) {
 
 function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
+}
+
+function isCapturePermissionError(error: unknown) {
+  return (
+    error instanceof DOMException &&
+    ['AbortError', 'InvalidStateError', 'NotAllowedError', 'NotFoundError', 'SecurityError'].includes(error.name)
+  );
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -96,10 +138,24 @@ function downloadBlob(blob: Blob, fileName: string) {
 }
 
 async function requestDisplayStream(profile: RecordingProfile) {
-  const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: true,
-    audio: true,
-  });
+  let stream: MediaStream;
+
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+    });
+  } catch (error) {
+    if (isCapturePermissionError(error)) {
+      throw error;
+    }
+
+    // Some browsers reject system-audio capture constraints. Retry with video-only
+    // so recording still works when tab/system audio is unavailable.
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+    });
+  }
 
   const [videoTrack] = stream.getVideoTracks();
   if (videoTrack?.applyConstraints) {
@@ -107,7 +163,10 @@ async function requestDisplayStream(profile: RecordingProfile) {
       await videoTrack.applyConstraints({
         width: { ideal: profile.width },
         height: { ideal: profile.height },
-        frameRate: { ideal: 30, max: 30 },
+        frameRate: {
+          ideal: MAX_RECORDING_FRAME_RATE,
+          max: MAX_RECORDING_FRAME_RATE,
+        },
       });
     } catch {
       // Keep the browser-approved capture if quality constraints cannot be applied.
@@ -122,8 +181,29 @@ function createMediaRecorder(stream: MediaStream) {
 
   for (const profile of supportedProfiles) {
     try {
+      const recorder = new MediaRecorder(stream, {
+        mimeType: profile.mimeType,
+        videoBitsPerSecond: HIGH_QUALITY_VIDEO_BITS_PER_SECOND,
+        audioBitsPerSecond: HIGH_QUALITY_AUDIO_BITS_PER_SECOND,
+      });
+      const mimeType = recorder.mimeType || profile.mimeType;
+
       return {
-        recorder: new MediaRecorder(stream, { mimeType: profile.mimeType }),
+        recorder,
+        mimeType,
+        profile,
+      };
+    } catch {
+      // Some browsers accept a MIME type but reject explicit bitrate options.
+    }
+
+    try {
+      const recorder = new MediaRecorder(stream, { mimeType: profile.mimeType });
+      const mimeType = recorder.mimeType || profile.mimeType;
+
+      return {
+        recorder,
+        mimeType,
         profile,
       };
     } catch {
@@ -131,23 +211,138 @@ function createMediaRecorder(stream: MediaStream) {
     }
   }
 
-  const recorder = new MediaRecorder(stream);
-  const mimeType = recorder.mimeType || 'video/webm';
+  let recorder: MediaRecorder;
+
+  try {
+    recorder = new MediaRecorder(stream, {
+      videoBitsPerSecond: HIGH_QUALITY_VIDEO_BITS_PER_SECOND,
+      audioBitsPerSecond: HIGH_QUALITY_AUDIO_BITS_PER_SECOND,
+    });
+  } catch {
+    recorder = new MediaRecorder(stream);
+  }
+
+  const mimeType = recorder.mimeType || DEFAULT_RECORDING_MIME_TYPE;
 
   return {
     recorder,
+    mimeType,
     profile: {
       mimeType,
-      extension: extensionForMimeType(mimeType),
-      width: 1280,
-      height: 720,
-      label: 'Browser default',
+      width: MAX_RECORDING_WIDTH,
+      height: MAX_RECORDING_HEIGHT,
+      label: 'Browser default 1080p',
     } satisfies RecordingProfile,
   };
 }
 
-function extensionForMimeType(mimeType: string): 'webm' | 'mp4' {
-  return mimeType.toLowerCase().includes('mp4') ? 'mp4' : 'webm';
+function extensionForMimeType(mimeType: string): RecordingFileExtension {
+  const normalizedMimeType = String(mimeType || '').toLowerCase();
+
+  if (normalizedMimeType.includes('mp4') || normalizedMimeType.includes('quicktime')) {
+    return 'mp4';
+  }
+
+  if (normalizedMimeType.includes('ogg')) {
+    return 'ogg';
+  }
+
+  if (normalizedMimeType.includes('matroska') || normalizedMimeType.includes('mkv')) {
+    return 'mkv';
+  }
+
+  return 'webm';
+}
+
+async function requestMicrophoneStream() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return null;
+  }
+
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: false,
+    });
+  } catch {
+    // Microphone permission is optional: keep recording the shared screen.
+    return null;
+  }
+}
+
+function getAudioContextConstructor() {
+  return window.AudioContext || (window as any).webkitAudioContext;
+}
+
+function disconnectAudioNodes(nodes: MediaStreamAudioSourceNode[]) {
+  nodes.forEach((node) => {
+    try {
+      node.disconnect();
+    } catch {
+      // Ignore already-disconnected nodes during browser shutdown races.
+    }
+  });
+}
+
+async function createMixedRecordingStream(
+  displayStream: MediaStream,
+  microphoneStream: MediaStream | null
+) {
+  const videoTracks = displayStream.getVideoTracks();
+  if (videoTracks.length === 0) {
+    throw new Error('No screen video track was captured');
+  }
+
+  const audioStreams = [displayStream, microphoneStream].filter(
+    (stream): stream is MediaStream => Boolean(stream?.getAudioTracks().length)
+  );
+
+  if (audioStreams.length === 0) {
+    return {
+      stream: new MediaStream(videoTracks),
+      audioContext: null as AudioContext | null,
+      sourceNodes: [] as MediaStreamAudioSourceNode[],
+    };
+  }
+
+  const AudioContextCtor = getAudioContextConstructor();
+
+  if (AudioContextCtor) {
+    try {
+      const audioContext = new AudioContextCtor();
+      const destination = audioContext.createMediaStreamDestination();
+      const sourceNodes = audioStreams.map((stream) => {
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(destination);
+        return source;
+      });
+
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume().catch(() => undefined);
+      }
+
+      return {
+        stream: new MediaStream([...videoTracks, ...destination.stream.getAudioTracks()]),
+        audioContext,
+        sourceNodes,
+      };
+    } catch (error) {
+      console.warn('[recording] AudioContext mix failed; falling back to one audio track', error);
+    }
+  }
+
+  // If audio mixing is unavailable, keep one browser-approved audio track.
+  // Multiple direct audio tracks are not consistently encoded by MediaRecorder.
+  const [firstAudioTrack] = audioStreams.flatMap((stream) => stream.getAudioTracks());
+  return {
+    stream: new MediaStream(firstAudioTrack ? [...videoTracks, firstAudioTrack] : videoTracks),
+    audioContext: null as AudioContext | null,
+    sourceNodes: [] as MediaStreamAudioSourceNode[],
+  };
 }
 
 async function postLocalRecording(
@@ -244,18 +439,23 @@ export function useRecording(roomName: string): UseRecordingReturn {
   const microphoneStreamRef = useRef<MediaStream | null>(null);
   const mixedStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceNodesRef = useRef<MediaStreamAudioSourceNode[]>([]);
   const activeRoomRef = useRef(roomName);
   const recordingIdRef = useRef<string | null>(null);
   const recordingStartedAtRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordingFileExtensionRef = useRef<'webm' | 'mp4'>('webm');
-  const recordingMimeTypeRef = useRef('video/webm');
+  const stopFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingFinalizedRef = useRef(false);
+  const recordingMimeTypeRef = useRef(DEFAULT_RECORDING_MIME_TYPE);
 
   useEffect(() => {
     activeRoomRef.current = roomName;
   }, [roomName]);
 
   const cleanupStreams = useCallback(() => {
+    disconnectAudioNodes(audioSourceNodesRef.current);
+    audioSourceNodesRef.current = [];
+
     stopStream(displayStreamRef.current);
     stopStream(microphoneStreamRef.current);
     stopStream(mixedStreamRef.current);
@@ -274,6 +474,13 @@ export function useRecording(roomName: string): UseRecordingReturn {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+  }, []);
+
+  const clearStopFallbackTimer = useCallback(() => {
+    if (stopFallbackTimerRef.current) {
+      clearTimeout(stopFallbackTimerRef.current);
+      stopFallbackTimerRef.current = null;
     }
   }, []);
 
@@ -298,29 +505,108 @@ export function useRecording(roomName: string): UseRecordingReturn {
     timerRef.current = setInterval(updateElapsed, 1000);
   }, [stopTimer]);
 
-  const stopRecording = useCallback(
-    async () => {
-      const recorder = recorderRef.current;
+  const finalizeRecording = useCallback(
+    (meetingId?: string, errorMessage?: string) => {
+      if (recordingFinalizedRef.current) {
+        return;
+      }
 
-      if (!recorder || recorder.state === 'inactive') {
-        cleanupStreams();
-        recorderRef.current = null;
-        recordingIdRef.current = null;
-        setState((prev) => ({
-          ...prev,
-          isRecording: false,
-          recordingId: null,
-          loading: false,
-          elapsedSeconds: 0,
-          elapsedTime: '00:00',
-        }));
+      recordingFinalizedRef.current = true;
+      clearStopFallbackTimer();
+      stopTimer();
+
+      const resolvedRoom = meetingId || activeRoomRef.current;
+      const durationSeconds = Math.max(
+        0,
+        Math.floor((Date.now() - recordingStartedAtRef.current) / 1000)
+      );
+      const recordingDuration = formatDuration(durationSeconds);
+      const recordingDate = formatLocalDate(new Date());
+      const mimeType =
+        recorderRef.current?.mimeType ||
+        recordingMimeTypeRef.current ||
+        chunksRef.current.find((chunk) => chunk.type)?.type ||
+        DEFAULT_RECORDING_MIME_TYPE;
+      const extension = extensionForMimeType(mimeType);
+      const blob = new Blob(chunksRef.current, {
+        type: mimeType,
+      });
+      const fileName = `Melanam-Meeting-${formatLocalDateTimeForFile(new Date())}.${extension}`;
+
+      if (blob.size > 0) {
+        downloadBlob(blob, fileName);
+        void postLocalRecording(resolvedRoom, 'completed', {
+          durationSeconds,
+          recordingDuration,
+          recordingDate,
+        }).catch((error) => {
+          console.warn('[recording] metadata save failed', error);
+        });
+      }
+
+      chunksRef.current = [];
+      recorderRef.current = null;
+      recordingIdRef.current = null;
+      cleanupStreams();
+
+      setState((prev) => ({
+        ...prev,
+        isRecording: false,
+        recordingId: null,
+        loading: false,
+        elapsedSeconds: 0,
+        elapsedTime: '00:00',
+        error: errorMessage || (blob.size > 0 ? null : 'No recording data was captured'),
+      }));
+    },
+    [cleanupStreams, clearStopFallbackTimer, stopTimer]
+  );
+
+  const scheduleStopFallback = useCallback(
+    (meetingId?: string) => {
+      clearStopFallbackTimer();
+      stopFallbackTimerRef.current = setTimeout(() => {
+        stopFallbackTimerRef.current = null;
+        finalizeRecording(meetingId);
+      }, STOP_FALLBACK_TIMEOUT_MS);
+    },
+    [clearStopFallbackTimer, finalizeRecording]
+  );
+
+  const stopRecording = useCallback(
+    async (room?: string) => {
+      const recorder = recorderRef.current;
+      const resolvedRoom = room || activeRoomRef.current;
+
+      if (!recorder) {
+        finalizeRecording(resolvedRoom);
+        return;
+      }
+
+      if (recorder.state === 'inactive') {
+        setState((prev) => ({ ...prev, loading: true, error: null }));
+        scheduleStopFallback(resolvedRoom);
         return;
       }
 
       setState((prev) => ({ ...prev, loading: true, error: null }));
-      recorder.stop();
+
+      try {
+        recorder.requestData();
+      } catch {
+        // Safari and Firefox can reject requestData while the recorder is stopping.
+      }
+
+      scheduleStopFallback(resolvedRoom);
+
+      try {
+        recorder.stop();
+      } catch (error) {
+        console.warn('[recording] stop failed; finalizing available data', error);
+        finalizeRecording(resolvedRoom);
+      }
     },
-    [cleanupStreams]
+    [finalizeRecording, scheduleStopFallback]
   );
 
   const startRecording = useCallback(
@@ -353,22 +639,9 @@ export function useRecording(roomName: string): UseRecordingReturn {
       }
 
       try {
-        const acceptedWarning = window.confirm([
-          'Recording is saved only after you click Stop Recording.',
-          '',
-          'Closing the browser before stopping will lose the recording.',
-        ].join('\n'));
-
-        if (!acceptedWarning) {
-          setState((prev) => ({
-            ...prev,
-            loading: false,
-            error: 'Recording cancelled.',
-          }));
-          return;
-        }
-
-        const preferredProfile = getSupportedProfiles()[0] || RECORDING_PROFILES[1];
+        // Keep getDisplayMedia first in the async path. Safari/Firefox are strict
+        // about transient user activation and can reject capture after awaits/prompts.
+        const preferredProfile = getSupportedProfiles()[0] || RECORDING_PROFILES[0];
         const displayStream = await requestDisplayStream(preferredProfile);
         displayStreamRef.current = displayStream;
 
@@ -376,118 +649,65 @@ export function useRecording(roomName: string): UseRecordingReturn {
 
         await postLocalRecording(resolvedRoom, 'check');
 
-        let microphoneStream: MediaStream | null = null;
+        const microphoneStream = await requestMicrophoneStream();
+        const mixed = await createMixedRecordingStream(displayStream, microphoneStream);
+        let mixedStream = mixed.stream;
+        let recorderSetup: ReturnType<typeof createMediaRecorder>;
+
         try {
-          microphoneStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-            video: false,
-          });
-        } catch {
-          microphoneStream = null;
+          recorderSetup = createMediaRecorder(mixedStream);
+        } catch (error) {
+          if (mixedStream.getAudioTracks().length === 0) {
+            throw error;
+          }
+
+          console.warn('[recording] recorder rejected audio tracks; falling back to video-only', error);
+          mixedStream = new MediaStream(mixedStream.getVideoTracks());
+          recorderSetup = createMediaRecorder(mixedStream);
         }
 
-        const outputTracks = [...displayStream.getVideoTracks()];
-        const audioStreams = [displayStream, microphoneStream].filter(
-          (stream): stream is MediaStream => Boolean(stream?.getAudioTracks().length)
-        );
-
-        const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
-        if (audioStreams.length > 0 && AudioContextCtor) {
-          const audioContext = new AudioContextCtor();
-          const destination = audioContext.createMediaStreamDestination();
-
-          audioStreams.forEach((stream) => {
-            const source = audioContext.createMediaStreamSource(stream);
-            source.connect(destination);
-          });
-
-          outputTracks.push(...destination.stream.getAudioTracks());
-          audioContextRef.current = audioContext;
-        } else {
-          outputTracks.push(...displayStream.getAudioTracks());
-          outputTracks.push(...(microphoneStream?.getAudioTracks() || []));
-        }
-
-        const mixedStream = new MediaStream(outputTracks);
-        const { recorder, profile } = createMediaRecorder(mixedStream);
+        const { recorder, mimeType } = recorderSetup;
         const recordingId = `${sanitizeFilePart(resolvedRoom)}-${Date.now()}`;
 
         chunksRef.current = [];
+        recordingFinalizedRef.current = false;
         microphoneStreamRef.current = microphoneStream;
         mixedStreamRef.current = mixedStream;
+        audioContextRef.current = mixed.audioContext;
+        audioSourceNodesRef.current = mixed.sourceNodes;
         recorderRef.current = recorder;
         recordingIdRef.current = recordingId;
         activeRoomRef.current = resolvedRoom;
-        recordingFileExtensionRef.current = profile.extension;
-        recordingMimeTypeRef.current = recorder.mimeType || profile.mimeType || 'video/webm';
+        recordingMimeTypeRef.current = recorder.mimeType || mimeType || DEFAULT_RECORDING_MIME_TYPE;
 
         recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
+          if (!recordingFinalizedRef.current && event.data.size > 0) {
             chunksRef.current.push(event.data);
           }
         };
 
-        recorder.onerror = () => {
-          setState((prev) => ({
-            ...prev,
-            error: 'Recording failed. Please start a new local recording.',
-            loading: false,
-          }));
+        recorder.onerror = (event) => {
+          console.warn('[recording] recorder error', event);
+          finalizeRecording(resolvedRoom, 'Recording failed. Please start a new local recording.');
         };
 
         recorder.onstop = () => {
-          stopTimer();
-          const durationSeconds = Math.max(
-            0,
-            Math.floor((Date.now() - recordingStartedAtRef.current) / 1000)
-          );
-          const recordingDuration = formatDuration(durationSeconds);
-          const recordingDate = formatLocalDate(new Date());
-          const blob = new Blob(chunksRef.current, {
-            type: recordingMimeTypeRef.current,
-          });
-          const fileName = `Melanam-Meeting-${formatLocalDateTimeForFile(new Date())}.${recordingFileExtensionRef.current}`;
-
-          if (blob.size > 0) {
-            downloadBlob(blob, fileName);
-            void postLocalRecording(resolvedRoom, 'completed', {
-              durationSeconds,
-              recordingDuration,
-              recordingDate,
-            }).catch((error) => {
-              console.warn('[recording] metadata save failed', error);
-            });
-          }
-
-          chunksRef.current = [];
-          cleanupStreams();
-          recorderRef.current = null;
-          recordingIdRef.current = null;
-
-          setState((prev) => ({
-            ...prev,
-            isRecording: false,
-            recordingId: null,
-            loading: false,
-            elapsedSeconds: 0,
-            elapsedTime: '00:00',
-            error: blob.size > 0 ? null : 'No recording data was captured',
-          }));
+          finalizeRecording(resolvedRoom);
         };
 
-        displayStream.getTracks().forEach((track) => {
+        displayStream.getVideoTracks().forEach((track) => {
           track.addEventListener('ended', () => {
-            if (recorderRef.current?.state === 'recording') {
-              void stopRecording();
+            if (recorderRef.current && !recordingFinalizedRef.current) {
+              void stopRecording(resolvedRoom);
             }
           });
         });
 
-        recorder.start();
+        try {
+          recorder.start(RECORDER_CHUNK_INTERVAL_MS);
+        } catch {
+          recorder.start();
+        }
         startTimer();
 
         setState((prev) => ({
@@ -502,6 +722,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
           console.warn('[recording] start metadata failed', error);
         });
       } catch (error) {
+        clearStopFallbackTimer();
+        recordingFinalizedRef.current = true;
         stopTimer();
         cleanupStreams();
         recorderRef.current = null;
@@ -525,19 +747,30 @@ export function useRecording(roomName: string): UseRecordingReturn {
         }));
       }
     },
-    [cleanupStreams, roomName, startTimer, stopRecording, stopTimer]
+    [cleanupStreams, clearStopFallbackTimer, finalizeRecording, roomName, startTimer, stopRecording, stopTimer]
   );
 
   useEffect(() => {
     return () => {
+      clearStopFallbackTimer();
       if (recorderRef.current?.state === 'recording') {
-        recorderRef.current.stop();
+        try {
+          recorderRef.current.requestData();
+        } catch {
+          // Ignore shutdown races while navigating away.
+        }
+
+        try {
+          recorderRef.current.stop();
+        } catch {
+          cleanupStreams();
+        }
       } else {
         cleanupStreams();
       }
       stopTimer();
     };
-  }, [cleanupStreams, stopTimer]);
+  }, [cleanupStreams, clearStopFallbackTimer, stopTimer]);
 
   useEffect(() => {
     if (!state.isRecording) {
