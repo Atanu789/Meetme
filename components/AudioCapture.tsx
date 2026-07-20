@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { resolveMeetingAiHttpUrl } from '@/lib/meeting-ai-client';
 
 interface AudioCaptureProps {
   meetingId: string;
@@ -86,6 +85,18 @@ export function AudioCapture({
   const resolvedSpeakerName = normalizeSpeakerName(speakerName) || 'You';
   const resolvedSpeakerId = normalizeSpeakerId(speakerId || resolvedSpeakerName) || 'local-user';
 
+  const verifyCaptionAccess = async () => {
+    const response = await fetch('/api/captions/publish', {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || 'Upgrade to Pro or Business to start captions');
+    }
+  };
+
   const postLiveCaption = async (text: string, final: boolean) => {
     const normalizedText = text.trim().replace(/\s+/g, ' ');
 
@@ -104,11 +115,12 @@ export function AudioCapture({
     lastCaptionTextRef.current = normalizedText;
 
     try {
-      const baseUrl = resolveMeetingAiHttpUrl();
-      const response = await fetch(`${baseUrl}/api/rooms/${encodeURIComponent(meetingId)}/captions`, {
+      const response = await fetch('/api/captions/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
+          meetingId,
           text: normalizedText,
           speaker: resolvedSpeakerName,
           speakerId: resolvedSpeakerId,
@@ -119,6 +131,12 @@ export function AudioCapture({
 
       if (!response.ok) {
         console.error('[audio] live caption post failed:', response.status, response.statusText);
+        if ([401, 402, 403].includes(response.status)) {
+          const body = await response.json().catch(() => ({}));
+          const message = body.error || 'Upgrade to Pro or Business to continue captions';
+          setError(message);
+          stopListening();
+        }
       }
     } catch (err) {
       console.error('[audio] live caption post error:', err);
@@ -338,6 +356,7 @@ export function AudioCapture({
     try {
       console.log('[audio] Starting live captions');
       setError(null);
+      await verifyCaptionAccess();
       shouldKeepListeningRef.current = true;
       lastCaptionTextRef.current = '';
 

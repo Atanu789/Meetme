@@ -7,12 +7,79 @@ import './globals.css';
 import '@fontsource/orbitron/400.css';
 import '@fontsource/orbitron/500.css';
 import '@fontsource/orbitron/700.css';
+import { absoluteUrl, getPublicSiteUrl, SEO_KEYWORDS, SITE_DESCRIPTION, SITE_NAME } from '../lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Melanam',
-  description: 'Simple, secure video meetings with chat, recording, and private rooms.',
-  keywords: ['video conferencing', 'melanam', 'jitsi', 'meetings', 'chat', 'recording'],
+  metadataBase: new URL(getPublicSiteUrl()),
+  applicationName: SITE_NAME,
+  title: {
+    default: 'Melanam - Video Meetings, LMS, AI Notes, and Recordings',
+    template: '%s | Melanam',
+  },
+  description: SITE_DESCRIPTION,
+  keywords: SEO_KEYWORDS,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: '/',
+    siteName: SITE_NAME,
+    title: 'Melanam - Video Meetings, LMS, AI Notes, and Recordings',
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Melanam - Video Meetings, LMS, AI Notes, and Recordings',
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  category: 'technology',
 };
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: absoluteUrl('/'),
+    logo: absoluteUrl('/icon.svg'),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: absoluteUrl('/'),
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: SITE_NAME,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: absoluteUrl('/'),
+    description: SITE_DESCRIPTION,
+    offers: {
+      '@type': 'AggregateOffer',
+      lowPrice: '0',
+      highPrice: '2999',
+      priceCurrency: 'INR',
+      offerCount: 3,
+      url: absoluteUrl('/pricing'),
+    },
+  },
+];
 
 export default function RootLayout({
   children,
@@ -25,6 +92,10 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+        />
       </head>
       <body>
         <Providers>

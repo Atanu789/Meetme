@@ -427,7 +427,7 @@ export default function HomePage() {
             Premium meeting OS
           </div>
           <h1 className="mt-6 font-display text-4xl font-black tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
-            Meetings, LMS, AI notes, and action follow-up in one smooth workspace.
+            Melanam brings meetings, LMS, AI notes, and action follow-up into one smooth workspace.
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
             Melanam turns live classes and team meetings into saved context: captions, recordings, whiteboards,

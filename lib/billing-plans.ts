@@ -112,7 +112,7 @@ function calculatedTopUpProfit(amountInr: number, credits: number) {
   };
 }
 
-const freeCredits = envNumber('FREE_PLAN_MINUTES', 60);
+const freeCredits = envNumber('FREE_PLAN_MINUTES', 0);
 const proCredits = envNumber('PRO_PLAN_MINUTES', 1800);
 const businessCredits = envNumber('PREMIUM_PLAN_MINUTES', 6000);
 
@@ -133,27 +133,27 @@ export const BILLING_PLANS: BillingPlan[] = [
     storageGb: 1,
     features: {
       rooms: true,
-      captions: true,
+      captions: false,
       aiNotes: false,
       recording: false,
-      files: true,
+      files: false,
       livestream: false,
       whiteboard: true,
       lms: true,
       adminControls: false,
     },
-    highlights: ['Unlimited meeting rooms', '25 people can join each meeting', `${freeCredits} credits included`, 'Basic LMS access'],
+    highlights: ['Unlimited meeting rooms', '25 people can join each meeting', 'Basic LMS access', 'Upgrade for captions, summaries, and files'],
     limits: {
       meetingMinutes: '45 minutes per room',
       monthlyRooms: 'Unlimited rooms',
       participants: '25 participants per meeting',
       seats: '1 workspace seat',
-      credits: `${freeCredits} credits per month`,
-      captions: 'Browser captions only',
+      credits: 'No paid credits included',
+      captions: 'Upgrade for captions',
       summaries: 'Not included',
       recordings: 'Not included',
       storage: '1 GB workspace storage',
-      fileSharing: '100 MB per upload',
+      fileSharing: 'Upgrade for file uploads',
       livestreams: 'Not included',
       whiteboards: '1 board per meeting',
       lms: 'Student and instructor basics',

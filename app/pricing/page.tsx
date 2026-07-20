@@ -59,7 +59,9 @@ const comparisonRows = [
   ['People who can join', '25', '150', '500'],
   ['Workspace seats', '1', '25', '100'],
   ['Max room length', '45 min', '12 hours', '24 hours'],
+  ['Live captions', 'No', 'Yes', 'Team credits'],
   ['AI summaries', 'No', 'Yes', 'Advanced'],
+  ['File uploads', 'No', '1 GB/upload', '5 GB/upload'],
   ['Recording', 'No', 'Local', 'Workspace'],
   ['Livestream', 'No', 'No', 'Yes'],
   ['Admin controls', 'No', 'Basic', 'Full'],
@@ -262,7 +264,7 @@ export default function PricingPage() {
               Melanam pricing
             </div>
             <h1 className="mt-5 max-w-3xl font-display text-4xl font-semibold leading-tight text-slate-950 sm:text-6xl">
-              Choose the plan that keeps every meeting moving.
+              Melanam pricing for meetings that keep moving.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
               Start free, upgrade when AI notes and recordings become daily work, and add credits whenever your team has a busy month.

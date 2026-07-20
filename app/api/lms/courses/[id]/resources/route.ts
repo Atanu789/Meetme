@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { canManageCourse, canViewCourse, getCourseOr404, getLmsContext, json } from '../../../_shared';
 import { LMS_STORAGE_BUCKET, buildLmsStoragePath, getLmsStorageRoot } from '@/lib/lms-storage';
 import { supabaseServer } from '@/lib/supabaseServer';
+import { requireFeatureAccess } from '@/lib/membership';
 
 function getCourseScope(courseId: string) {
   return getLmsStorageRoot('course', courseId);
@@ -58,6 +59,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   if (!canManageCourse(courseResult.course, context)) {
     return json({ error: 'Forbidden' }, 403);
+  }
+
+  if (context.lmsRole !== 'admin') {
+    const membershipCheck = await requireFeatureAccess(context.userEmail, 'files');
+    if (!membershipCheck.ok) {
+      return json(
+        { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+        membershipCheck.status
+      );
+    }
   }
 
   const formData = await req.formData();
