@@ -146,6 +146,7 @@ export function AudioCapture({
         formData.append('meetingId', meetingId);
         formData.append('speakerName', resolvedSpeakerName);
         formData.append('speakerId', resolvedSpeakerId);
+        formData.append('durationSeconds', String(Math.ceil(RECORDER_SEGMENT_MS / 1000)));
 
         try {
           const response = await fetch('/api/transcribe-audio', {

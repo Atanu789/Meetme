@@ -342,6 +342,12 @@ export function Navbar() {
                       >
                         LMS Dashboard
                       </Link>
+                      <Link
+                        href="/pricing"
+                        className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
+                      >
+                        Membership & credits
+                      </Link>
                       {(session?.user as any)?.role === 'admin' && (
                         <Link
                           href="/lms/admin"

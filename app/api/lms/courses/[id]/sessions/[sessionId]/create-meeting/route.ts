@@ -3,6 +3,7 @@ import { getLmsContext, json } from '../../../../../_shared';
 import CourseSession from '@/models/CourseSession';
 import Meeting from '@/models/Meeting';
 import crypto from 'crypto';
+import { checkRoomCreationLimit } from '@/lib/membership';
 
 export async function POST(_: NextRequest, { params }: { params: { id: string; sessionId: string } }) {
   const { context, response } = await getLmsContext();
@@ -23,6 +24,16 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
         return json({ success: true, meetingId: session.meetingId });
       }
 
+      if (context.lmsRole !== 'admin') {
+        const membershipCheck = await checkRoomCreationLimit(context.userEmail);
+        if (!membershipCheck.ok) {
+          return json(
+            { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+            membershipCheck.status
+          );
+        }
+      }
+
       // If the Meeting document is missing (manual sessions), create it using the session's metadata
       const meeting = new Meeting({
         meetingId: session.meetingId,
@@ -41,6 +52,16 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
 
     // Generate a short unique meetingId
     const meetingId = `sess-${crypto.randomBytes(6).toString('hex')}`;
+
+    if (context.lmsRole !== 'admin') {
+      const membershipCheck = await checkRoomCreationLimit(context.userEmail);
+      if (!membershipCheck.ok) {
+        return json(
+          { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+          membershipCheck.status
+        );
+      }
+    }
 
     const meeting = new Meeting({
       meetingId,

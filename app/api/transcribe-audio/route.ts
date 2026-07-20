@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import { requireCredits, requireFeatureAccess } from '@/lib/membership';
 
 const ASSEMBLYAI_API_KEY = process.env.ASSEMBLYAI_API_KEY || process.env.AAI_API_KEY || '';
 const ASSEMBLYAI_TRANSCRIBE_LANGUAGE = process.env.ASSEMBLYAI_TRANSCRIBE_LANGUAGE || process.env.AAI_TRANSCRIBE_LANGUAGE || '';
@@ -149,11 +152,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const session = await getServerSession(authOptions);
+    const userEmail = String(session?.user?.email || '').toLowerCase();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Sign in and select a plan to use server captions' }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     const meetingId = formData.get('meetingId') as string;
     const speakerName = formData.get('speakerName') as string | null;
     const speakerId = formData.get('speakerId') as string | null;
+    const durationSeconds = Math.max(1, Number(formData.get('durationSeconds') || 3));
 
     if (!audioFile || !meetingId) {
       return NextResponse.json({ error: 'Missing audio or meetingId' }, { status: 400 });
@@ -163,6 +173,24 @@ export async function POST(request: NextRequest) {
 
     if (buffer.length < 1000) {
       return NextResponse.json({ silence: true });
+    }
+
+    if ((session.user as any)?.role !== 'admin') {
+      const featureCheck = await requireFeatureAccess(userEmail, 'captions');
+      if (!featureCheck.ok) {
+        return NextResponse.json(
+          { error: featureCheck.error, code: featureCheck.code, membership: featureCheck.membership || null },
+          { status: featureCheck.status }
+        );
+      }
+
+      const creditCheck = await requireCredits(userEmail, Math.max(0.05, Math.round((durationSeconds / 60) * 100) / 100), 'live captions');
+      if (!creditCheck.ok) {
+        return NextResponse.json(
+          { error: creditCheck.error, code: creditCheck.code, membership: creditCheck.membership || null },
+          { status: creditCheck.status }
+        );
+      }
     }
 
     const audioUrl = await uploadToAssemblyAI(audioFile);

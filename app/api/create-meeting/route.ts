@@ -6,11 +6,13 @@ import User from '../../../models/User';
 import Organization from '../../../models/Organization';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
+import { normalizeLmsRole } from '../../../lib/lms-role';
+import { checkRoomCreationLimit } from '../../../lib/membership';
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const userEmail = session?.user?.email;
+    const userEmail = session?.user?.email?.toLowerCase();
 
     if (!userEmail) {
       return NextResponse.json(
@@ -24,6 +26,17 @@ export async function POST(req: NextRequest) {
     // Check if user belongs to an organization and fetch its policies
     let orgPolicies = null;
     const dbUser = await User.findOne({ email: userEmail.toLowerCase() });
+    const role = normalizeLmsRole(String((dbUser as any)?.role || (session.user as any)?.lmsRole || (session.user as any)?.role || ''));
+    if (role !== 'admin') {
+      const membershipCheck = await checkRoomCreationLimit(userEmail);
+      if (!membershipCheck.ok) {
+        return NextResponse.json(
+          { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+          { status: membershipCheck.status }
+        );
+      }
+    }
+
     if (dbUser && dbUser.organizationId) {
       const org = await Organization.findById(dbUser.organizationId);
       if (org) {

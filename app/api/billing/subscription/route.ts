@@ -6,6 +6,8 @@ import { authOptions } from '../../../../lib/auth-options';
 import dbConnect from '../../../../lib/db';
 import User from '../../../../models/User';
 import Subscription from '../../../../models/Subscription';
+import { BILLING_PLAN_MAP, getPlanPrice, type PlanKey } from '../../../../lib/billing-plans';
+import { activateFreeMembership, findMembershipByEmail, getPlanChangeBlock, serializeMembership } from '../../../../lib/membership';
 
 async function requireUserSession() {
   const session = await getServerSession(authOptions);
@@ -29,7 +31,7 @@ export async function GET() {
     }
 
     const subscription = await Subscription.findOne({ userEmail: user.email });
-    return NextResponse.json({ success: true, subscription: subscription || null });
+    return NextResponse.json({ success: true, subscription: serializeMembership(subscription) });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to load subscription' }, { status: 500 });
   }
@@ -43,10 +45,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { plan, billingCycle = 'monthly', amount, currency = 'INR', razorpayOrderId, notes } = body;
+    const { plan, billingCycle = 'monthly', notes } = body;
 
     if (!plan) {
       return NextResponse.json({ error: 'Plan is required' }, { status: 400 });
+    }
+
+    const planKey = String(plan).toLowerCase() as PlanKey;
+    if (!BILLING_PLAN_MAP[planKey]) {
+      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
 
     await dbConnect();
@@ -55,24 +62,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const subscription = await Subscription.findOneAndUpdate(
-      { userEmail: user.email },
-      {
-        userId: user._id.toString(),
-        userEmail: user.email,
-        plan,
-        status: 'pending',
-        billingCycle,
-        amount: amount || 0,
-        currency,
-        razorpayOrderId: razorpayOrderId || '',
-        notes: notes || '',
-        cancelAtPeriodEnd: false,
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    if (planKey !== 'free') {
+      const price = getPlanPrice(planKey, billingCycle);
+      return NextResponse.json(
+        {
+          error: `${BILLING_PLAN_MAP[planKey].title} must be activated through Razorpay checkout.`,
+          checkoutRequired: true,
+          amount: price,
+        },
+        { status: 402 }
+      );
+    }
 
-    return NextResponse.json({ success: true, subscription });
+    const existingMembership = await findMembershipByEmail(user.email);
+    const changeBlock = getPlanChangeBlock(existingMembership, planKey);
+    if (changeBlock) {
+      return NextResponse.json({ error: changeBlock, code: 'DOWNGRADE_BLOCKED' }, { status: 409 });
+    }
+
+    const subscription = await activateFreeMembership(user, notes || 'Free plan selected by user');
+
+    return NextResponse.json({ success: true, subscription: serializeMembership(subscription) });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to update subscription' }, { status: 500 });
   }
@@ -101,7 +111,7 @@ export async function DELETE(req: NextRequest) {
     subscription.notes = 'Canceled by user';
     await subscription.save();
 
-    return NextResponse.json({ success: true, subscription });
+    return NextResponse.json({ success: true, subscription: serializeMembership(subscription) });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to cancel subscription' }, { status: 500 });
   }

@@ -6,6 +6,7 @@ import Meeting from '@/models/Meeting';
 import MeetingActivity from '@/models/MeetingActivity';
 import User from '@/models/User';
 import { getServerSession } from 'next-auth';
+import { requireCredits, requireFeatureAccess } from '@/lib/membership';
 
 const RECORDING_PERMISSION_ERROR = 'Only meeting hosts and instructors can record meetings.';
 
@@ -56,6 +57,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: RECORDING_PERMISSION_ERROR }, { status: 403 });
     }
 
+    if (role !== 'admin') {
+      const membershipCheck = await requireFeatureAccess(userEmail, 'recording');
+      if (!membershipCheck.ok) {
+        return NextResponse.json(
+          { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+          { status: membershipCheck.status }
+        );
+      }
+    }
+
     const recordedBy = resolveDisplayName(dbUser?.name || session.user?.name, userEmail);
 
     if (action === 'check') {
@@ -84,6 +95,16 @@ export async function POST(request: NextRequest) {
     }
 
     const durationSeconds = Math.max(0, Math.floor(Number(body?.durationSeconds || 0)));
+    if (role !== 'admin') {
+      const creditCheck = await requireCredits(userEmail, Math.max(1, Math.ceil(durationSeconds / 60)), 'recording');
+      if (!creditCheck.ok) {
+        return NextResponse.json(
+          { error: creditCheck.error, code: creditCheck.code, membership: creditCheck.membership || null },
+          { status: creditCheck.status }
+        );
+      }
+    }
+
     const recordingDuration = normalizeDurationLabel(body?.recordingDuration, durationSeconds);
     const recordingDate = normalizeRecordingDate(body?.recordingDate);
     const recordingStatus = 'Downloaded';

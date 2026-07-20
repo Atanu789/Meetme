@@ -18,7 +18,21 @@ export default function LmsLandingPage() {
 
     if (status === 'authenticated') {
       const role = normalizeLmsRole((session?.user as any)?.lmsRole || (session?.user as any)?.role);
-      router.push(role === 'student' ? '/lms/student' : role === 'instructor' ? '/lms/instructor' : '/lms/admin');
+      if (role === 'admin') {
+        router.push('/lms/admin');
+        return;
+      }
+
+      void (async () => {
+        const response = await fetch('/api/billing/subscription', { credentials: 'include' });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.subscription?.active) {
+          router.push('/pricing?reason=plan');
+          return;
+        }
+
+        router.push(role === 'student' ? '/lms/student' : '/lms/instructor');
+      })();
     }
   }, [router, session?.user, status]);
 

@@ -1,10 +1,25 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '../../../../lib/supabaseServer'
 import { LMS_STORAGE_BUCKET, buildLmsStoragePath } from '../../../../lib/lms-storage'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../../../../lib/auth-options'
+import { requireFeatureAccess } from '../../../../lib/membership'
+
+const UPLOAD_LIMITS: Record<string, number> = {
+  free: 100 * 1024 * 1024,
+  pro: 1024 * 1024 * 1024,
+  business: 5 * 1024 * 1024 * 1024,
+  enterprise: 10 * 1024 * 1024 * 1024,
+}
 
 export async function POST(req: Request) {
   try {
     console.log('[API/files/upload] Request received')
+    const session = await getServerSession(authOptions)
+    const userEmail = String(session?.user?.email || '').toLowerCase()
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Sign in and select a plan to upload files' }, { status: 401 })
+    }
 
     const formData = await req.formData()
     const scopeType = String(formData.get('scopeType') || 'meeting') === 'course' ? 'course' : 'meeting'
@@ -22,9 +37,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'missing file' }, { status: 400 })
     }
 
-    const MAX_FILE_SIZE = 100 * 1024 * 1024
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'file too large (max 100MB)' }, { status: 413 })
+    const membershipCheck = await requireFeatureAccess(userEmail, 'files')
+    if (!membershipCheck.ok) {
+      return NextResponse.json(
+        { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+        { status: membershipCheck.status }
+      )
+    }
+
+    const maxFileSize = UPLOAD_LIMITS[membershipCheck.subscription.plan] || UPLOAD_LIMITS.free
+    if (file.size > maxFileSize) {
+      return NextResponse.json({ error: `file too large (max ${Math.round(maxFileSize / 1024 / 1024)}MB for this plan)` }, { status: 413 })
     }
 
     const path = buildLmsStoragePath(scopeType, scopeId, file.name)

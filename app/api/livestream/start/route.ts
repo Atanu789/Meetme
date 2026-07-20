@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { requireFeatureAccess } from '@/lib/membership';
 
 interface YoutubeStreamStartRequest {
   roomName: string;
@@ -16,6 +17,20 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userEmail = String(session.user?.email || '').toLowerCase();
+    if (!userEmail) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any)?.role !== 'admin') {
+      const membershipCheck = await requireFeatureAccess(userEmail, 'livestream');
+      if (!membershipCheck.ok) {
+        return NextResponse.json(
+          { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
+          { status: membershipCheck.status }
+        );
+      }
     }
 
     const body: YoutubeStreamStartRequest = await req.json();

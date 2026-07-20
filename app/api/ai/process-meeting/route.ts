@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getAssemblyAIService, type SpeakerNameMap } from '@/lib/assemblyai';
 import { generateOpenAIMeetingNotes } from '@/lib/openai-meeting-notes';
+import { requireCredits, requireFeatureAccess } from '@/lib/membership';
 
 /**
  * Process meeting recording after it ends
@@ -16,6 +17,10 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userEmail = String(session.user.email || '').toLowerCase();
+    if (!userEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -46,6 +51,24 @@ export async function POST(request: Request) {
         { error: 'AI is not enabled for this meeting' },
         { status: 400 }
       );
+    }
+
+    if ((session.user as any)?.role !== 'admin') {
+      const featureCheck = await requireFeatureAccess(userEmail, 'aiNotes');
+      if (!featureCheck.ok) {
+        return NextResponse.json(
+          { error: featureCheck.error, code: featureCheck.code, membership: featureCheck.membership || null },
+          { status: featureCheck.status }
+        );
+      }
+
+      const creditCheck = await requireCredits(userEmail, 10, 'AI meeting notes');
+      if (!creditCheck.ok) {
+        return NextResponse.json(
+          { error: creditCheck.error, code: creditCheck.code, membership: creditCheck.membership || null },
+          { status: creditCheck.status }
+        );
+      }
     }
 
     const assemblyai = getAssemblyAIService();

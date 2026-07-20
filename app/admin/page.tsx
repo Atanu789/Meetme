@@ -714,7 +714,7 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <p className="text-sm text-slate-600">
-                    This table can change plan, billing cycle, amount, status, and cancel subscriptions.
+                    Manage app memberships, activation, cancellation, period extensions, manual Pro or Business grants, extra credits, and credit resets.
                   </p>
                 </div>
                 <AdminSubscriptionTable />

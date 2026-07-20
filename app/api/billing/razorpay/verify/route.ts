@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '../../../../../lib/db';
 import Subscription from '../../../../../models/Subscription';
+import { completeVerifiedPurchase, serializeMembership } from '../../../../../lib/membership';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,34 +13,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing verification payload' }, { status: 400 });
     }
 
+    const secret = process.env.RAZORPAY_KEY_SECRET || '';
+    if (!secret) {
+      return NextResponse.json({ error: 'Razorpay secret is not configured' }, { status: 500 });
+    }
+
     const expected = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .createHmac('sha256', secret)
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)
       .digest('hex');
 
-    if (expected !== razorpaySignature) {
+    const expectedBuffer = Buffer.from(expected);
+    const suppliedBuffer = Buffer.from(String(razorpaySignature));
+    if (expectedBuffer.length !== suppliedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, suppliedBuffer)) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
     await dbConnect();
-    const subscription = await Subscription.findOneAndUpdate(
-      { razorpayOrderId },
-      {
-        razorpayPaymentId,
-        razorpaySignature,
-        status: 'active',
-        cancelAtPeriodEnd: false,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-      { new: true }
-    );
-
+    const subscription = await Subscription.findOne({ razorpayOrderId });
     if (!subscription) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, subscription });
+    const updatedSubscription = await completeVerifiedPurchase(subscription, {
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+    });
+
+    return NextResponse.json({ success: true, subscription: serializeMembership(updatedSubscription) });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Verification failed' }, { status: 500 });
   }

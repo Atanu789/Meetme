@@ -5,6 +5,7 @@ import Task from '@/models/Task';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { generateOpenAIMeetingNotes } from '@/lib/openai-meeting-notes';
+import { requireCredits, requireFeatureAccess } from '@/lib/membership';
 
 type TranscriptInput = {
   text?: unknown;
@@ -85,6 +86,27 @@ export async function POST(request: Request) {
 
     if (body?.generateSummary === true && Array.isArray(meeting.transcript) && meeting.transcript.length > 0) {
       try {
+        const chargeEmail = String(isInternal ? meeting.hostEmail : session?.user?.email || '').toLowerCase();
+        const isAdmin = Boolean((session?.user as any)?.role === 'admin');
+
+        if (!isAdmin) {
+          const featureCheck = await requireFeatureAccess(chargeEmail, 'aiNotes');
+          if (!featureCheck.ok) {
+            return NextResponse.json(
+              { error: featureCheck.error, code: featureCheck.code, membership: featureCheck.membership || null },
+              { status: featureCheck.status }
+            );
+          }
+
+          const creditCheck = await requireCredits(chargeEmail, 5, 'AI meeting summary');
+          if (!creditCheck.ok) {
+            return NextResponse.json(
+              { error: creditCheck.error, code: creditCheck.code, membership: creditCheck.membership || null },
+              { status: creditCheck.status }
+            );
+          }
+        }
+
         const openAiNotes = await generateOpenAIMeetingNotes(meeting.transcript);
         if (openAiNotes?.summary) {
           summary = openAiNotes.summary;
