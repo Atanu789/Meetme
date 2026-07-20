@@ -31,6 +31,7 @@ import {
   type CreditPackKey,
   type PlanKey,
 } from '../../lib/billing-plans';
+import { CometCard } from '../../components/ui/comet-card';
 import { GlowCard } from '../../components/ui/glow-card';
 import { GradientBorderButton, GradientBorderLink } from '../../components/ui/gradient-border-button';
 
@@ -404,73 +405,93 @@ export default function PricingPage() {
         </div>
 
         <div className="grid gap-5 xl:grid-cols-3">
-        {visiblePlans.map((plan) => {
-          const isCurrent = membership?.active && membership.plan === plan.key;
-          const annualSavings = getAnnualSavings(plan.key);
-          const blockedReason = planChangeBlocked(membership, plan.key);
-          const disabled = Boolean(isCurrent || busyKey || blockedReason);
-          return (
-            <GlowCard
-              key={plan.key}
-              className={`flex h-full flex-col p-5 ${plan.recommended ? 'ring-2 ring-cyan-500/30' : ''}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-600">
-                    {plan.badge}
-                  </span>
-                  <h2 className="mt-4 font-display text-2xl font-semibold text-slate-950">{plan.title}</h2>
+          {visiblePlans.map((plan) => {
+            const isCurrent = membership?.active && membership.plan === plan.key;
+            const annualSavings = getAnnualSavings(plan.key);
+            const blockedReason = planChangeBlocked(membership, plan.key);
+            const disabled = Boolean(isCurrent || busyKey || blockedReason);
+
+            return (
+              <CometCard
+                key={plan.key}
+                intensity={plan.recommended ? 'strong' : 'soft'}
+                className={plan.recommended ? 'bg-[linear-gradient(135deg,rgba(6,182,212,0.75),rgba(15,23,42,0.16)_38%,rgba(16,185,129,0.65))]' : ''}
+                innerClassName="p-5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white shadow-sm">
+                      {plan.badge}
+                    </span>
+                    <h2 className="mt-4 font-display text-2xl font-semibold text-slate-950">{plan.title}</h2>
+                  </div>
+                  {plan.recommended ? (
+                    <span className="rounded-lg bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700 ring-1 ring-cyan-500/20">
+                      Best value
+                    </span>
+                  ) : null}
                 </div>
-                {plan.recommended ? (
-                  <span className="rounded-lg bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700 ring-1 ring-cyan-500/20">Best value</span>
-                ) : null}
-              </div>
 
-              <p className="mt-3 min-h-[3rem] text-sm leading-6 text-slate-600">{plan.description}</p>
-              <div className="mt-5">
-                <PlanPrice planKey={plan.key} cycle={cycle} />
-                {cycle === 'annual' && annualSavings > 0 ? (
-                  <p className="mt-2 text-xs font-semibold text-emerald-700">Save {formatInr(annualSavings)} yearly</p>
-                ) : null}
-              </div>
-
-              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Included</p>
-                <div className="mt-3 grid gap-2 text-sm text-slate-700">
-                  <span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-cyan-700" /> {plan.limits.monthlyRooms}</span>
-                  <span className="flex items-center gap-2"><Users className="h-4 w-4 text-cyan-700" /> {plan.limits.participants}</span>
-                  <span className="flex items-center gap-2"><Users className="h-4 w-4 text-cyan-700" /> {plan.limits.seats}</span>
-                  <span className="flex items-center gap-2"><Zap className="h-4 w-4 text-cyan-700" /> {plan.limits.credits}</span>
-                  <span>{plan.limits.meetingMinutes}</span>
+                <p className="mt-3 min-h-[3rem] text-sm leading-6 text-slate-600">{plan.description}</p>
+                <div className="mt-5">
+                  <PlanPrice planKey={plan.key} cycle={cycle} />
+                  {cycle === 'annual' && annualSavings > 0 ? (
+                    <p className="mt-2 text-xs font-semibold text-emerald-700">Save {formatInr(annualSavings)} yearly</p>
+                  ) : null}
                 </div>
-              </div>
 
-              <ul className="mt-5 space-y-2">
-                {plan.highlights.map((highlight) => (
-                  <li key={highlight} className="flex items-start gap-2 text-sm text-slate-600">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                    <span>{highlight}</span>
-                  </li>
-                ))}
-              </ul>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 p-3">
+                    <CalendarDays className="h-4 w-4 text-cyan-700" />
+                    <p className="mt-2 text-xs font-medium text-slate-500">Rooms</p>
+                    <p className="text-sm font-semibold text-slate-950">{plan.limits.monthlyRooms}</p>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+                    <Users className="h-4 w-4 text-emerald-700" />
+                    <p className="mt-2 text-xs font-medium text-slate-500">Participants</p>
+                    <p className="text-sm font-semibold text-slate-950">{plan.limits.participants}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <Users className="h-4 w-4 text-slate-700" />
+                    <p className="mt-2 text-xs font-medium text-slate-500">Seats</p>
+                    <p className="text-sm font-semibold text-slate-950">{plan.limits.seats}</p>
+                  </div>
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
+                    <Zap className="h-4 w-4 text-amber-700" />
+                    <p className="mt-2 text-xs font-medium text-slate-500">Credits</p>
+                    <p className="text-sm font-semibold text-slate-950">{plan.limits.credits}</p>
+                  </div>
+                </div>
 
-              <div className="mt-auto pt-6">
-                <GradientBorderButton
-                  variant={plan.key === 'enterprise' ? 'light' : plan.recommended ? 'create' : 'join'}
-                  onClick={() => selectPlan(plan.key)}
-                  disabled={disabled}
-                  className="w-full justify-center"
-                >
-                  {plan.key === 'enterprise' ? <Infinity className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-                  {isCurrent ? 'Current plan' : blockedReason ? 'Downgrade locked' : busyKey === plan.key ? 'Working...' : plan.key === 'free' ? 'Activate Free' : plan.key === 'enterprise' ? 'Contact Sales' : `Buy ${plan.title}`}
-                </GradientBorderButton>
-                {blockedReason ? (
-                  <p className="mt-3 text-xs leading-5 text-amber-700">{blockedReason}</p>
-                ) : null}
-              </div>
-            </GlowCard>
-          );
-        })}
+                <div className="mt-5 rounded-xl border border-slate-200 bg-white/75 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">You get</p>
+                  <ul className="mt-3 space-y-2">
+                    {[plan.limits.meetingMinutes, ...plan.highlights].map((highlight) => (
+                      <li key={highlight} className="flex items-start gap-2 text-sm text-slate-600">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>{highlight}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-auto pt-6">
+                  <GradientBorderButton
+                    variant={plan.key === 'enterprise' ? 'light' : plan.recommended ? 'create' : 'join'}
+                    onClick={() => selectPlan(plan.key)}
+                    disabled={disabled}
+                    className="w-full justify-center"
+                  >
+                    {plan.key === 'enterprise' ? <Infinity className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+                    {isCurrent ? 'Current plan' : blockedReason ? 'Downgrade locked' : busyKey === plan.key ? 'Working...' : plan.key === 'free' ? 'Activate Free' : plan.key === 'enterprise' ? 'Contact Sales' : `Buy ${plan.title}`}
+                  </GradientBorderButton>
+                  {blockedReason ? (
+                    <p className="mt-3 text-xs leading-5 text-amber-700">{blockedReason}</p>
+                  ) : null}
+                </div>
+              </CometCard>
+            );
+          })}
         </div>
       </section>
 

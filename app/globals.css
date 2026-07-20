@@ -1219,6 +1219,66 @@ a:focus-visible {
   animation: fadeInUp 0.4s ease-out;
 }
 
+@keyframes comet-card-orbit {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(35deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(360%, 390%, 0) rotate(35deg);
+    opacity: 0;
+  }
+}
+
+@keyframes comet-card-core {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(2100%, 2400%, 0);
+    opacity: 0;
+  }
+}
+
+.comet-card__tail {
+  animation: comet-card-orbit 4.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.comet-card__core {
+  animation: comet-card-core 4.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.comet-card:nth-child(2) .comet-card__tail,
+.comet-card:nth-child(2) .comet-card__core {
+  animation-delay: 0.8s;
+}
+
+.comet-card:nth-child(3) .comet-card__tail,
+.comet-card:nth-child(3) .comet-card__core {
+  animation-delay: 1.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comet-card__tail,
+  .comet-card__core {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .page-shell {
     padding: 1rem 0.75rem 3rem;
