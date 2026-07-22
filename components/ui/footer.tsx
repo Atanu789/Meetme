@@ -22,8 +22,8 @@ export function Footer() {
             <ul className="mt-4 space-y-2.5 text-sm">
               <li><Link href="/sign-up" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Create Room</Link></li>
               <li><Link href="#features" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Features</Link></li>
-              <li><Link href="#pricing" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Pricing</Link></li>
-              <li><Link href="/" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Roadmap</Link></li>
+              <li><Link href="/pricing" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Pricing</Link></li>
+              <li><Link href="/roadmap" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Roadmap</Link></li>
             </ul>
           </div>
 
@@ -31,10 +31,10 @@ export function Footer() {
           <div>
             <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-white">Resources</h3>
             <ul className="mt-4 space-y-2.5 text-sm">
-              <li><Link href="/" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Documentation</Link></li>
-              <li><Link href="/" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Security</Link></li>
-              <li><Link href="/" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Status</Link></li>
-              <li><Link href="/" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Help Center</Link></li>
+              <li><Link href="/documentation" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Documentation</Link></li>
+              <li><Link href="/security" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Security</Link></li>
+              <li><Link href="/status" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Status</Link></li>
+              <li><Link href="/help-center" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Help Center</Link></li>
             </ul>
           </div>
 
@@ -57,10 +57,10 @@ export function Footer() {
             © {currentYear} Melanam. All rights reserved.
           </p>
           <div className="mt-4 flex gap-6 text-sm sm:mt-0">
-            <Link href="/" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">
+            <Link href="/privacy-policy" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">
               Privacy
             </Link>
-            <Link href="/" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">
+            <Link href="/terms-and-conditions" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">
               Terms
             </Link>
             <span className="font-display uppercase tracking-[0.15em] text-[11px] text-slate-400 dark:text-white/25">

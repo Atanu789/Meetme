@@ -383,7 +383,7 @@ function HeroPreview() {
 
 function FeatureCard({ icon: Icon, title, desc }: (typeof capabilities)[number]) {
   return (
-    <PremiumCard className="feature-marquee-card group w-[min(25rem,82vw)] shrink-0 p-5">
+    <PremiumCard className="features-card group h-full p-5">
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-emerald-400 text-white shadow-lg shadow-cyan-500/20">
           <Icon className="h-5 w-5" />
@@ -394,26 +394,6 @@ function FeatureCard({ icon: Icon, title, desc }: (typeof capabilities)[number])
         </div>
       </div>
     </PremiumCard>
-  );
-}
-
-function FeatureMarqueeRow({
-  items,
-  reverse = false,
-}: {
-  items: typeof capabilities;
-  reverse?: boolean;
-}) {
-  const repeatedItems = [...items, ...items];
-
-  return (
-    <div className="feature-marquee-mask overflow-hidden py-2">
-      <div className={`feature-marquee-track flex w-max gap-4 ${reverse ? 'feature-marquee-track--reverse' : ''}`}>
-        {repeatedItems.map((item, index) => (
-          <FeatureCard key={`${item.title}-${index}`} {...item} />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -460,9 +440,14 @@ export default function HomePage() {
       </section>
 
       <section id="features" className="mx-auto w-full max-w-[80rem] px-3 pb-12 sm:px-5">
-        <div className="space-y-3">
-          <FeatureMarqueeRow items={capabilities} />
-          <FeatureMarqueeRow items={[...capabilities.slice(3), ...capabilities.slice(0, 3)]} reverse />
+        <div className="mb-6 max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-700">Features</p>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-slate-950">Everything in one meeting workspace.</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {capabilities.map((item) => (
+            <FeatureCard key={item.title} {...item} />
+          ))}
         </div>
       </section>
 

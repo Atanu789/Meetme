@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
+import { AuthHelpButton } from '../../auth-help-button';
 
 type RoleType = 'student' | 'instructor' | 'admin';
 
@@ -97,9 +98,12 @@ export default function Page() {
         <div className="surface-strong rounded-[2.5rem] p-2.5 sm:p-5">
           <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-md sm:p-8 space-y-6">
             
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Sign Up</h2>
-              <p className="text-xs text-slate-500 mt-1">Select account type and get your login link.</p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Sign Up</h2>
+                <p className="text-xs text-slate-500 mt-1">Select account type and get your login link.</p>
+              </div>
+              <AuthHelpButton mode="sign-up" />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">

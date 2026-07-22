@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
+import { AuthHelpButton } from '../../auth-help-button';
 
 export default function Page() {
   const [email, setEmail] = useState('');
@@ -53,6 +54,13 @@ export default function Page() {
         </div>
         <div className="surface-strong rounded-[2rem] p-3 sm:p-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Sign In</h2>
+                <p className="mt-1 text-xs text-slate-500">Use your registered email to receive a magic link.</p>
+              </div>
+              <AuthHelpButton mode="sign-in" />
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <label htmlFor="email" className="block text-sm font-medium text-slate-700">
                 Email address
