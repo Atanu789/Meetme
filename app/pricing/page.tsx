@@ -32,6 +32,7 @@ import {
   type PlanKey,
 } from '../../lib/billing-plans';
 import { CometCard } from '../../components/ui/comet-card';
+import { Footer } from '../../components/ui/footer';
 import { GlowCard } from '../../components/ui/glow-card';
 import { GradientBorderButton, GradientBorderLink } from '../../components/ui/gradient-border-button';
 
@@ -253,6 +254,7 @@ export default function PricingPage() {
   };
 
   return (
+    <>
     <div className="page-shell-wide space-y-8 pb-16">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
 
@@ -565,5 +567,7 @@ export default function PricingPage() {
         </GlowCard>
       </section>
     </div>
+    <Footer />
+    </>
   );
 }

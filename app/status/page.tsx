@@ -5,12 +5,16 @@ export default function StatusPage() {
     <InfoPage
       eyebrow="Status"
       title="Current platform status."
-      description="A simple status page for the core Melanam surfaces while a dedicated public status system is being prepared."
+      description="All listed systems are currently Operational. This page will provide real-time service status in future versions."
       sections={[
-        { title: 'Meetings', body: 'Meeting rooms, invite links, captions, recordings, files, whiteboards, polls, and livestream controls are the core live-session surfaces.' },
-        { title: 'LMS', body: 'Student, instructor, and admin dashboards support course sessions, assignments, resources, and recordings.' },
-        { title: 'Billing', body: 'Pricing, subscriptions, Razorpay orders, verification, and extra credits are available through the membership flow.' },
-        { title: 'Support', body: 'For urgent deployment issues, use the project deployment and troubleshooting guides until a hosted incident page is connected.' },
+        { title: 'Authentication', body: 'Operational' },
+        { title: 'Meetings', body: 'Operational' },
+        { title: 'AI Services', body: 'Operational' },
+        { title: 'File Uploads', body: 'Operational' },
+        { title: 'Whiteboard', body: 'Operational' },
+        { title: 'Recording', body: 'Operational' },
+        { title: 'Notifications', body: 'Operational' },
+        { title: 'Future Status Monitoring', body: 'This page will provide real-time service status in future versions.' },
       ]}
     />
   );

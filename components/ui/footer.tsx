@@ -1,45 +1,63 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 
+const footerSections = [
+  {
+    title: 'Product',
+    links: [
+      { label: 'Create Room', href: '/sign-up' },
+      { label: 'Features', href: '/#features' },
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Roadmap', href: '/roadmap' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About Us', href: '/about' },
+      { label: 'Documentation', href: '/documentation' },
+      { label: 'Help Center', href: '/help-center' },
+      { label: 'Status', href: '/status' },
+    ],
+  },
+  {
+    title: 'Legal',
+    links: [
+      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms', href: '/terms' },
+      { label: 'Security', href: '/security' },
+    ],
+  },
+];
+
 export function Footer() {
-  const currentYear = new Date().getFullYear();
-  
   return (
     <footer className="border-t border-slate-200/80 bg-white/50 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.02]">
-      <div className="mx-auto max-w-[80rem] px-3 pt-12 pb-0 sm:px-5">
-        <div className="grid gap-8 md:grid-cols-3 lg:grid-cols-4">
-          {/* Brand */}
-          <div>
+      <div className="mx-auto max-w-[80rem] px-3 pt-12 sm:px-5">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
+          <div className="lg:col-span-2">
             <div className="font-display text-lg font-bold uppercase tracking-widest text-slate-900 dark:text-white">Melanam</div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-white/45">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-500 dark:text-white/45">
               Secure video rooms with live captions, AI meeting notes, and beautiful follow-ups.
             </p>
           </div>
 
-          {/* Product */}
-          <div>
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-white">Product</h3>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              <li><Link href="/sign-up" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Create Room</Link></li>
-              <li><Link href="#features" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Features</Link></li>
-              <li><Link href="/pricing" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Pricing</Link></li>
-              <li><Link href="/roadmap" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Roadmap</Link></li>
-            </ul>
-          </div>
+          {footerSections.map((section) => (
+            <div key={section.title}>
+              <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-white">{section.title}</h3>
+              <ul className="mt-4 space-y-2.5 text-sm">
+                {section.links.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          {/* Resources */}
-          <div>
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-white">Resources</h3>
-            <ul className="mt-4 space-y-2.5 text-sm">
-              <li><Link href="/documentation" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Documentation</Link></li>
-              <li><Link href="/security" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Security</Link></li>
-              <li><Link href="/status" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Status</Link></li>
-              <li><Link href="/help-center" className="text-slate-600 transition-colors hover:text-slate-900 dark:text-white/50 dark:hover:text-white">Help Center</Link></li>
-            </ul>
-          </div>
-
-          {/* CTA */}
-          <div>
+          <div className="md:col-span-2 lg:col-span-5">
             <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-slate-900 dark:text-white">Get Started</h3>
             <p className="mt-4 text-sm text-slate-600 dark:text-white/45">
               Ready to transform your meetings? Create your first room today.
@@ -51,22 +69,13 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom Section */}
-        <div className="mt-8 flex flex-col border-t border-slate-200/80 pt-8 dark:border-white/[0.08] sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col border-t border-slate-200/80 py-8 dark:border-white/[0.08] sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500 dark:text-white/35">
-            © {currentYear} Melanam. All rights reserved.
+            &copy; 2036 Global Development Networks Ltd. All Rights Reserved.
           </p>
-          <div className="mt-4 flex gap-6 text-sm sm:mt-0">
-            <Link href="/privacy-policy" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">
-              Privacy
-            </Link>
-            <Link href="/terms-and-conditions" className="text-slate-500 transition-colors hover:text-slate-700 dark:text-white/35 dark:hover:text-white/55">
-              Terms
-            </Link>
-            <span className="font-display uppercase tracking-[0.15em] text-[11px] text-slate-400 dark:text-white/25">
-              Private by design
-            </span>
-          </div>
+          <span className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-slate-400 dark:text-white/25 sm:mt-0">
+            Private by design
+          </span>
         </div>
       </div>
     </footer>

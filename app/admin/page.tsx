@@ -61,7 +61,7 @@ interface AdminStats {
 export default function AdminDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'users' | 'meetings' | 'organizations' | 'subscriptions'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'meetings' | 'organizations' | 'subscriptions' | 'danger'>('users');
   
   // Data states
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -85,6 +85,8 @@ export default function AdminDashboard() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [adminAuthorized, setAdminAuthorized] = useState(false);
   const [showOrgModal, setShowOrgModal] = useState(false);
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
   useEffect(() => {
     document.body.classList.add('landing-page');
@@ -335,6 +337,51 @@ export default function AdminDashboard() {
     }
   };
 
+  const closeDeleteAllModal = () => {
+    if (actionLoading === 'delete-all') return;
+    setShowDeleteAllModal(false);
+    setDeleteConfirmation('');
+  };
+
+  const handleDeleteAllData = async () => {
+    if (deleteConfirmation !== 'DELETE') return;
+
+    try {
+      setActionLoading('delete-all');
+      const response = await fetch('/api/admin/delete-all', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete application data');
+
+      setUsers([]);
+      setMeetings([]);
+      setOrganizations([]);
+      setStats({
+        totalUsers: 0,
+        totalMeetings: 0,
+        totalOrganizations: 0,
+        activeMeetings: 0,
+        roles: {
+          admin: 0,
+          enterprise_admin: 0,
+          user: 0,
+        },
+      });
+      setShowDeleteAllModal(false);
+      setDeleteConfirmation('');
+      showToast('All application data deleted successfully');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete application data', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     const s = userSearch.toLowerCase();
     return (
@@ -479,8 +526,17 @@ export default function AdminDashboard() {
             >
               💳 Subscriptions
             </button>
+            <button
+              onClick={() => setActiveTab('danger')}
+              className={`px-6 py-3 text-sm font-semibold transition border-b-2 -mb-[2px] ${
+                activeTab === 'danger'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-transparent text-slate-500 hover:text-red-600'
+              }`}
+            >
+              Danger Zone
+            </button>
           </div>
-
           {/* Tab Contents */}
           <div className="mt-6">
             {activeTab === 'users' && (
@@ -720,6 +776,29 @@ export default function AdminDashboard() {
                 <AdminSubscriptionTable />
               </div>
             )}
+
+            {activeTab === 'danger' && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-700">Destructive action</p>
+                      <h2 className="mt-2 font-display text-2xl font-semibold text-red-950">Delete All Data</h2>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-red-800">
+                        This opens a confirmation modal before any deletion can occur. You must type DELETE exactly to enable the final delete action.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteAllModal(true)}
+                      className="inline-flex w-full items-center justify-center rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 sm:w-auto"
+                    >
+                      Delete All Data
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </motion.section>
@@ -816,6 +895,59 @@ export default function AdminDashboard() {
                 </GradientBorderButton>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Data Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-red-200 bg-white p-6 shadow-2xl">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-700">Danger confirmation</p>
+              <h3 className="mt-2 font-display text-2xl font-semibold text-red-950">
+                Delete All Data
+              </h3>
+              <p className="mt-3 text-sm font-semibold leading-6 text-red-800">
+                This action permanently deletes ALL application data and cannot be undone.
+              </p>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Type DELETE to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                autoComplete="off"
+                className="input-modern w-full border-red-200 focus:border-red-500 focus:ring-red-500"
+                placeholder="DELETE"
+              />
+              <p className="text-xs leading-5 text-slate-500">
+                The delete button remains disabled until the confirmation text exactly matches DELETE.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeDeleteAllModal}
+                disabled={actionLoading === 'delete-all'}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAllData}
+                disabled={deleteConfirmation !== 'DELETE' || actionLoading === 'delete-all'}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300 disabled:shadow-none"
+              >
+                {actionLoading === 'delete-all' ? 'Deleting...' : 'Delete All Data'}
+              </button>
+            </div>
           </div>
         </div>
       )}

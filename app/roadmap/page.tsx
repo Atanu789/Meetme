@@ -4,13 +4,15 @@ export default function RoadmapPage() {
   return (
     <InfoPage
       eyebrow="Roadmap"
-      title="What Melanam is building next."
-      description="A practical view of upcoming improvements across meetings, LMS workflows, AI notes, and administration."
+      title="Roadmap."
+      description="Coming Soon. This page previews planned Melanam capabilities while the public roadmap is being prepared."
       sections={[
-        { title: 'Near term', body: 'Better room creation, cleaner post-meeting summaries, and smoother instructor workflows are the current product focus.' },
-        { title: 'Platform', body: 'Subscription management, team administration, and reporting will continue to mature around the existing pricing and LMS foundations.' },
-        { title: 'Learning tools', body: 'Assignments, resources, recordings, polls, and analytics will become more connected across each course session.' },
-        { title: 'Integrations', body: 'The product is being prepared for external documentation, support channels, and operational status visibility.' },
+        {
+          title: 'Planned Features',
+          body: 'The roadmap currently includes the following product areas.',
+          items: ['AI Meeting Assistant', 'API Platform', 'Enterprise Billing', 'Calendar Integrations', 'Team Workspaces', 'Mobile Applications', 'Advanced Analytics', 'AI Agents'],
+        },
+        { title: 'Coming Soon', body: 'Detailed release windows, voting, and public changelog links will be added in future versions.' },
       ]}
     />
   );

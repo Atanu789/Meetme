@@ -4,13 +4,26 @@ export default function SecurityPage() {
   return (
     <InfoPage
       eyebrow="Security"
-      title="Security practices for private learning and meeting spaces."
-      description="Melanam is designed around role-based access, authenticated dashboards, private meeting context, and controlled administrative workflows."
+      title="Security."
+      description="Melanam is designed using a defense-in-depth security model for secure collaboration environments."
       sections={[
-        { title: 'Access control', body: 'User, instructor, and admin experiences are separated so each role sees the workflows and records intended for them.' },
-        { title: 'Meeting privacy', body: 'Rooms, files, whiteboards, recordings, and AI outputs are tied to meeting and workspace context instead of loose public pages.' },
-        { title: 'Billing safety', body: 'Paid plan changes are handled through verified checkout and subscription APIs, with downgrade rules enforced by membership status.' },
-        { title: 'Operational hygiene', body: 'Security documentation and deployment checklists live with the project and should be reviewed before production release.' },
+        {
+          title: 'Security Measures',
+          body: 'Melanam combines transport encryption, media security, authorization, and isolated infrastructure controls.',
+          items: ['TLS 1.2/1.3 encrypted communication', 'WebRTC DTLS-SRTP media encryption', 'Secure WebSocket signaling', 'Passwordless Magic Link authentication', 'Role-Based Access Control (RBAC)', 'Self-hosted conferencing infrastructure', 'Docker container isolation', 'Firewall and reverse proxy protection', 'Secure file authorization', 'Browser permission enforcement', 'Isolated AI processing services'],
+        },
+        {
+          title: 'Continuous Improvement',
+          body: 'Melanam continuously monitors and improves its security posture to maintain a secure collaboration environment.',
+        },
+        {
+          title: 'Administrative Control',
+          body: 'System administrators can manage users, organizations, subscriptions, and meeting records through protected console workflows.',
+        },
+        {
+          title: 'Production Guidance',
+          body: 'Security documentation and deployment checklists should be reviewed before production release and revisited as infrastructure changes.',
+        },
       ]}
     />
   );
