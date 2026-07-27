@@ -50,6 +50,24 @@ export async function DELETE(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const meetingId = searchParams.get('meetingId');
+    const terminateAll = searchParams.get('all') === 'true';
+
+    if (terminateAll) {
+      const body = await req.json().catch(() => null);
+      if (body?.confirmation !== 'TERMINATE') {
+        return NextResponse.json(
+          { error: 'Type TERMINATE to confirm ending all rooms' },
+          { status: 400 },
+        );
+      }
+
+      const result = await Meeting.deleteMany({});
+      return NextResponse.json({
+        success: true,
+        message: `${result.deletedCount} room${result.deletedCount === 1 ? '' : 's'} terminated successfully`,
+        deletedCount: result.deletedCount,
+      });
+    }
 
     if (!meetingId) {
       return NextResponse.json({ error: 'Meeting ID is required' }, { status: 400 });

@@ -86,6 +86,8 @@ export default function AdminDashboard() {
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [showTerminateRoomsModal, setShowTerminateRoomsModal] = useState(false);
+  const [terminateRoomsConfirmation, setTerminateRoomsConfirmation] = useState('');
 
   useEffect(() => {
     void (async () => {
@@ -324,6 +326,41 @@ export default function AdminDashboard() {
       });
     } catch (err: any) {
       showToast(err.message || 'Failed to delete organization', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const closeTerminateRoomsModal = () => {
+    if (actionLoading === 'meetings-terminate-all') return;
+    setShowTerminateRoomsModal(false);
+    setTerminateRoomsConfirmation('');
+  };
+
+  const handleTerminateAllRooms = async () => {
+    if (terminateRoomsConfirmation !== 'TERMINATE') return;
+
+    try {
+      setActionLoading('meetings-terminate-all');
+      const response = await fetch('/api/admin/meetings?all=true', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmation: terminateRoomsConfirmation }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to terminate rooms');
+
+      setMeetings([]);
+      setShowTerminateRoomsModal(false);
+      setTerminateRoomsConfirmation('');
+      showToast(data.message || 'All rooms terminated successfully');
+
+      void fetch('/api/admin/stats', { credentials: 'include' }).then((res) => {
+        if (res.ok) res.json().then((d) => setStats(d.stats));
+      });
+    } catch (err: any) {
+      showToast(err.message || 'Failed to terminate rooms', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -631,9 +668,19 @@ export default function AdminDashboard() {
                     onChange={(e) => setMeetingSearch(e.target.value)}
                     className="input-modern max-w-md w-full"
                   />
-                  <span className="text-sm text-slate-500">
-                    Showing {filteredMeetings.length} of {meetings.length} rooms
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm text-slate-500">
+                      Showing {filteredMeetings.length} of {meetings.length} rooms
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTerminateRoomsModal(true)}
+                      disabled={meetings.length === 0}
+                      className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      Terminate all rooms
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -930,6 +977,53 @@ export default function AdminDashboard() {
                 className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300 disabled:shadow-none"
               >
                 {actionLoading === 'delete-all' ? 'Deleting...' : 'Delete All Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTerminateRoomsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-red-200 bg-white p-6 shadow-2xl">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-700">Room management</p>
+              <h3 className="mt-2 font-display text-2xl font-semibold text-red-950">Terminate all rooms</h3>
+              <p className="mt-3 text-sm font-semibold leading-6 text-red-800">
+                This permanently removes all {meetings.length} room records. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Type TERMINATE to confirm
+              </label>
+              <input
+                type="text"
+                value={terminateRoomsConfirmation}
+                onChange={(e) => setTerminateRoomsConfirmation(e.target.value)}
+                autoComplete="off"
+                className="input-modern w-full border-red-200 focus:border-red-500 focus:ring-red-500"
+                placeholder="TERMINATE"
+              />
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeTerminateRoomsModal}
+                disabled={actionLoading === 'meetings-terminate-all'}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTerminateAllRooms}
+                disabled={terminateRoomsConfirmation !== 'TERMINATE' || actionLoading === 'meetings-terminate-all'}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300 disabled:shadow-none"
+              >
+                {actionLoading === 'meetings-terminate-all' ? 'Terminating...' : 'Terminate all rooms'}
               </button>
             </div>
           </div>

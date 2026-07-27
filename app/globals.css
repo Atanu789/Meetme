@@ -445,14 +445,54 @@ nav [class*='backdrop-'] {
 .landing-metric,
 .landing-capability,
 .landing-workflow-step {
-  transition: background-color 180ms ease, transform 180ms ease, border-color 180ms ease;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1), border-color 220ms ease, box-shadow 220ms ease;
 }
 
 .landing-metric:hover,
 .landing-capability:hover,
 .landing-workflow-step:hover {
   background-color: #181c22 !important;
-  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+  transform: translateY(-4px);
+}
+
+.landing-capability svg {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-capability:hover svg {
+  transform: scale(1.12) rotate(-5deg);
+}
+
+@keyframes landing-hover-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+  18% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-command-rail > div,
+  .landing-command-rail svg,
+  .landing-metric,
+  .landing-capability,
+  .landing-workflow-step,
+  .landing-capability svg {
+    transition: none;
+  }
+
+  .landing-command-rail > div:hover::after,
+  .landing-capability:hover::after,
+  .landing-workflow-step:hover::after {
+    animation: none;
+  }
 }
 
 .lms-shell-header {
@@ -632,23 +672,50 @@ nav [class*='backdrop-'] {
 }
 
 .landing-command-rail > div {
+  position: relative;
   display: grid;
   grid-template-columns: 18px minmax(0, auto);
   column-gap: 0.65rem;
   align-items: center;
   min-height: 54px;
   padding: 0.75rem 0.9rem;
+  overflow: hidden;
   background: var(--app-elevated);
-  transition: background-color 160ms ease;
+  transition: background-color 180ms ease, color 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .landing-command-rail > div:hover {
   background: var(--app-raised);
+  transform: translateX(4px);
+}
+
+.landing-command-rail > div::after,
+.landing-capability::after,
+.landing-workflow-step::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(55, 215, 255, 0.1) 50%, transparent 62%);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-110%);
+}
+
+.landing-command-rail > div:hover::after,
+.landing-capability:hover::after,
+.landing-workflow-step:hover::after {
+  animation: landing-hover-sweep 700ms ease-out;
 }
 
 .landing-command-rail svg {
   grid-row: span 2;
   color: var(--app-cyan);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms ease;
+}
+
+.landing-command-rail > div:hover svg {
+  color: #6be3ff;
+  transform: rotate(-8deg) scale(1.12);
 }
 
 .landing-command-rail span {
