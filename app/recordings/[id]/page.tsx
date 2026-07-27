@@ -60,9 +60,9 @@ export default function RecordingPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-8 pt-24 sm:px-6">
-      <div className="mb-5 rounded-2xl border border-white/70 bg-white/80 p-5 shadow-[0_24px_64px_rgba(15,23,42,0.1)] backdrop-blur">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">Meeting Brief</p>
+    <div className="mx-auto w-full max-w-[80rem] px-4 py-8 sm:px-5">
+      <div className="mb-5 border-b border-[#2a3039] pb-5">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-700">Recording and AI insights</p>
         <h1 className="mt-2 font-display text-2xl font-semibold text-slate-950">
           {meeting.title || meeting.meetingId}
         </h1>
@@ -95,7 +95,7 @@ export default function RecordingPage() {
             speakerLabels={meeting.speakerLabels || []}
           />
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="font-display text-lg font-semibold text-slate-950">Participation</h2>
             <div className="mt-3">
               <ParticipationAnalytics meetingId={meeting.meetingId} />
@@ -104,14 +104,14 @@ export default function RecordingPage() {
         </div>
 
         <aside className="space-y-5">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="font-display text-lg font-semibold text-slate-950">Tasks</h2>
             <div className="mt-3">
               <TaskList meetingId={meeting.meetingId} />
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="font-display text-lg font-semibold text-slate-950">Files</h2>
             <div className="mt-3">
               <FileShare meetingId={meeting.meetingId} />

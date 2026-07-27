@@ -1,17 +1,38 @@
-# Melanam Studio Design System
+# Melanam Dark Product System
 
-## Product context
-Melanam is a work-focused video meetings and LMS product. The Studio extension turns a learning source into useful outputs: a concise summary, a structured course, quiz, flashcards, notes, article, key takeaways, or a new AI video brief. The workflow should feel like an operational learning tool, not a marketing page.
+## Product intent
+Melanam is a premium operating environment for live meetings, courses, recordings, AI course design, files, polls, and learning follow-up. It is not a marketing site or an experimental visual demo. Every screen should optimize for orientation, action, and repeated use by instructors, learners, and operations teams.
 
-## Visual rules
-- Retain the project fonts: Segoe UI for UI and Orbitron for compact display headings.
-- Use cloud/white work surfaces, slate content text, cyan for primary action and mint for completion/status. Use amber only for caution.
-- Use flat, dense workspace bands with one clearly framed input/result workspace. Avoid decorative cards inside cards and avoid oversized display type.
-- Use `lucide-react` icons in compact icon buttons. Use semantic progress, tabs, a menu/segmented mode switch, and real error states.
-- Responsive layout: a source panel flows above the result panel on small screens; stable controls and no text clipping.
+## Visual foundation
+- Base: near-black graphite `#0B0D10`, layered surfaces `#12151A` and `#181C22`, quiet borders `#272D36`.
+- Text: primary `#F4F7FA`, secondary `#A7B0BC`, subdued `#747E8C`.
+- Signal: one controlled electric cyan `#37D7FF` for primary actions, focus, and active status. Success is `#49D17D`; caution is `#F2B84B`; danger is `#EF6B73`.
+- Typography: use a clean system UI sans for all body and interface text. Use Orbitron only for the Melanam wordmark and rare compact numeric readouts; never for large decorative headings.
+- Depth: solid surfaces and 1px borders, with restrained shadows only for modal layers. No glassmorphism, no gradients, no blurred coloured halos.
+- Shape: 6px for controls and fields, 8px for panels. Avoid pill-shaped UI except compact status tags and avatars.
 
-## Studio flow
-1. Paste a source or enter a prompt.
-2. Detect/validate YouTube as the first supported provider.
-3. Show ingestion status, then choose or auto-route to an output mode.
-4. Stream a readable result and enable Markdown download where applicable.
+## Layout system
+- Application shell: persistent left sidebar on desktop, compact top bar on small screens. The current section is always obvious.
+- Main workspace: 12-column responsive grid, max width 1440px, 24px desktop gutter, 16px mobile gutter.
+- Page headers: compact title, context, and action row. Do not use hero scale typography on operational screens.
+- Content uses unframed page sections. Panels are reserved for individual tools, forms, data blocks, media, and overlays; never nest panels unnecessarily.
+- Tables, course modules, recordings, and sessions should be scan-friendly rows with stable action columns.
+
+## Interaction system
+- Use Lucide icons in tool buttons, with a tooltip for unfamiliar actions.
+- Primary actions are cyan filled buttons. Secondary actions are quiet bordered buttons. Destructive actions are text or red only when needed.
+- Use tabs for workspace subviews, segmented controls for compact choices, dropdown menus for option sets, checkboxes/toggles for binary values, and date/time fields for scheduling.
+- Motion is functional only: 120-180ms opacity/position transitions for menus, dialogs, and loading states. No auto-playing decorative animation, floating cards, particle fields, equalizers, rays, orbiting shapes, physics demos, or animated landing-page mockups.
+- Respect reduced-motion preferences.
+
+## Screen families
+- Home: dark command center with upcoming session, recent work, quick actions, and only real data surfaces. No marketing hero, no invented lab/demo.
+- LMS: sidebar-led dashboard with a course roster, schedule timeline, assignment queue, and recordings as dense rows.
+- Meeting room: full-bleed video surface with low-profile controls and collapsible right-side panels for chat, files, polls, captions, AI notes, and whiteboard.
+- Course Builder: dark course workspace with a source bar, curriculum tree, save state, and scheduling panel. It should feel like a serious authoring tool.
+- Admin and billing: compact tables, filters, summary metrics, and explicit status, without visual flourish.
+
+## Non-negotiables
+- Preserve every current feature and route, changing only navigation, visual hierarchy, controls, and interaction ergonomics.
+- Do not introduce gradients, SVG illustrations, decorative bokeh/orbs, oversized heroes, card-inside-card layouts, or one-off animated scenes.
+- Maintain strong contrast, clear keyboard focus, responsive layouts, and no text clipping at mobile or desktop widths.

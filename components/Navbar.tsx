@@ -172,28 +172,28 @@ export function Navbar() {
   ];
 
   const navActionButtonClass =
-    'group inline-flex h-9 w-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100/80 px-0 text-sm font-semibold text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition duration-200 lg:w-auto lg:px-3';
+    'inline-flex h-9 w-9 items-center justify-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-0 text-sm font-semibold text-[#f4f7fa] transition-colors hover:bg-[#20252d] lg:w-auto lg:px-3';
   const copyInviteHoverClass =
-    'hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-100 hover:text-sky-950 hover:shadow-[0_14px_30px_rgba(14,165,233,0.2)]';
+    'hover:border-[#37d7ff] hover:text-[#37d7ff]';
   const uploadMediaHoverClass =
-    'hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-100 hover:text-emerald-950 hover:shadow-[0_14px_30px_rgba(16,185,129,0.2)]';
+    'hover:border-[#49d17d] hover:text-[#49d17d]';
   const whiteboardHoverClass =
-    'hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-100 hover:text-amber-950 hover:shadow-[0_14px_30px_rgba(245,158,11,0.22)]';
+    'hover:border-[#f2b84b] hover:text-[#f2b84b]';
   const recordingHoverClass =
-    'hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-100 hover:text-red-950 hover:shadow-[0_14px_30px_rgba(239,68,68,0.2)]';
+    'hover:border-[#ef6b73] hover:text-[#ef6b73]';
   const livestreamHoverClass =
-    'hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:text-rose-950 hover:shadow-[0_14px_30px_rgba(244,63,94,0.2)]';
+    'hover:border-[#ef6b73] hover:text-[#ef6b73]';
 
   return (
-    <nav className="fixed top-3 left-0 right-0 z-50 px-3 sm:px-5">
-      <div className="mx-auto max-w-7xl rounded-2xl border border-white/45 bg-white/42 shadow-[0_22px_70px_rgba(15,23,42,0.18)] backdrop-blur-[45px] supports-[backdrop-filter]:bg-white/42">
-        <div className="flex h-16 items-center justify-between gap-3 px-3 sm:px-5">
+    <nav className="fixed inset-x-0 top-0 z-50 border-b border-[#2a3039] bg-[#0b0d10] px-3 sm:px-5">
+      <div className="mx-auto max-w-[80rem]">
+        <div className="flex h-16 items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-9 sm:w-9">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[#2a3039] bg-[#181c22] text-[#37d7ff] sm:h-9 sm:w-9">
                 <span className="font-display text-base font-semibold">M</span>
               </div>
-              <span className="hidden sm:inline font-display text-xl font-semibold text-slate-950">
+              <span className="hidden font-display text-lg font-semibold text-[#f4f7fa] sm:inline">
                 Melanam
               </span>
             </Link>

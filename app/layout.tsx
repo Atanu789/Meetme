@@ -91,7 +91,7 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="color-scheme" content="light" />
+        <meta name="color-scheme" content="dark" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
@@ -101,7 +101,7 @@ export default function RootLayout({
         <Providers>
           <ThemeInitializer />
           <AppChrome />
-          <main className="app-main pt-16">
+          <main className="app-main">
             {children}
           </main>
         </Providers>

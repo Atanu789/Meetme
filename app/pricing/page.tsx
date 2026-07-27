@@ -419,7 +419,7 @@ export default function PricingPage() {
               <CometCard
                 key={plan.key}
                 intensity={plan.recommended ? 'strong' : 'soft'}
-                className={plan.recommended ? 'bg-[linear-gradient(135deg,rgba(6,182,212,0.75),rgba(15,23,42,0.16)_38%,rgba(16,185,129,0.65))]' : ''}
+                className={plan.recommended ? 'border-[#37d7ff]' : ''}
                 innerClassName="p-5"
               >
                 <div className="flex items-start justify-between gap-3">

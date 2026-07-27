@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import { BackgroundGradientAnimation } from './BackgroundGradientAnimation';
 import { Navbar } from './Navbar';
 
 export function AppChrome() {
@@ -14,11 +13,8 @@ export function AppChrome() {
   }
 
   return (
-    <>
-      <BackgroundGradientAnimation />
-      <Suspense fallback={null}>
-        <Navbar />
-      </Suspense>
-    </>
+    <Suspense fallback={null}>
+      <Navbar />
+    </Suspense>
   );
 }

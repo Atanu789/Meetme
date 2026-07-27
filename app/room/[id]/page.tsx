@@ -517,7 +517,7 @@ export default function RoomPage() {
 
   if (meetingError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="min-h-screen flex items-center justify-center bg-[#0b0d10]">
         <div className="text-center">
           <p className="text-red-400 text-lg mb-2">{meetingError}</p>
           <p className="text-gray-400 text-sm mb-4">
@@ -535,8 +535,8 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[64rem] overflow-hidden px-3 pt-6 text-slate-950 sm:px-5">
-      <div className="relative min-h-[24rem] overflow-hidden rounded-[2rem] bg-slate-950">
+    <div className="mx-auto w-full max-w-[80rem] overflow-hidden px-3 py-6 text-slate-950 sm:px-5">
+      <div className="relative min-h-[24rem] overflow-hidden rounded-lg border border-[#2a3039] bg-slate-950">
         <div
           ref={handleVideoStageRef}
           className="relative h-[min(68dvh,40rem)] min-h-[24rem] w-full overflow-hidden bg-slate-950"

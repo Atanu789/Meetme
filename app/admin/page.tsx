@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
@@ -87,13 +86,6 @@ export default function AdminDashboard() {
   const [showOrgModal, setShowOrgModal] = useState(false);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
-
-  useEffect(() => {
-    document.body.classList.add('landing-page');
-    return () => {
-      document.body.classList.remove('landing-page');
-    };
-  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -427,16 +419,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="page-shell-wide space-y-10 pb-16">
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="relative overflow-hidden rounded-[2.75rem] border border-white/70 bg-white/75 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.12)] backdrop-blur sm:p-10"
-      >
-        {/* Glow gradients background */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(14,165,233,0.15),transparent_45%),radial-gradient(circle_at_86%_24%,rgba(139,92,246,0.12),transparent_42%),radial-gradient(circle_at_68%_82%,rgba(16,185,129,0.12),transparent_46%)]" />
-
-        <div className="relative z-10 space-y-10">
+      <section className="overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a] p-6 sm:p-8">
+        <div className="space-y-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.4em] text-slate-500">
@@ -801,7 +785,7 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
-      </motion.section>
+      </section>
 
       {/* Create Org Modal */}
       {showOrgModal && (

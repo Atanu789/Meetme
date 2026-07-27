@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { Footer } from '../components/ui/footer';
 
 type InfoPageProps = {
@@ -18,43 +18,41 @@ type InfoPageProps = {
 export function InfoPage({ eyebrow, title, description, sections, ctaHref = '/lms', ctaLabel = 'Open workspace' }: InfoPageProps) {
   return (
     <>
-      <div className="page-shell-wide pb-16">
-        <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_24px_80px_rgba(15,23,42,0.12)] backdrop-blur sm:p-10">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-950">
+      <div className="page-shell-wide pb-14">
+        <header className="border-b border-[#2a3039] pb-8">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-[#8f9aa8] hover:text-[#37d7ff]">
             <ArrowLeft className="h-4 w-4" />
-            Back home
+            Back to Melanam
           </Link>
-          <p className="mt-8 text-xs font-bold uppercase tracking-[0.24em] text-cyan-700">{eyebrow}</p>
-          <h1 className="mt-3 max-w-4xl font-display text-4xl font-semibold leading-tight text-slate-950 sm:text-6xl">
-            {title}
-          </h1>
-          <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">{description}</p>
-          <div className="mt-8">
-            <Link
-              href={ctaHref}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-[0_18px_42px_rgba(15,23,42,0.22)] transition hover:-translate-y-0.5"
-            >
-              {ctaLabel}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </section>
+          <p className="mt-10 text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">{eyebrow}</p>
+          <h1 className="mt-3 max-w-4xl font-display text-3xl font-semibold leading-tight text-[#f4f7fa] sm:text-5xl">{title}</h1>
+          <p className="mt-5 max-w-3xl text-base leading-8 text-[#a7b1bc]">{description}</p>
+          <Link href={ctaHref} className="mt-7 inline-flex items-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-4 py-2.5 text-sm font-semibold text-[#f4f7fa] hover:border-[#37d7ff] hover:text-[#37d7ff]">
+            {ctaLabel}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </header>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2">
-          {sections.map((section) => (
-            <article key={section.title} className="rounded-[1.5rem] border border-slate-200 bg-white/75 p-5 shadow-sm backdrop-blur">
-              <h2 className="font-display text-xl font-semibold text-slate-950">{section.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{section.body}</p>
-              {section.items && (
-                <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
-                  {section.items.map((item) => (
-                    <li key={item} className="flex gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+        <section className="mt-8 divide-y divide-[#2a3039] border-y border-[#2a3039]">
+          {sections.map((section, index) => (
+            <article key={section.title} className="grid gap-4 py-7 md:grid-cols-[minmax(160px,0.34fr)_1fr] md:gap-8">
+              <div className="flex items-start gap-3">
+                <span className="pt-0.5 text-xs font-bold text-[#37d7ff]">{String(index + 1).padStart(2, '0')}</span>
+                <h2 className="text-base font-semibold text-[#f4f7fa]">{section.title}</h2>
+              </div>
+              <div>
+                <p className="text-sm leading-7 text-[#a7b1bc]">{section.body}</p>
+                {section.items ? (
+                  <ul className="mt-5 grid gap-2 text-sm leading-6 text-[#c7d0d9] sm:grid-cols-2">
+                    {section.items.map((item) => (
+                      <li key={item} className="flex gap-2">
+                        <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-[#49d17d]" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </article>
           ))}
         </section>
