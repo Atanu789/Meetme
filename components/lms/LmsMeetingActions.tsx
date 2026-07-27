@@ -45,8 +45,8 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
 
   return (
     <>
-      <section className="grid overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a] lg:grid-cols-[0.72fr_1.28fr]">
-        <div className="border-b border-[#2a3039] bg-[#101319] p-5 lg:border-b-0 lg:border-r">
+      <section className="lms-meeting-actions grid overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a] lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="lms-meeting-actions__intro border-b border-[#2a3039] bg-[#101319] p-5 lg:border-b-0 lg:border-r">
           <Video className="h-5 w-5 text-[#37d7ff]" />
           <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#37d7ff]">Meeting hub</p>
           <h3 className="mt-2 font-display text-xl font-semibold text-[#f4f7fa]">Live session controls</h3>
@@ -54,7 +54,7 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
         </div>
         <div className="grid gap-px bg-[#2a3039] sm:grid-cols-3">
           {actions.map(({ title, icon: Icon, button }) => (
-            <div key={title} className="flex min-h-[170px] flex-col justify-between bg-[#12151a] p-5">
+            <div key={title} className="lms-meeting-action flex min-h-[170px] flex-col justify-between bg-[#12151a] p-5">
               <div>
                 <Icon className="h-5 w-5 text-[#37d7ff]" />
                 <h4 className="mt-8 text-sm font-semibold text-[#f4f7fa]">{title}</h4>

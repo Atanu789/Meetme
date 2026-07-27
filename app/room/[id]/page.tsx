@@ -535,7 +535,7 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[80rem] overflow-hidden px-3 py-6 text-slate-950 sm:px-5">
+    <div className="mx-auto w-full max-w-[64rem] overflow-hidden px-3 pt-6 text-slate-950 sm:px-5">
       <div className="relative min-h-[24rem] overflow-hidden rounded-lg border border-[#2a3039] bg-slate-950">
         <div
           ref={handleVideoStageRef}

@@ -29,10 +29,10 @@ const workflow = [
 
 function WorkspacePreview() {
   return (
-    <div className="overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a]">
-      <div className="flex h-12 items-center justify-between border-b border-[#2a3039] px-4">
+    <div className="workspace-preview landing-stage overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a]">
+      <div className="workspace-preview__header flex h-12 items-center justify-between border-b border-[#2a3039] px-4">
         <div className="flex items-center gap-2 text-xs font-semibold text-[#f4f7fa]">
-          <span className="h-2 w-2 rounded-full bg-[#49d17d]" />
+          <span className="workspace-status-dot h-2 w-2 rounded-full bg-[#49d17d]" />
           Live session
         </div>
         <span className="text-xs text-[#8f9aa8]">43:18</span>
@@ -40,13 +40,14 @@ function WorkspacePreview() {
       <div className="grid gap-px bg-[#2a3039] sm:grid-cols-[1.4fr_0.8fr]">
         <div className="grid min-h-[320px] grid-cols-2 gap-px bg-[#2a3039]">
           {['Instructor', 'Student 01', 'Student 02', 'Shared whiteboard'].map((label, index) => (
-            <div key={label} className={`relative flex items-end bg-[#181c22] p-3 ${index === 3 ? 'bg-[#10161a]' : ''}`}>
+            <div key={label} className={`workspace-tile relative flex items-end bg-[#181c22] p-3 ${index === 0 ? 'workspace-tile--active' : ''} ${index === 3 ? 'bg-[#10161a]' : ''}`}>
               {index === 3 ? (
-                <div className="w-full space-y-3 border border-[#2a3039] p-3">
+                <div className="workspace-board relative w-full space-y-3 border border-[#2a3039] p-3">
                   <div className="h-2 w-3/4 bg-[#2a3039]" />
                   <div className="h-2 w-1/2 bg-[#2a3039]" />
                   <div className="h-px w-full bg-[#37d7ff]" />
                   <div className="h-2 w-2/3 bg-[#2a3039]" />
+                  <span className="workspace-board__cursor" />
                 </div>
               ) : (
                 <div className={`absolute inset-0 ${index === 0 ? 'bg-[#19242b]' : index === 1 ? 'bg-[#1b2028]' : 'bg-[#202126]'}`} />
@@ -55,29 +56,29 @@ function WorkspacePreview() {
             </div>
           ))}
         </div>
-        <aside className="bg-[#12151a] p-4">
+        <aside className="workspace-context bg-[#12151a] p-4">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#37d7ff]">Meeting context</p>
           <div className="mt-4 space-y-4">
-            <div>
+            <div className="workspace-context__item">
               <p className="text-xs font-semibold text-[#f4f7fa]">Live captions</p>
               <p className="mt-1 text-xs leading-5 text-[#8f9aa8]">Design review begins with the learning flow.</p>
             </div>
-            <div className="border-t border-[#2a3039] pt-4">
+            <div className="workspace-context__item border-t border-[#2a3039] pt-4">
               <p className="text-xs font-semibold text-[#f4f7fa]">Shared files</p>
               <p className="mt-1 text-xs text-[#8f9aa8]">3 resources available</p>
             </div>
-            <div className="border-t border-[#2a3039] pt-4">
+            <div className="workspace-context__item border-t border-[#2a3039] pt-4">
               <p className="text-xs font-semibold text-[#f4f7fa]">Session notes</p>
               <p className="mt-1 text-xs text-[#8f9aa8]">Summary ready after recording.</p>
             </div>
           </div>
         </aside>
       </div>
-      <div className="flex items-center justify-between border-t border-[#2a3039] px-4 py-3">
+      <div className="workspace-toolbar flex items-center justify-between border-t border-[#2a3039] px-4 py-3">
         <div className="flex gap-2">
-          <span className="h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
-          <span className="h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
-          <span className="h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
+          <span className="workspace-control h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
+          <span className="workspace-control h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
+          <span className="workspace-control h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
         </div>
         <span className="border border-[#ef6b73] px-3 py-1.5 text-xs font-semibold text-[#ef6b73]">End session</span>
       </div>
@@ -87,33 +88,53 @@ function WorkspacePreview() {
 
 export default function HomePage() {
   return (
-    <div className="pb-0 text-[#f4f7fa]">
-      <section className="page-shell-wide grid gap-10 pb-14 pt-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:pt-16">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">Meeting and learning workspace</p>
-          <h1 className="mt-4 max-w-xl font-display text-4xl font-semibold leading-tight sm:text-5xl">
+    <div className="landing-page-new pb-0 text-[#f4f7fa]">
+      <section className="landing-hero page-shell-wide grid gap-10 pb-14 pt-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:pt-16">
+        <div className="landing-copy">
+          <p className="landing-eyebrow text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">Meeting and learning workspace</p>
+          <h1 className="landing-title mt-4 max-w-xl font-display text-4xl font-semibold leading-tight sm:text-5xl">
             Melanam
           </h1>
-          <p className="mt-4 max-w-xl text-lg leading-8 text-[#a7b1bc]">
+          <p className="landing-offer mt-3 max-w-xl text-[24px] font-semibold leading-tight text-[#f4f7fa] sm:text-[30px]">
+            Meet. Teach. Remember.
+          </p>
+          <p className="landing-description mt-4 max-w-xl text-lg leading-8 text-[#a7b1bc]">
             Meetings, learning workflows and AI meeting memory in one controlled workspace.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/sign-up" className="inline-flex items-center gap-2 rounded-md bg-[#37d7ff] px-4 py-2.5 text-sm font-semibold text-[#061014] hover:bg-[#6be3ff]">
+          <div className="landing-command-rail mt-7">
+            <div>
+              <Video className="h-4 w-4" />
+              <span>Meet</span>
+              <small>Rooms, captions and recordings</small>
+            </div>
+            <div>
+              <BookOpen className="h-4 w-4" />
+              <span>Learn</span>
+              <small>Courses, sessions and assignments</small>
+            </div>
+            <div>
+              <Brain className="h-4 w-4" />
+              <span>Remember</span>
+              <small>AI notes, decisions and follow-up</small>
+            </div>
+          </div>
+          <div className="landing-actions mt-7 flex flex-wrap gap-3">
+            <Link href="/sign-up" className="landing-primary-action inline-flex items-center gap-2 rounded-md bg-[#37d7ff] px-4 py-2.5 text-sm font-semibold text-[#061014] hover:bg-[#6be3ff]">
               Get started
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/lms" className="inline-flex items-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-4 py-2.5 text-sm font-semibold text-[#f4f7fa] hover:bg-[#20252d]">
+            <Link href="/lms" className="landing-secondary-action inline-flex items-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-4 py-2.5 text-sm font-semibold text-[#f4f7fa] hover:bg-[#20252d]">
               Open workspace
             </Link>
           </div>
-          <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-4">
+          <dl className="landing-metrics mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-4">
             {[
               ['Rooms', 'Video, captions and recording'],
               ['Courses', 'Sessions and assignments'],
               ['Context', 'AI notes and transcripts'],
               ['Work', 'Files, polls and boards'],
             ].map(([label, value]) => (
-              <div key={label} className="bg-[#12151a] p-3">
+              <div key={label} className="landing-metric bg-[#12151a] p-3">
                 <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d8897]">{label}</dt>
                 <dd className="mt-2 text-xs leading-5 text-[#d8e0e7]">{value}</dd>
               </div>
@@ -123,7 +144,7 @@ export default function HomePage() {
         <WorkspacePreview />
       </section>
 
-      <section id="features" className="border-y border-[#2a3039] bg-[#101216]">
+      <section id="features" className="landing-capabilities border-y border-[#2a3039] bg-[#101216]">
         <div className="page-shell-wide py-12">
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">Capabilities</p>
@@ -131,7 +152,7 @@ export default function HomePage() {
           </div>
           <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-2 lg:grid-cols-3">
             {capabilities.map(({ icon: Icon, title, description }) => (
-              <article key={title} className="bg-[#12151a] p-5">
+              <article key={title} className="landing-capability bg-[#12151a] p-5">
                 <Icon className="h-5 w-5 text-[#37d7ff]" />
                 <h3 className="mt-5 text-sm font-semibold text-[#f4f7fa]">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#a7b1bc]">{description}</p>
@@ -150,7 +171,7 @@ export default function HomePage() {
           </div>
           <ol className="grid gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-2">
             {workflow.map(([number, title, description]) => (
-              <li key={title} className="bg-[#12151a] p-5">
+              <li key={title} className="landing-workflow-step bg-[#12151a] p-5">
                 <span className="text-xs font-bold text-[#37d7ff]">{number}</span>
                 <h3 className="mt-8 text-sm font-semibold">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#a7b1bc]">{description}</p>
