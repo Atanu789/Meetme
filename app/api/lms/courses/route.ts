@@ -77,6 +77,18 @@ export async function POST(req: NextRequest) {
     organizationId: context.organizationId,
     status: body?.status || 'draft',
     enrolledStudents: [],
+    outline: body?.outline && typeof body.outline === 'object'
+      ? {
+          learnerLevel: String(body.outline.learnerLevel || '').trim(),
+          estimatedDuration: String(body.outline.estimatedDuration || '').trim(),
+          learningOutcomes: Array.isArray(body.outline.learningOutcomes) ? body.outline.learningOutcomes.map((item: unknown) => String(item).trim()).filter(Boolean) : [],
+          modules: Array.isArray(body.outline.modules) ? body.outline.modules : [],
+          assessment: String(body.outline.assessment || '').trim(),
+          instructorNotes: String(body.outline.instructorNotes || '').trim(),
+          markdown: String(body.outline.markdown || '').trim(),
+          sourceUrl: String(body.outline.sourceUrl || '').trim(),
+        }
+      : undefined,
   });
 
   await course.save();

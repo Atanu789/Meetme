@@ -7,6 +7,21 @@ export interface ICourseEnrollment {
   enrolledAt: Date;
 }
 
+export interface ICourseOutline {
+  learnerLevel?: string;
+  estimatedDuration?: string;
+  learningOutcomes?: string[];
+  modules?: Array<{
+    title: string;
+    description?: string;
+    lessons?: Array<{ title: string; objective?: string; durationMinutes?: number; notes?: string; exercise?: string }>;
+  }>;
+  assessment?: string;
+  instructorNotes?: string;
+  markdown?: string;
+  sourceUrl?: string;
+}
+
 export interface ICourse extends Document {
   title: string;
   slug: string;
@@ -18,6 +33,7 @@ export interface ICourse extends Document {
   organizationId: string | null;
   status: 'draft' | 'active' | 'archived';
   enrolledStudents: ICourseEnrollment[];
+  outline?: ICourseOutline;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +60,16 @@ const CourseSchema = new Schema<ICourse>(
     organizationId: { type: String, default: null, index: true },
     status: { type: String, enum: ['draft', 'active', 'archived'], default: 'draft' },
     enrolledStudents: { type: [CourseEnrollmentSchema], default: [] },
+    outline: {
+      learnerLevel: { type: String, default: '' },
+      estimatedDuration: { type: String, default: '' },
+      learningOutcomes: { type: [String], default: [] },
+      modules: { type: [Schema.Types.Mixed], default: [] },
+      assessment: { type: String, default: '' },
+      instructorNotes: { type: String, default: '' },
+      markdown: { type: String, default: '' },
+      sourceUrl: { type: String, default: '' },
+    },
   },
   { timestamps: true }
 );

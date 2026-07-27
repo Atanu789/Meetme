@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, PencilLine, Radio, ShieldCheck, Square, Upload, Video } from 'lucide-react';
+import { Copy, PencilLine, Radio, ShieldCheck, Sparkles, Square, Upload, Video } from 'lucide-react';
 import FileShare from './FileShare';
 import { AudioCapture } from './AudioCapture';
 import Whiteboard from './Whiteboard';
@@ -336,6 +336,13 @@ export function Navbar() {
 
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-3 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-52">
+                      <Link
+                        href="/studio"
+                        className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-800"
+                      >
+                        <Sparkles className="h-4 w-4 text-cyan-600" />
+                        Course Builder
+                      </Link>
                       <Link
                         href="/lms"
                         className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"

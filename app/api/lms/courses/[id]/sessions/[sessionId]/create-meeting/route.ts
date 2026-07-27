@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getLmsContext, json } from '../../../../../_shared';
+import { canManageCourse, getCourseOr404, getLmsContext, json } from '../../../../../_shared';
 import CourseSession from '@/models/CourseSession';
 import Meeting from '@/models/Meeting';
 import crypto from 'crypto';
@@ -13,8 +13,10 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
     const session = await CourseSession.findById(params.sessionId);
     if (!session) return json({ error: 'Session not found' }, 404);
 
-    // Only users who can view the course should be able to create the meeting here
-    // (authorization is enforced by getLmsContext upstream in other routes; keep simple)
+    const courseResult = await getCourseOr404(params.id);
+    if (!courseResult.course) return courseResult.response;
+    if (session.courseId !== params.id) return json({ error: 'Session not found' }, 404);
+    if (!canManageCourse(courseResult.course, context)) return json({ error: 'Forbidden' }, 403);
 
     // If session already linked to a Meeting, ensure the Meeting record exists and return it
     if (session.meetingId) {
