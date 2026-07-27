@@ -45,7 +45,7 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
 
   return (
     <>
-      <section className="lms-meeting-actions grid overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a] lg:grid-cols-[0.72fr_1.28fr]">
+      <section id="live-sessions" className="lms-meeting-actions scroll-mt-24 grid overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a] lg:grid-cols-[0.72fr_1.28fr]">
         <div className="lms-meeting-actions__intro border-b border-[#2a3039] bg-[#101319] p-5 lg:border-b-0 lg:border-r">
           <Video className="h-5 w-5 text-[#37d7ff]" />
           <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#37d7ff]">Meeting hub</p>

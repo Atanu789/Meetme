@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { GlowCard } from '@/components/ui/glow-card';
 import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
-import { LmsMeetingActions } from './LmsMeetingActions';
 import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
 
 type StudentDashboardData = {
@@ -16,7 +15,32 @@ type StudentDashboardData = {
   aiMeetings?: any[];
 };
 
-export function StudentLmsDashboard() {
+export type StudentWorkspaceView = 'courses' | 'classes' | 'assignments' | 'recordings' | 'notes';
+
+const workspaceViews: Record<StudentWorkspaceView, { title: string; description: string }> = {
+  courses: {
+    title: 'My courses',
+    description: 'Review the learning tracks you are enrolled in and the material attached to each course.',
+  },
+  classes: {
+    title: 'Upcoming classes',
+    description: 'See scheduled live sessions and join them when the class is ready to begin.',
+  },
+  assignments: {
+    title: 'Assignments',
+    description: 'Review pending course work and submit your response from one focused screen.',
+  },
+  recordings: {
+    title: 'Recordings',
+    description: 'Return to recordings from the courses and live sessions you have attended.',
+  },
+  notes: {
+    title: 'AI meeting notes',
+    description: 'Review meeting briefs, key notes, decisions, actions, and downloadable transcripts.',
+  },
+};
+
+export function StudentLmsDashboard({ view = 'courses' }: { view?: StudentWorkspaceView }) {
   const [dashboard, setDashboard] = useState<StudentDashboardData>({ courses: [], upcomingClasses: [], pendingAssignments: [], recentRecordings: [], submissions: [], aiMeetings: [] });
   const [loading, setLoading] = useState(true);
   const [activeAssignment, setActiveAssignment] = useState<any | null>(null);
@@ -24,6 +48,7 @@ export function StudentLmsDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [loadError, setLoadError] = useState('');
+  const page = workspaceViews[view];
 
   useEffect(() => {
     const load = async () => {
@@ -115,12 +140,12 @@ export function StudentLmsDashboard() {
   if (loading || loadError) {
     return (
       <LmsShell
+        role="student"
         kicker="Student Dashboard"
-        title="My Courses"
-        description="Track your classes, submit work, and jump back into recordings without leaving the Melanam workspace."
+        title={page.title}
+        description={page.description}
         stats={stats}
       >
-        <LmsMeetingActions roleLabel="Student" />
         <GlowCard>
           <div className="flex flex-col gap-2">
             <p className="font-display text-xl font-semibold text-slate-950">
@@ -142,18 +167,16 @@ export function StudentLmsDashboard() {
 
   return (
     <LmsShell
+      role="student"
       kicker="Student Dashboard"
-      title="My Courses"
-      description="Track your classes, submit work, and jump back into recordings without leaving the Melanam workspace."
+      title={page.title}
+      description={page.description}
       stats={stats}
     >
-      <LmsMeetingActions roleLabel="Student" />
-      <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
-
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <GlowCard>
+      <div className="grid gap-6">
+        <GlowCard id="my-courses" className={`scroll-mt-24 ${view === 'courses' ? '' : 'hidden'}`}>
           <h3 className="font-display text-xl font-semibold text-slate-950">My Courses</h3>
           <div className="mt-4 space-y-3">
             {dashboard.courses.map((course) => (
@@ -172,7 +195,7 @@ export function StudentLmsDashboard() {
           </div>
         </GlowCard>
 
-        <GlowCard>
+        <GlowCard id="upcoming-classes" className={`scroll-mt-24 ${view === 'classes' ? '' : 'hidden'}`}>
           <h3 className="font-display text-xl font-semibold text-slate-950">Upcoming Classes</h3>
           <div className="mt-4 space-y-3">
             {dashboard.upcomingClasses.map((session) => (
@@ -194,8 +217,8 @@ export function StudentLmsDashboard() {
         </GlowCard>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <GlowCard>
+      <div className="grid gap-6">
+        <GlowCard id="assignments" className={`scroll-mt-24 ${view === 'assignments' ? '' : 'hidden'}`}>
           <h3 className="font-display text-xl font-semibold text-slate-950">Pending Assignments</h3>
           <div className="mt-4 space-y-3">
             {dashboard.pendingAssignments.map((assignment) => (
@@ -214,7 +237,7 @@ export function StudentLmsDashboard() {
           </div>
         </GlowCard>
 
-        <GlowCard>
+        <GlowCard id="recordings" className={`scroll-mt-24 ${view === 'recordings' ? '' : 'hidden'}`}>
           <h3 className="font-display text-xl font-semibold text-slate-950">Recent Recordings</h3>
           <div className="mt-4 space-y-3">
             {dashboard.recentRecordings.map((recording) => (
@@ -233,7 +256,9 @@ export function StudentLmsDashboard() {
         </GlowCard>
       </div>
 
-      {activeAssignment ? (
+      {view === 'notes' ? <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} /> : null}
+
+      {view === 'assignments' && activeAssignment ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
           <GlowCard className="w-full max-w-2xl">
             <div className="flex items-start justify-between gap-4">

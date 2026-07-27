@@ -1,7 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, CalendarDays, CreditCard, GraduationCap, Sparkles, Video } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import {
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  FolderOpen,
+  GraduationCap,
+  Sparkles,
+  Users,
+  Video,
+} from 'lucide-react';
 
 export function LmsShell({
   kicker,
@@ -9,22 +19,43 @@ export function LmsShell({
   description,
   children,
   stats,
+  role,
 }: {
   kicker: string;
   title: string;
   description: string;
   children: React.ReactNode;
   stats?: Array<{ label: string; value: string | number; helper?: string }>;
+  role?: 'instructor' | 'student' | 'admin';
 }) {
-  const isInstructor = kicker.toLowerCase().includes('instructor');
-  const primaryRoute = isInstructor ? '/lms/instructor' : '/lms/student';
-  const workspaceLabel = isInstructor ? 'Instructor workspace' : 'Student workspace';
-  const navigation = [
-    { href: primaryRoute, label: isInstructor ? 'Course management' : 'My learning', icon: GraduationCap },
-    { href: '/lms', label: 'Live sessions', icon: Video },
-    ...(isInstructor ? [{ href: '/studio', label: 'Course Builder', icon: BookOpen }] : []),
-    { href: '/pricing', label: 'Membership', icon: CreditCard },
-  ];
+  const pathname = usePathname();
+  const workspaceRole = role || (kicker.toLowerCase().includes('instructor') ? 'instructor' : kicker.toLowerCase().includes('admin') ? 'admin' : 'student');
+  const workspaceLabel = workspaceRole === 'instructor' ? 'Instructor workspace' : workspaceRole === 'admin' ? 'Admin workspace' : 'Student workspace';
+  const navigation = workspaceRole === 'instructor'
+    ? [
+        { href: '/lms', label: 'Meeting hub', icon: Video },
+        { href: '/lms/instructor/course-editor', label: 'Create / edit course', icon: BookOpen },
+        { href: '/lms/instructor', label: 'Course management', icon: GraduationCap },
+        { href: '/lms/instructor/schedule', label: 'Schedule class', icon: CalendarDays },
+        { href: '/lms/instructor/assignments', label: 'Assignments', icon: ClipboardList },
+        { href: '/lms/instructor/students', label: 'Students', icon: Users },
+        { href: '/lms/instructor/resources', label: 'Resources', icon: FolderOpen },
+        { href: '/lms/instructor/course-activity', label: 'Course activity', icon: BookOpen },
+        { href: '/lms/instructor/notes', label: 'AI meeting notes', icon: Sparkles },
+      ]
+    : workspaceRole === 'student'
+      ? [
+          { href: '/lms', label: 'Meeting hub', icon: Video },
+          { href: '/lms/student', label: 'My courses', icon: GraduationCap },
+          { href: '/lms/student/classes', label: 'Upcoming classes', icon: CalendarDays },
+          { href: '/lms/student/assignments', label: 'Assignments', icon: ClipboardList },
+          { href: '/lms/student/recordings', label: 'Recordings', icon: FolderOpen },
+          { href: '/lms/student/notes', label: 'AI meeting notes', icon: Sparkles },
+        ]
+      : [
+          { href: '/lms', label: 'Meeting hub', icon: Video },
+          { href: '/lms/admin', label: 'System console', icon: GraduationCap },
+        ];
 
   return (
     <div className="lms-workspace mx-auto grid w-full max-w-[90rem] gap-6 px-3 py-6 sm:px-5 lg:grid-cols-[15rem_minmax(0,1fr)] lg:py-8">
@@ -34,8 +65,8 @@ export function LmsShell({
           <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d8897]">{workspaceLabel}</span>
         </div>
         <nav className="lms-sidebar__nav" aria-label="Workspace navigation">
-          {navigation.map(({ href, label, icon: Icon }, index) => (
-            <Link key={href} href={href} className={`lms-sidebar__link ${index === 0 ? 'lms-sidebar__link--active' : ''}`}>
+          {navigation.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined} className={`lms-sidebar__link ${pathname === href ? 'lms-sidebar__link--active' : ''}`}>
               <Icon className="h-4 w-4" />
               {label}
             </Link>
@@ -49,8 +80,8 @@ export function LmsShell({
 
       <div className="min-w-0">
         <nav className="lms-mobile-nav mb-5 flex gap-2 overflow-x-auto pb-1 lg:hidden" aria-label="Workspace navigation">
-          {navigation.map(({ href, label, icon: Icon }, index) => (
-            <Link key={href} href={href} className={`lms-mobile-nav__link ${index === 0 ? 'lms-mobile-nav__link--active' : ''}`}>
+          {navigation.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined} className={`lms-mobile-nav__link ${pathname === href ? 'lms-mobile-nav__link--active' : ''}`}>
               <Icon className="h-3.5 w-3.5" />
               {label}
             </Link>

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import FileShare from '@/components/FileShare';
 import { GlowCard } from '@/components/ui/glow-card';
 import { GradientBorderButton } from '@/components/ui/gradient-border-button';
 import { LmsShell } from './LmsShell';
-import { LmsMeetingActions } from './LmsMeetingActions';
 import { AIMeetingNotesPanel } from './AIMeetingNotesPanel';
 
 type InstructorDashboardData = {
@@ -38,7 +38,46 @@ const emptyAssignmentForm = {
   status: 'draft',
 };
 
-export function InstructorLmsDashboard() {
+export type InstructorWorkspaceView = 'course-editor' | 'courses' | 'schedule' | 'assignments' | 'students' | 'resources' | 'activity' | 'notes';
+
+const workspaceViews: Record<InstructorWorkspaceView, { title: string; description: string }> = {
+  'course-editor': {
+    title: 'Create or edit course',
+    description: 'Set course details, status, and learner-facing information in a focused editor.',
+  },
+  courses: {
+    title: 'Course management',
+    description: 'Create, edit, and organize the courses that anchor your learning workspace.',
+  },
+  schedule: {
+    title: 'Schedule class',
+    description: 'Attach a live meeting to a course and give learners a clear session time.',
+  },
+  assignments: {
+    title: 'Assignments',
+    description: 'Create course work, publish it to learners, and open submissions for grading.',
+  },
+  students: {
+    title: 'Student management',
+    description: 'Enroll learners into the active course and keep the roster current.',
+  },
+  resources: {
+    title: 'Course resources',
+    description: 'Manage the files and materials available inside the active course.',
+  },
+  activity: {
+    title: 'Course activity',
+    description: 'Review course recordings and submissions that need instructor feedback.',
+  },
+  notes: {
+    title: 'AI meeting notes',
+    description: 'Review concise meeting briefs, notes, decisions, actions, and transcripts.',
+  },
+};
+
+export function InstructorLmsDashboard({ view = 'courses' }: { view?: InstructorWorkspaceView }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [dashboard, setDashboard] = useState<InstructorDashboardData>({
     courses: [],
     upcomingClasses: [],
@@ -63,6 +102,9 @@ export function InstructorLmsDashboard() {
   const [gradeFeedback, setGradeFeedback] = useState('');
   const [message, setMessage] = useState('');
   const [loadError, setLoadError] = useState('');
+  const page = workspaceViews[view];
+  const courseScopedView = view === 'schedule' || view === 'assignments' || view === 'students' || view === 'resources';
+  const editCourseIdFromUrl = searchParams.get('courseId') || '';
 
   const selectedCourse = dashboard.courses.find((course) => course._id === selectedCourseId) || dashboard.courses[0] || null;
 
@@ -108,6 +150,23 @@ export function InstructorLmsDashboard() {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (view !== 'course-editor' || !editCourseIdFromUrl || editingCourseId === editCourseIdFromUrl) return;
+
+    const course = dashboard.courses.find((item) => item._id === editCourseIdFromUrl);
+    if (!course) return;
+
+    setSelectedCourseId(course._id);
+    setEditingCourseId(course._id);
+    setCourseForm({
+      title: course.title || '',
+      description: course.description || '',
+      slug: course.slug || '',
+      code: course.code || '',
+      status: course.status || 'draft',
+    });
+  }, [dashboard.courses, editCourseIdFromUrl, editingCourseId, view]);
+
   const stats = useMemo(
     () => [
       { label: 'Courses', value: dashboard.courses.length, helper: 'Managed learning spaces' },
@@ -131,7 +190,8 @@ export function InstructorLmsDashboard() {
     setMessage('');
 
     const payload = { ...courseForm };
-    const request = editingCourseId ? fetch(`/api/lms/courses/${editingCourseId}`, {
+    const isEditingCourse = Boolean(editingCourseId);
+    const request = isEditingCourse ? fetch(`/api/lms/courses/${editingCourseId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -148,10 +208,11 @@ export function InstructorLmsDashboard() {
       return;
     }
 
-    setMessage(editingCourseId ? 'Course updated' : 'Course created');
+    setMessage(isEditingCourse ? 'Course updated' : 'Course created');
     setCourseForm(emptyCourseForm);
     setEditingCourseId('');
     await reloadDashboard();
+    if (isEditingCourse) router.replace('/lms/instructor/course-editor');
   };
 
   const handleDeleteCourse = async (courseId: string) => {
@@ -280,18 +341,6 @@ export function InstructorLmsDashboard() {
     await reloadDashboard();
   };
 
-  const handleStartEdit = (course: any) => {
-    setSelectedCourseId(course._id);
-    setEditingCourseId(course._id);
-    setCourseForm({
-      title: course.title || '',
-      description: course.description || '',
-      slug: course.slug || '',
-      code: course.code || '',
-      status: course.status || 'draft',
-    });
-  };
-
   const handleGradeSubmission = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!gradingTarget) return;
@@ -318,12 +367,12 @@ export function InstructorLmsDashboard() {
   if (loading || loadError) {
     return (
       <LmsShell
+        role="instructor"
         kicker="Instructor Dashboard"
-        title="Teaching Command Center"
-        description="Create courses, schedule live classes, enroll students, publish assignments, and review learning activity."
+        title={page.title}
+        description={page.description}
         stats={stats}
       >
-        <LmsMeetingActions roleLabel="Instructor" />
         <GlowCard>
           <div className="flex flex-col gap-2">
             <p className="font-display text-xl font-semibold text-slate-950">
@@ -345,18 +394,33 @@ export function InstructorLmsDashboard() {
 
   return (
     <LmsShell
+      role="instructor"
       kicker="Instructor Dashboard"
-      title="Course Management"
-      description="Create courses, attach live meetings, enroll students, publish assignments, and keep course resources organized by course."
+      title={page.title}
+      description={page.description}
       stats={stats}
     >
-      <LmsMeetingActions roleLabel="Instructor" />
-      <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} />
-
       {message ? <GlowCard><p className="text-sm text-slate-700">{message}</p></GlowCard> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-        <GlowCard>
+      {courseScopedView ? (
+        <GlowCard className="p-4">
+          <label className="block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="active-course">
+            Active course
+          </label>
+          <select
+            id="active-course"
+            className="mt-2 w-full max-w-xl rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+            value={selectedCourse?._id || ''}
+            onChange={(event) => setSelectedCourseId(event.target.value)}
+          >
+            {dashboard.courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
+          </select>
+        </GlowCard>
+      ) : null}
+
+      {view === 'courses' || view === 'course-editor' ? (
+      <div className="grid gap-6">
+        <GlowCard id="course-editor" className={`scroll-mt-24 ${view === 'course-editor' ? '' : 'hidden'}`}>
           <h3 className="font-display text-xl font-semibold text-slate-950">Create or Edit Course</h3>
           <form onSubmit={handleCourseSubmit} className="mt-4 space-y-3">
             <input className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Course title" value={courseForm.title} onChange={(event) => setCourseForm({ ...courseForm, title: event.target.value })} />
@@ -369,13 +433,13 @@ export function InstructorLmsDashboard() {
               <option value="archived">Archived</option>
             </select>
             <div className="flex gap-3">
-              <button type="button" onClick={() => { setCourseForm(emptyCourseForm); setEditingCourseId(''); }} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700">Reset</button>
+              <button type="button" onClick={() => { setCourseForm(emptyCourseForm); setEditingCourseId(''); router.replace('/lms/instructor/course-editor'); }} className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700">Reset</button>
               <button type="submit" className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white">{editingCourseId ? 'Update course' : 'Create course'}</button>
             </div>
           </form>
         </GlowCard>
 
-        <GlowCard>
+        <GlowCard id="course-management" className={`scroll-mt-24 ${view === 'courses' ? '' : 'hidden'}`}>
           <h3 className="font-display text-xl font-semibold text-slate-950">Course Management</h3>
           <div className="mt-4 space-y-3">
             {dashboard.courses.map((course) => (
@@ -387,7 +451,7 @@ export function InstructorLmsDashboard() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => setSelectedCourseId(course._id)}>View</button>
-                    <button className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => handleStartEdit(course)}>Edit</button>
+                    <button className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => router.push(`/lms/instructor/course-editor?courseId=${encodeURIComponent(course._id)}`)}>Edit</button>
                     <button className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600" onClick={() => handleDeleteCourse(course._id)}>Delete</button>
                   </div>
                 </div>
@@ -397,10 +461,17 @@ export function InstructorLmsDashboard() {
           </div>
         </GlowCard>
       </div>
+      ) : null}
 
-      {selectedCourse ? (
-        <div className="grid gap-6 xl:grid-cols-2">
-          <GlowCard>
+      {courseScopedView && !selectedCourse ? (
+        <GlowCard>
+          <p className="text-sm text-slate-600">Create a course before managing its classes, assignments, students, or resources.</p>
+        </GlowCard>
+      ) : null}
+
+      {courseScopedView && selectedCourse ? (
+        <div className="grid gap-6 xl:grid-cols-1">
+          <GlowCard id="students" className={`scroll-mt-24 ${view === 'students' ? '' : 'hidden'}`}>
             <h3 className="font-display text-xl font-semibold text-slate-950">Student Management</h3>
             <form onSubmit={handleEnrollStudents} className="mt-4 space-y-3">
               <textarea className="min-h-[110px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Enter student emails separated by commas or new lines" value={enrollmentValue} onChange={(event) => setEnrollmentValue(event.target.value)} />
@@ -414,7 +485,7 @@ export function InstructorLmsDashboard() {
             </div>
           </GlowCard>
 
-          <GlowCard>
+          <GlowCard id="class-schedule" className={`scroll-mt-24 ${view === 'schedule' ? '' : 'hidden'}`}>
             <h3 className="font-display text-xl font-semibold text-slate-950">Schedule a Class</h3>
             <form onSubmit={handleSessionSubmit} className="mt-4 space-y-3">
               <div>
@@ -463,7 +534,7 @@ export function InstructorLmsDashboard() {
             </div>
           </GlowCard>
 
-          <GlowCard>
+          <GlowCard id="assignments" className={`scroll-mt-24 ${view === 'assignments' ? '' : 'hidden'}`}>
             <h3 className="font-display text-xl font-semibold text-slate-950">Assignment Management</h3>
             <form onSubmit={handleAssignmentSubmit} className="mt-4 space-y-3">
               <input className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm" placeholder="Assignment title" value={assignmentForm.title} onChange={(event) => setAssignmentForm({ ...assignmentForm, title: event.target.value })} />
@@ -496,7 +567,7 @@ export function InstructorLmsDashboard() {
             </div>
           </GlowCard>
 
-          <GlowCard>
+          <GlowCard id="resources" className={`scroll-mt-24 ${view === 'resources' ? '' : 'hidden'}`}>
             <h3 className="font-display text-xl font-semibold text-slate-950">Course Resources</h3>
             <p className="mt-2 text-sm text-slate-600">Uploads are stored in the existing Supabase bucket under a course-scoped folder.</p>
             <div className="mt-4">
@@ -506,7 +577,8 @@ export function InstructorLmsDashboard() {
         </div>
       ) : null}
 
-      <GlowCard>
+      {view === 'activity' ? (
+      <GlowCard id="recent-work" className="scroll-mt-24">
         <h3 className="font-display text-xl font-semibold text-slate-950">Recent Recordings and Submissions</h3>
         <div className="mt-4 grid gap-6 xl:grid-cols-2">
           <div className="space-y-3">
@@ -530,6 +602,9 @@ export function InstructorLmsDashboard() {
           </div>
         </div>
       </GlowCard>
+      ) : null}
+
+      {view === 'notes' ? <AIMeetingNotesPanel meetings={dashboard.aiMeetings || []} /> : null}
 
       {gradingTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">

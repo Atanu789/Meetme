@@ -5,23 +5,23 @@ import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 const baseWrap =
-  'inline-flex items-center justify-center rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300';
+  'inline-flex items-center justify-center rounded-md border p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300';
 
 const innerBase =
-  'relative flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold';
+  'relative flex h-full w-full items-center justify-center gap-2 rounded-[5px] px-4 py-2 text-sm font-semibold';
 
 const wrapVariants: Record<'dark' | 'light' | 'create' | 'join', string> = {
-  dark: 'bg-[#272d36]',
-  light: 'bg-[#272d36]',
-  create: 'bg-[#37d7ff]',
-  join: 'bg-[#f2b84b]',
+  dark: 'border-[#343c47] bg-[#272d36]',
+  light: 'border-[#343c47] bg-[#272d36]',
+  create: 'border-[#53ddff] bg-[#37d7ff]',
+  join: 'border-[#53ddff] bg-[#37d7ff]',
 };
 
 const variants: Record<'dark' | 'light' | 'create' | 'join', string> = {
   dark: 'bg-[#181c22] text-[#f4f7fa] hover:bg-[#20252d]',
   light: 'bg-[#181c22] text-[#f4f7fa] hover:bg-[#20252d]',
-  create: 'bg-[#0f667d] px-5 py-2.5 text-white hover:bg-[#147c97]',
-  join: 'bg-[#7c5210] px-5 py-2.5 text-white hover:bg-[#976614]',
+  create: 'bg-[#37d7ff] px-5 py-2.5 text-[#071015] hover:bg-[#58defe]',
+  join: 'bg-[#15392b] px-5 py-2.5 text-[#c0f5d9] hover:bg-[#1d4c38]',
 };
 
 interface GradientBorderButtonProps

@@ -27,6 +27,7 @@ html {
   min-height: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  scroll-behavior: smooth;
   color-scheme: dark;
   background: var(--app-bg);
 }
@@ -78,9 +79,9 @@ select:focus-visible {
 .app-main {
   position: relative;
   z-index: 1;
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 80px);
   width: 100%;
-  padding-top: 64px;
+  padding-top: 80px;
 }
 
 .page-shell-wide {
@@ -218,6 +219,16 @@ select:focus-visible {
 .app-main [class*='text-amber-'],
 .app-main [class*='text-orange-'] {
   color: var(--app-amber) !important;
+}
+
+.app-main [class*='bg-amber-'],
+.app-main [class*='bg-orange-'] {
+  background-color: rgba(242, 184, 75, 0.1) !important;
+}
+
+.app-main [class*='border-amber-'],
+.app-main [class*='border-orange-'] {
+  border-color: rgba(242, 184, 75, 0.42) !important;
 }
 
 nav [class*='bg-white'],
@@ -589,6 +600,23 @@ nav [class*='backdrop-'] {
 .lms-shell-body .workspace-panel > h3 {
   font-size: 0.95rem;
   line-height: 1.35;
+}
+
+.ai-notes-panel {
+  border-top-color: rgba(55, 215, 255, 0.58);
+}
+
+.ai-notes-card {
+  border: 1px solid var(--app-border);
+  border-left: 3px solid rgba(55, 215, 255, 0.7);
+  background: #101319;
+  padding: 1rem;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.ai-notes-card:hover {
+  border-color: rgba(55, 215, 255, 0.45);
+  background: #141820;
 }
 
 .landing-offer {
@@ -967,7 +995,8 @@ nav [class*='backdrop-'] {
   }
 
   .app-main {
-    padding-top: 56px;
+    min-height: calc(100vh - 72px);
+    padding-top: 72px;
   }
 
   .ai-brief__heading {

@@ -106,14 +106,14 @@ export function AIMeetingNotesPanel({
   };
 
   return (
-    <GlowCard>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <GlowCard id="meeting-insights" className="ai-notes-panel scroll-mt-24">
+      <div className="ai-notes-panel__header flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-lg border border-cyan-100 bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700">
+          <div className="inline-flex items-center gap-2 rounded-md border border-[#37d7ff]/45 bg-[#12303a] px-2.5 py-1 text-xs font-bold text-[#58defe]">
             <Sparkles className="h-4 w-4" />
             Meeting Intelligence
           </div>
-          <h3 className="mt-2 font-display text-lg font-semibold text-slate-950">{title}</h3>
+          <h3 className="mt-2 font-display text-xl font-semibold text-[#f4f7fa]">{title}</h3>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <PanelMetric label="Briefs" value={allMeetings.length} />
@@ -123,12 +123,12 @@ export function AIMeetingNotesPanel({
       </div>
 
       {message ? (
-        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
+        <div className="mt-3 rounded-md border border-[#2a3039] bg-[#181c22] px-3 py-2 text-sm font-semibold text-[#a7b1bc]">
           {message}
         </div>
       ) : null}
 
-      <div className="mt-4 space-y-2.5">
+      <div className="mt-5 space-y-3">
         {visibleMeetings.map((meeting) => {
           const notes = cleanList(meeting.keyNotes || []).slice(0, 2);
           const decisions = cleanList(meeting.keyDecisions || []).slice(0, 1);
@@ -142,22 +142,19 @@ export function AIMeetingNotesPanel({
             'Summary is still being prepared for this meeting.';
 
           return (
-            <article
-              key={meeting._id || meeting.meetingId}
-              className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 transition hover:border-cyan-200 hover:bg-white"
-            >
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <article key={meeting._id || meeting.meetingId} className="ai-notes-card">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-950">
+                    <p className="truncate text-[15px] font-semibold text-[#f4f7fa]">
                       {meeting.title || meeting.meetingId}
                     </p>
-                    <span className="rounded-lg bg-white px-2 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
+                    <span className="rounded-md border border-[#343c47] bg-[#181c22] px-2 py-1 text-[11px] font-semibold text-[#9ca8b8]">
                       {meeting.updatedAt ? new Date(meeting.updatedAt).toLocaleDateString() : 'Recent'}
                     </span>
                   </div>
-                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-700">{leadSummary}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <p className="mt-1.5 line-clamp-2 text-sm leading-5 text-[#b8c2ce]">{leadSummary}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs font-medium text-[#a7b1bc]">
                     <StatChip icon={FileText} label={`${(meeting.transcript || []).length} transcript lines`} />
                     <StatChip icon={Users} label={`${(meeting.speakerLabels || []).length || 0} speakers`} />
                     <StatChip icon={CheckCircle2} label={`${(meeting.keyDecisions || []).length} decisions`} />
@@ -169,14 +166,14 @@ export function AIMeetingNotesPanel({
                     type="button"
                     onClick={() => downloadTranscript(meeting)}
                     disabled={(meeting.transcript || []).length === 0}
-                    className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition hover:border-cyan-200 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-8 items-center gap-2 rounded-md border border-[#343c47] bg-[#181c22] px-2.5 text-xs font-semibold text-[#58defe] transition hover:border-[#37d7ff]/70 hover:bg-[#12303a] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Transcript
                   </button>
                   <Link
                     href={`/recordings/${encodeURIComponent(meeting.meetingId)}`}
-                    className="inline-flex h-8 items-center rounded-lg bg-slate-950 px-2.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                    className="inline-flex h-8 items-center rounded-md bg-[#26303d] px-2.5 text-xs font-semibold text-[#f4f7fa] transition hover:bg-[#343f4d]"
                   >
                     Open Brief
                   </Link>
@@ -184,7 +181,7 @@ export function AIMeetingNotesPanel({
                     type="button"
                     onClick={() => void handleDeleteSummary(meeting)}
                     disabled={deletingMeetingId === meeting.meetingId}
-                    className="inline-flex h-8 items-center gap-2 rounded-lg border border-red-100 bg-white px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-8 items-center gap-2 rounded-md border border-[#f87171]/45 bg-[#21171a] px-2.5 text-xs font-semibold text-[#ff9292] transition hover:bg-[#321b20] disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Delete meeting summary"
                     title="Delete meeting summary"
                   >
@@ -194,17 +191,7 @@ export function AIMeetingNotesPanel({
                 </div>
               </div>
 
-              {(notes.length > 0 || decisions.length > 0 || actions.length > 0) && (
-                <div className="mt-3 grid gap-2 lg:grid-cols-3">
-                  <MiniList title="Key Notes" items={notes} emptyText="No notes yet" />
-                  <MiniList title="Decisions" items={decisions} emptyText="No decisions" />
-                  <MiniList
-                    title="Actions"
-                    items={actions.map((action) => action.owner ? `${action.owner}: ${action.item}` : action.item)}
-                    emptyText="No actions"
-                  />
-                </div>
-              )}
+              <MeetingHighlights notes={notes} decisions={decisions} actions={actions} />
             </article>
           );
         })}
@@ -213,7 +200,7 @@ export function AIMeetingNotesPanel({
           <button
             type="button"
             onClick={() => setVisibleCount((count) => count + 3)}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-200 hover:text-cyan-700"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-[#343c47] bg-[#181c22] px-3 text-sm font-semibold text-[#a7b1bc] transition hover:border-[#37d7ff]/70 hover:text-[#58defe]"
           >
             <ChevronDown className="h-4 w-4" />
             Show more summaries
@@ -222,7 +209,7 @@ export function AIMeetingNotesPanel({
           <button
             type="button"
             onClick={() => setVisibleCount(3)}
-            className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-cyan-200 hover:text-cyan-700"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-[#343c47] bg-[#181c22] px-3 text-sm font-semibold text-[#a7b1bc] transition hover:border-[#37d7ff]/70 hover:text-[#58defe]"
           >
             <ChevronUp className="h-4 w-4" />
             Show fewer
@@ -230,7 +217,7 @@ export function AIMeetingNotesPanel({
         ) : null}
 
         {allMeetings.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm leading-6 text-slate-500">
+          <div className="rounded-md border border-dashed border-[#343c47] bg-[#181c22] p-4 text-sm leading-6 text-[#9ca8b8]">
             Professional summaries, key notes, decisions, action items, and downloadable transcripts will appear here after meetings are processed.
           </div>
         ) : null}
@@ -243,38 +230,60 @@ export function AIMeetingNotesPanel({
 
 function PanelMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-      <div className="text-base font-semibold text-slate-950">{value}</div>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</div>
+    <div className="min-w-[5.25rem] rounded-md border border-[#343c47] bg-[#181c22] px-3 py-2">
+      <div className="text-base font-semibold text-[#f4f7fa]">{value}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9ca8b8]">{label}</div>
     </div>
   );
 }
 
 function StatChip({ icon: Icon, label }: { icon: typeof FileText; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 ring-1 ring-slate-200">
-      <Icon className="h-3.5 w-3.5 text-cyan-600" />
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#343c47] bg-[#181c22] px-2.5 py-1">
+      <Icon className="h-3.5 w-3.5 text-[#37d7ff]" />
       {label}
     </span>
   );
 }
 
-function MiniList({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
+function MeetingHighlights({
+  notes,
+  decisions,
+  actions,
+}: {
+  notes: string[];
+  decisions: string[];
+  actions: Array<{ item: string; owner: string }>;
+}) {
+  const sections = [
+    notes.length > 0 ? { title: 'Key Notes', items: notes } : null,
+    decisions.length > 0 ? { title: 'Decisions', items: decisions } : null,
+    actions.length > 0
+      ? { title: 'Actions', items: actions.map((action) => action.owner ? `${action.owner}: ${action.item}` : action.item) }
+      : null,
+  ].filter((section): section is { title: string; items: string[] } => Boolean(section));
+
+  if (sections.length === 0) return null;
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{title}</p>
-      {items.length > 0 ? (
-        <div className="mt-2 space-y-1.5">
-          {items.map((item, index) => (
-            <div key={`${title}-${index}`} className="flex gap-2 text-xs leading-4 text-slate-700">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-              <span>{item}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-2 text-xs text-slate-400">{emptyText}</p>
-      )}
+    <div className={`ai-notes-card__details mt-4 grid gap-2 ${sections.length === 1 ? 'lg:grid-cols-1' : sections.length === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+      {sections.map((section) => <MiniList key={section.title} title={section.title} items={section.items} />)}
+    </div>
+  );
+}
+
+function MiniList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-md border border-[#343c47] bg-[#181c22] p-3">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#9ca8b8]">{title}</p>
+      <div className="mt-2 space-y-1.5">
+        {items.map((item, index) => (
+          <div key={`${title}-${index}`} className="flex gap-2 text-xs leading-4 text-[#d5dbe3]">
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#37d7ff]" />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
