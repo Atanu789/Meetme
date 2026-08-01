@@ -337,6 +337,13 @@ export function Navbar() {
                 <Link href="/lms" className="noir-shimmer-button font-display inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
                   <span>Continue</span>
                 </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="font-display inline-flex items-center gap-2 rounded-full border border-[#ef233c]/35 bg-[#ef233c]/10 px-4 py-2 text-sm font-semibold text-[#fda4af] transition hover:border-[#ef233c]/60 hover:bg-[#ef233c]/18 hover:text-white"
+                >
+                  Logout
+                </button>
                 <span className="hidden h-8 items-center whitespace-nowrap px-1 text-sm leading-none text-slate-500 lg:inline-flex">
                   {userEmail}
                 </span>
