@@ -250,20 +250,13 @@ export async function resetMembershipCredits(subscription: ISubscription) {
 
 export function getPlanChangeBlock(subscription: ISubscription | null | undefined, targetPlan: PlanKey) {
   if (!subscription || !isSubscriptionActive(subscription)) return '';
-  if (subscription.plan === 'enterprise') return 'Enterprise plan changes must be handled by the system console.';
+  if (subscription.plan === 'enterprise') return 'Enterprise changes must be handled by the system console.';
 
   const currentRank = getPlanRank(subscription.plan as PlanKey);
   const targetRank = getPlanRank(targetPlan);
   if (targetRank >= currentRank) return '';
 
-  if (subscription.plan === 'business') {
-    return 'Business cannot be downgraded while the current plan is active. Downgrade after the plan expires or use the system console.';
-  }
-
-  const balance = getCreditBalance(subscription);
-  if (balance !== null && balance <= 0) return '';
-
-  return `You can downgrade after your ${BILLING_PLAN_MAP[subscription.plan as PlanKey]?.title || 'current'} plan expires or your included quota is used.`;
+  return `You can downgrade after your ${BILLING_PLAN_MAP[subscription.plan as PlanKey]?.title || 'current'} plan ends.`;
 }
 
 export async function requireActiveMembership(userEmail: string): Promise<MembershipCheck> {

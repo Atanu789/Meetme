@@ -9,7 +9,7 @@ export default function Page() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const callbackUrl = '/pricing';
+  const callbackUrl = '/';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

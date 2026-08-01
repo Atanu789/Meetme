@@ -18,7 +18,7 @@ export default function Page() {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const callbackUrl = '/pricing';
+  const callbackUrl = '/';
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -65,7 +65,7 @@ export default function Page() {
         throw new Error('Failed to send login link. Please check SMTP settings.');
       } else {
         setMessage({
-          text: 'Registration successful. A secure magic link was sent. Choose Free, Pro, or Business after signing in.',
+          text: 'Registration successful. A secure magic link was sent. You will return to Melanam after signing in.',
           type: 'success',
         });
       }

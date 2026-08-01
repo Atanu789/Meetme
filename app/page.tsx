@@ -11,6 +11,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { Footer } from '@/components/ui/footer';
+import { LandingActions } from '@/components/LandingActions';
 
 const capabilities = [
   { icon: Video, title: 'Meeting rooms', description: 'Private video rooms with invite links, recording, livestream and captions.' },
@@ -93,10 +94,7 @@ export default function HomePage() {
             <p className="noir-live"><span /><span>Melanam workspace is live</span><ArrowRight /></p>
             <h1>Meet. Teach.<br /><span>Remember.</span></h1>
             <p className="noir-hero__description">A secure operating environment for live meetings, learning workflows, and the intelligence that moves work forward.</p>
-            <div className="noir-hero__actions">
-              <Link href="/sign-up" className="noir-primary-action noir-shimmer-button"><span>Enter Melanam</span> <ArrowRight /></Link>
-              <Link href="/lms" className="noir-secondary-action">Explore workspace</Link>
-            </div>
+            <LandingActions />
             <div className="noir-proof">
               <span><b>01</b> One record for every session</span>
               <span><b>AI</b> Context built in</span>
@@ -121,7 +119,7 @@ export default function HomePage() {
         <Sparkles />
         <p>Private by design. Intelligent by default.</p>
         <h2>Make every conversation count.</h2>
-        <Link href="/sign-up" className="noir-primary-action noir-shimmer-button"><span>Get started free</span> <ArrowRight /></Link>
+        <LandingActions compact />
         <span><ShieldCheck /> Secure rooms · controlled workspaces · role-aware access</span>
       </section>
       <Footer />

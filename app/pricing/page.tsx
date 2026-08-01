@@ -78,19 +78,13 @@ function PlanPrice({ planKey, cycle }: { planKey: PlanKey; cycle: BillingCycle }
 
 function planChangeBlocked(membership: Membership | null, targetPlan: PlanKey) {
   if (!membership?.active) return '';
-  if (membership.plan === 'enterprise') return 'Enterprise plan changes are handled by sales or the system console.';
+  if (membership.plan === 'enterprise') return 'Enterprise changes are handled by sales or the system console.';
 
   const currentRank = getPlanRank(membership.plan);
   const targetRank = getPlanRank(targetPlan);
   if (targetRank >= currentRank) return '';
 
-  if (membership.plan === 'business') {
-    return 'Business cannot move to Pro or Free until the current plan expires.';
-  }
-
-  if (membership.creditBalance !== null && membership.creditBalance <= 0) return '';
-
-  return 'Downgrade unlocks after your current quota is used or the plan expires.';
+  return 'Downgrades unlock when your current plan ends.';
 }
 
 export default function PricingPage() {
@@ -102,10 +96,7 @@ export default function PricingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAuthenticated = status === 'authenticated';
-  const visiblePlans = useMemo(
-    () => (membership?.active ? BILLING_PLANS.filter((plan) => plan.key !== membership.plan) : BILLING_PLANS),
-    [membership?.active, membership?.plan]
-  );
+  const visiblePlans = useMemo(() => BILLING_PLANS, []);
   const currentPlan = membership?.active ? BILLING_PLANS.find((plan) => plan.key === membership.plan) : null;
 
   const loadMembership = async () => {
@@ -325,7 +316,7 @@ export default function PricingPage() {
             <div>
               <p className="pricing-kicker">Current plan</p>
               <h2>{currentPlan.title}</h2>
-              <p>{currentPlan.description} Downgrades stay locked while this paid plan is active unless the quota is used.</p>
+              <p>{currentPlan.description} You can upgrade at any time. Downgrades unlock after this plan ends.</p>
             </div>
             <dl>
               <div><dt>Rooms</dt><dd>{currentPlan.limits.monthlyRooms}</dd></div>
@@ -339,7 +330,7 @@ export default function PricingPage() {
         <section className="pricing-plans" aria-labelledby="pricing-plans-title">
           <div className="pricing-section-heading">
             <div>
-              <p className="pricing-kicker">{currentPlan ? 'Other plans' : 'Choose your plan'}</p>
+              <p className="pricing-kicker">{currentPlan ? 'All plans' : 'Choose your plan'}</p>
               <h2 id="pricing-plans-title">One clear tier for every stage.</h2>
             </div>
             <p>All plans include unlimited meeting rooms.</p>

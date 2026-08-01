@@ -323,6 +323,12 @@ export function Navbar() {
           <div className="flex items-center gap-2 sm:gap-2.5">
             {isLoggedIn ? (
               <div className="flex items-center gap-2 sm:gap-2.5">
+                <Link href="/pricing" className="font-display inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-[#ef233c]/60 hover:bg-white/10 hover:text-white">
+                  Pricing
+                </Link>
+                <Link href="/lms" className="noir-shimmer-button font-display inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
+                  <span>Continue</span>
+                </Link>
                 <span className="hidden h-8 items-center whitespace-nowrap px-1 text-sm leading-none text-slate-500 lg:inline-flex">
                   {userEmail}
                 </span>
@@ -390,11 +396,8 @@ export function Navbar() {
                 >
                   Sign In
                 </Link>
-                <Link
-                  href={signInHref}
-                  className="noir-shimmer-button font-display group inline-flex items-center gap-2 rounded-full border border-[#ef233c]/70 bg-[#ef233c] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(239,35,60,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#ff4056] active:scale-[0.97]"
-                >
-                  <span>Get Started</span>
+                <Link href="/pricing" className="noir-shimmer-button font-display group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
+                  <span>Pricing</span>
                 </Link>
               </div>
             )}
