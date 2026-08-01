@@ -508,9 +508,7 @@ nav [class*='backdrop-'] {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 22%, rgba(239, 35, 60, 0.08), transparent 32rem),
-    linear-gradient(180deg, #100607 0%, #050505 42rem);
+  background: linear-gradient(180deg, #100607 0%, #050505 42rem);
 }
 
 .app-background__mesh,
@@ -523,7 +521,6 @@ nav [class*='backdrop-'] {
 
 .landing-noir { overflow: hidden; color: #f4f4f5; }
 .noir-hero { position: relative; min-height: min(780px, calc(100vh - 92px)); display: grid; align-items: center; overflow: hidden; isolation: isolate; }
-.noir-hero::before { content: ''; position: absolute; z-index: -2; inset: -16rem -10rem auto; height: 58rem; background: radial-gradient(ellipse at 56% 43%, rgba(239,35,60,.2), rgba(86,10,17,.11) 22%, transparent 62%); filter: blur(12px); }
 .noir-hero::after { content: ''; position: absolute; z-index: -1; inset: 0; opacity: .8; background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(ellipse at 54% 38%, black 14%, transparent 72%); }
 .noir-hero__stars { position: absolute; z-index: -1; inset: 0; opacity: .78; background-image: radial-gradient(circle, #fff 0 1px, transparent 1.4px), radial-gradient(circle, #fff 0 1px, transparent 1.4px), radial-gradient(circle, #fff 0 .7px, transparent 1.2px); background-size: 211px 211px, 317px 317px, 149px 149px; background-position: 0 0, 91px 43px, 36px 119px; animation: noir-star-drift 70s linear infinite; }
 .noir-hero__inner { display: grid; grid-template-columns: minmax(0, .88fr) minmax(480px, 1.12fr); gap: clamp(3rem, 8vw, 8rem); align-items: center; padding-top: 5.5rem; padding-bottom: 7rem; }
@@ -667,3 +664,71 @@ nav [class*='backdrop-'] {
 @media (max-width: 860px) { .pricing-hero, .pricing-current-plan { grid-template-columns: 1fr; }.pricing-hero { gap: 2.5rem; }.pricing-assurance { max-width: 42rem; }.pricing-current-plan dl { grid-template-columns: repeat(2,minmax(0,1fr)); }.pricing-section-heading { align-items: start; flex-direction: column; }.pricing-section-heading > p { max-width: 26rem; }.pricing-credit-grid { grid-template-columns: 1fr; }.pricing-credit-card p { min-height: 0; }.pricing-credits__note { position: static; grid-column: 1 / -1; margin-top: -.4rem; } }
 @media (max-width: 600px) { .pricing-hero { padding-top: 2.6rem; }.pricing-hero__copy h1 { max-width: 100%; overflow-wrap: anywhere; font-size: clamp(2.7rem,13.2vw,3.65rem); letter-spacing: -.065em; }.pricing-cycle { width: 100%; }.pricing-cycle__option { min-width: 0; }.pricing-plan-grid, .pricing-plan-grid--compact { grid-template-columns: minmax(0,1fr); }.pricing-plan-card { width: 100%; min-height: 0; }.pricing-current-plan dl { grid-template-columns: 1fr 1fr; }.pricing-credits { padding: 1.25rem; border-radius: 20px; }.pricing-comparison__scroll { margin-right: -1rem; border-radius: 18px 0 0 18px; }.pricing-trust-line { display: grid; }.pricing-assurance { padding: 1.25rem; }.pricing-assurance__topline { align-items: flex-start; }.pricing-section-heading h2 { max-width: 100%; overflow-wrap: anywhere; font-size: clamp(1.85rem,9vw,2.4rem); } }
 @media (prefers-reduced-motion: reduce) { .pricing-hero > *, .pricing-plans, .pricing-comparison, .pricing-credits { animation: none !important; } }
+
+/* Cross-browser motion reliability pass. Keep ambient motion visible even when a
+   desktop browser reports reduced motion, but slow it down substantially. */
+.app-background { z-index: 0; background: #050505; }
+.app-background::before,
+.app-background::before { z-index: 4; inset: -35% 0 0; opacity: .72; background-image: radial-gradient(circle, rgba(255,255,255,.94) 0 1px, transparent 1.35px), radial-gradient(circle, rgba(255,255,255,.72) 0 .75px, transparent 1.15px), radial-gradient(circle, rgba(239,35,60,.86) 0 .8px, transparent 1.2px); background-size: 211px 211px, 137px 137px, 293px 293px; background-position: 17px 43px, 89px 121px, 151px 37px; animation: app-noir-stars-rise 34s linear infinite; }
+.app-background__mesh,
+.app-background__vortex,
+.app-background__vortex-core,
+.app-background__vortex-ring,
+.app-background__vortex-sweep,
+.app-background__vignette { position: absolute; display: block; pointer-events: none; will-change: transform, opacity; }
+.app-background__orb { display: none; }
+.app-background__mesh { z-index: 1; inset: -40px; opacity: .6; background-image: linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(ellipse at 50% 16%, black 8%, transparent 72%); animation: app-noir-grid-drift 24s linear infinite; }
+.app-background__vortex { z-index: 2; top: -35rem; left: 50%; width: min(92rem, 125vw); aspect-ratio: 1; border-radius: 50%; opacity: .62; background: repeating-conic-gradient(from 0deg, rgba(239,35,60,.16) 0deg 1deg, transparent 1.5deg 13deg); mask-image: radial-gradient(circle, transparent 0 26%, black 38% 61%, transparent 72%); transform: translateX(-50%); animation: app-noir-vortex-spin 42s linear infinite; }
+.app-background__vortex-ring { z-index: 2; top: -28rem; left: 50%; aspect-ratio: 1; border-radius: 50%; transform: translateX(-50%); }
+.app-background__vortex-ring--one { width: min(78rem, 112vw); border: 1px solid rgba(239,35,60,.18); box-shadow: 0 0 70px rgba(239,35,60,.06); animation: app-noir-ring-float 9s ease-in-out infinite; }
+.app-background__vortex-ring--two { top: -34rem; width: min(94rem, 130vw); border: 1px dashed rgba(239,35,60,.11); animation: app-noir-ring-spin 55s linear infinite reverse; }
+.app-background__vortex-sweep { z-index: 3; top: -31rem; left: 50%; width: min(86rem, 120vw); aspect-ratio: 1; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 74%, rgba(255,62,85,.24) 80%, transparent 86%); mask-image: radial-gradient(circle, transparent 0 43%, black 44% 47%, transparent 48%); transform: translateX(-50%); }
+.app-background__vortex-sweep--one { animation: app-noir-sweep-spin 18s linear infinite; }
+.app-background__vortex-sweep--two { opacity: .55; animation: app-noir-sweep-spin 29s linear infinite reverse; }
+.app-background__vignette { z-index: 5; inset: 0; background: radial-gradient(ellipse at 50% 20%, transparent 0 30%, rgba(5,5,5,.25) 72%, rgba(5,5,5,.86) 100%); }
+
+.app-navbar-shell { position: relative; overflow: hidden; background: linear-gradient(115deg, rgba(24,24,28,.48), rgba(5,5,7,.38)) !important; border-color: rgba(255,255,255,.17) !important; box-shadow: 0 18px 60px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(255,255,255,.025) !important; -webkit-backdrop-filter: blur(26px) saturate(155%) !important; backdrop-filter: blur(26px) saturate(155%) !important; }
+.app-navbar-shell::before { position: absolute; inset: 0; content: ''; pointer-events: none; background: linear-gradient(105deg, rgba(255,255,255,.11), transparent 22%, transparent 72%, rgba(239,35,60,.09)); }
+.app-navbar-shell::after { position: absolute; top: 0; left: -35%; width: 28%; height: 100%; content: ''; pointer-events: none; opacity: .42; background: linear-gradient(105deg, transparent, rgba(255,255,255,.12), transparent); transform: skewX(-18deg); animation: app-navbar-glass-sheen 8s ease-in-out infinite; }
+.app-navbar-shell > * { position: relative; z-index: 1; }
+
+.noir-marquee-stack { width: min(calc(100% - 2rem), var(--app-content-max)); margin-inline: auto; gap: .9rem; }
+.noir-marquee { width: 100%; padding-block: .55rem; -webkit-mask-image: linear-gradient(90deg, transparent 0, black 11%, black 89%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, black 11%, black 89%, transparent 100%); }
+.noir-marquee::before,
+.noir-marquee::after { width: clamp(4rem, 11vw, 9rem); }
+.noir-marquee__track { animation-duration: 38s; will-change: transform; }
+.noir-marquee--reverse .noir-marquee__track { animation-direction: reverse; animation-duration: 43s; animation-delay: -21s; }
+
+/* A rotating pseudo-element is dependable in desktop Chromium, Safari, and
+   Firefox. It replaces the previous @property-dependent button border. */
+.noir-shimmer-button { position: relative; isolation: isolate; overflow: hidden; border: 1px solid rgba(239,35,60,.36) !important; background: #09090a !important; box-shadow: 0 0 24px rgba(239,35,60,.14); animation: none !important; }
+.noir-shimmer-button::before { position: absolute; z-index: 0; top: 50%; left: 50%; width: 170%; aspect-ratio: 1; padding: 0; content: ''; pointer-events: none; background: conic-gradient(transparent 0 68%, #ef233c 76%, #ff9aa5 81%, #ef233c 86%, transparent 94%); transform: translate(-50%,-50%); -webkit-mask: none; mask: none; animation: noir-button-spinner 2.6s linear infinite; }
+.noir-shimmer-button::after,
+.noir-shimmer-button.noir-primary-action::after { position: absolute; z-index: 0; inset: 2px; content: ''; border-radius: inherit; opacity: 1; background: #09090a; animation: none; }
+.noir-shimmer-button > span,
+.noir-shimmer-button > svg { position: relative; z-index: 1; background: transparent !important; }
+.noir-shimmer-button:hover { box-shadow: 0 0 34px rgba(239,35,60,.30); }
+
+@keyframes app-noir-stars-rise { from { transform: translate3d(0,0,0); } to { transform: translate3d(0,-42%,0); } }
+@keyframes app-navbar-glass-sheen { 0%, 60% { left: -35%; } 82%, 100% { left: 115%; } }
+@keyframes app-noir-grid-drift { to { transform: translate3d(40px,40px,0); } }
+@keyframes app-noir-vortex-spin { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes app-noir-ring-float { 50% { opacity: .56; transform: translateX(-50%) translateY(16px) scale(1.025); } }
+@keyframes app-noir-ring-spin { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes app-noir-sweep-spin { from { transform: translateX(-50%) rotate(0deg); } to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes noir-button-spinner { from { transform: translate(-50%,-50%) rotate(0deg); } to { transform: translate(-50%,-50%) rotate(360deg); } }
+
+@media (max-width: 640px) { .noir-marquee-stack { width: calc(100% - 1.5rem); }.noir-marquee::before, .noir-marquee::after { width: 3.25rem; }.app-navbar-shell { -webkit-backdrop-filter: blur(18px) saturate(135%) !important; backdrop-filter: blur(18px) saturate(135%) !important; } }
+@media (prefers-reduced-motion: reduce) {
+  .noir-hero__stars { animation: noir-star-drift 110s linear infinite !important; }
+  .noir-marquee { overflow: hidden !important; -webkit-mask-image: linear-gradient(90deg, transparent 0, black 11%, black 89%, transparent 100%) !important; mask-image: linear-gradient(90deg, transparent 0, black 11%, black 89%, transparent 100%) !important; }
+  .noir-marquee__track { width: max-content !important; animation: noir-marquee 64s linear infinite !important; }
+  .noir-marquee--reverse .noir-marquee__track { animation-direction: reverse !important; animation-delay: -32s !important; }
+  .noir-feature-card[aria-hidden='true'] { display: flex !important; }
+  .noir-shimmer-button::before { animation: noir-button-spinner 5s linear infinite !important; }
+  .app-background::before { animation-duration: 70s !important; }
+  .app-background__mesh { animation-duration: 50s !important; }
+  .app-background__vortex { animation-duration: 84s !important; }
+  .app-background__vortex-sweep--one { animation-duration: 36s !important; }
+  .app-background__vortex-sweep--two { animation-duration: 58s !important; }
+}

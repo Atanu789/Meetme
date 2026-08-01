@@ -186,7 +186,7 @@ export function Navbar() {
 
   return (
     <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-5">
-      <div className="mx-auto max-w-[80rem] rounded-full border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+      <div className="app-navbar-shell mx-auto max-w-[80rem] rounded-full border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
         <div className="flex h-16 items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="flex items-center gap-2">
@@ -394,7 +394,7 @@ export function Navbar() {
                   href={signInHref}
                   className="noir-shimmer-button font-display group inline-flex items-center gap-2 rounded-full border border-[#ef233c]/70 bg-[#ef233c] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(239,35,60,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#ff4056] active:scale-[0.97]"
                 >
-                  Get Started
+                  <span>Get Started</span>
                 </Link>
               </div>
             )}

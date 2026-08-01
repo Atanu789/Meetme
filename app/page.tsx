@@ -94,7 +94,7 @@ export default function HomePage() {
             <h1>Meet. Teach.<br /><span>Remember.</span></h1>
             <p className="noir-hero__description">A secure operating environment for live meetings, learning workflows, and the intelligence that moves work forward.</p>
             <div className="noir-hero__actions">
-              <Link href="/sign-up" className="noir-primary-action noir-shimmer-button">Enter Melanam <ArrowRight /></Link>
+              <Link href="/sign-up" className="noir-primary-action noir-shimmer-button"><span>Enter Melanam</span> <ArrowRight /></Link>
               <Link href="/lms" className="noir-secondary-action">Explore workspace</Link>
             </div>
             <div className="noir-proof">
@@ -121,7 +121,7 @@ export default function HomePage() {
         <Sparkles />
         <p>Private by design. Intelligent by default.</p>
         <h2>Make every conversation count.</h2>
-        <Link href="/sign-up" className="noir-primary-action noir-shimmer-button">Get started free <ArrowRight /></Link>
+        <Link href="/sign-up" className="noir-primary-action noir-shimmer-button"><span>Get started free</span> <ArrowRight /></Link>
         <span><ShieldCheck /> Secure rooms · controlled workspaces · role-aware access</span>
       </section>
       <Footer />
