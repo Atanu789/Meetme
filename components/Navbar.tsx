@@ -392,7 +392,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   href={signInHref}
-                  className="font-display group inline-flex items-center gap-2 rounded-full border border-[#ef233c]/70 bg-[#ef233c] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(239,35,60,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#ff4056] active:scale-[0.97]"
+                  className="noir-shimmer-button font-display group inline-flex items-center gap-2 rounded-full border border-[#ef233c]/70 bg-[#ef233c] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(239,35,60,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#ff4056] active:scale-[0.97]"
                 >
                   Get Started
                 </Link>

@@ -27,7 +27,7 @@ export function InfoPage({ eyebrow, title, description, sections, ctaHref = '/lm
           <p className="mt-10 text-xs font-bold uppercase tracking-[0.16em] text-[#ef233c]">{eyebrow}</p>
           <h1 className="mt-3 max-w-4xl font-display text-3xl font-semibold leading-tight text-[#f4f7fa] sm:text-5xl">{title}</h1>
           <p className="mt-5 max-w-3xl text-base leading-8 text-[#a7b1bc]">{description}</p>
-          <Link href={ctaHref} className="mt-7 inline-flex items-center gap-2 rounded-full border border-[#ef233c]/50 bg-[#ef233c] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#ff4056]">
+          <Link href={ctaHref} className="noir-shimmer-button mt-7 inline-flex items-center gap-2 rounded-full border border-[#ef233c]/50 bg-[#ef233c] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#ff4056]">
             {ctaLabel}
             <ArrowRight className="h-4 w-4" />
           </Link>

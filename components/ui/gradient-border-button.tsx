@@ -32,7 +32,7 @@ interface GradientBorderButtonProps
 export const GradientBorderButton = forwardRef<HTMLButtonElement, GradientBorderButtonProps>(
   ({ className = '', variant = 'dark', children, ...props }, ref) => {
     return (
-      <button ref={ref} className={`${baseWrap} ${wrapVariants[variant]} ${className}`} {...props}>
+      <button ref={ref} className={`noir-shimmer-button ${baseWrap} ${wrapVariants[variant]} ${className}`} {...props}>
         <span className={`${innerBase} ${variants[variant]}`}>{children}</span>
       </button>
     );
@@ -54,7 +54,7 @@ export function GradientBorderLink({
   ...props
 }: GradientBorderLinkProps) {
   return (
-    <Link className={`${baseWrap} ${wrapVariants[variant]} ${className}`} {...props}>
+    <Link className={`noir-shimmer-button ${baseWrap} ${wrapVariants[variant]} ${className}`} {...props}>
       <span className={`${innerBase} ${variants[variant]}`}>{children}</span>
     </Link>
   );

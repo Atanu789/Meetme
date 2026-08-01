@@ -57,24 +57,28 @@ function WorkspacePreview() {
 }
 
 function FeatureRail() {
-  const cards = [...capabilities, ...capabilities];
+  const topCards = [...capabilities, ...capabilities];
+  const bottomCards = [...capabilities.slice(3), ...capabilities.slice(0, 3), ...capabilities.slice(3), ...capabilities.slice(0, 3)];
+  const renderRail = (cards: typeof capabilities, reverse = false) => (
+    <div className={`noir-marquee ${reverse ? 'noir-marquee--reverse' : ''}`} aria-label={reverse ? undefined : 'Melanam capabilities'}>
+      <div className="noir-marquee__track">
+        {cards.map(({ icon: Icon, title, description }, index) => (
+          <article className="noir-feature-card" key={`${reverse ? 'bottom' : 'top'}-${title}-${index}`} aria-hidden={index >= capabilities.length}>
+            <Icon />
+            <div><h3>{title}</h3><p>{description}</p></div>
+            <ArrowRight className="noir-feature-card__arrow" />
+          </article>
+        ))}
+      </div>
+    </div>
+  );
   return (
     <section id="features" className="noir-features">
       <div className="page-shell-wide noir-section-heading">
         <p>Connected by design</p>
         <h2>Everything that happens live stays in context.</h2>
       </div>
-      <div className="noir-marquee" aria-label="Melanam capabilities">
-        <div className="noir-marquee__track">
-          {cards.map(({ icon: Icon, title, description }, index) => (
-            <article className="noir-feature-card" key={`${title}-${index}`} aria-hidden={index >= capabilities.length}>
-              <Icon />
-              <div><h3>{title}</h3><p>{description}</p></div>
-              <ArrowRight className="noir-feature-card__arrow" />
-            </article>
-          ))}
-        </div>
-      </div>
+      <div className="noir-marquee-stack">{renderRail(topCards)}{renderRail(bottomCards, true)}</div>
     </section>
   );
 }
@@ -90,7 +94,7 @@ export default function HomePage() {
             <h1>Meet. Teach.<br /><span>Remember.</span></h1>
             <p className="noir-hero__description">A secure operating environment for live meetings, learning workflows, and the intelligence that moves work forward.</p>
             <div className="noir-hero__actions">
-              <Link href="/sign-up" className="noir-primary-action">Enter Melanam <ArrowRight /></Link>
+              <Link href="/sign-up" className="noir-primary-action noir-shimmer-button">Enter Melanam <ArrowRight /></Link>
               <Link href="/lms" className="noir-secondary-action">Explore workspace</Link>
             </div>
             <div className="noir-proof">
@@ -117,7 +121,7 @@ export default function HomePage() {
         <Sparkles />
         <p>Private by design. Intelligent by default.</p>
         <h2>Make every conversation count.</h2>
-        <Link href="/sign-up" className="noir-primary-action">Get started free <ArrowRight /></Link>
+        <Link href="/sign-up" className="noir-primary-action noir-shimmer-button">Get started free <ArrowRight /></Link>
         <span><ShieldCheck /> Secure rooms · controlled workspaces · role-aware access</span>
       </section>
       <Footer />
