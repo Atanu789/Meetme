@@ -186,19 +186,27 @@ export function Navbar() {
 
   return (
     <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-5">
-      <div className="app-navbar-shell mx-auto max-w-[80rem] rounded-full border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-        <div className="flex h-16 items-center justify-between gap-3">
+      <div className={`app-navbar-shell mx-auto max-w-[80rem] rounded-2xl border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl ${pathname === '/' ? 'app-navbar-shell--landing' : ''}`}>
+        <div className="flex h-14 items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-[4px] bg-[#ef233c] text-white rotate-45 sm:h-9 sm:w-9">
-                <span className="font-display text-base font-semibold -rotate-45">M</span>
-              </div>
-              <span className="hidden font-display text-lg font-semibold text-[#f4f7fa] sm:inline">
-                Melanam
+            <Link href="/" className="app-navbar-brand flex items-center gap-2.5" aria-label="Melanam home">
+              <span className="app-brand-mark" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className="hidden font-display text-xl font-semibold tracking-[-0.055em] text-[#f8f8f8] sm:inline">
+                melan<span>am</span>
               </span>
             </Link>
 
-            {/* Products and pricing removed from navbar per admin request */}
+            {pathname === '/' && (
+              <div className="app-navbar-links hidden items-center gap-1 md:flex">
+                <Link href="#features">Features</Link>
+                <Link href="/pricing">Pricing</Link>
+                <Link href="/about">About</Link>
+              </div>
+            )}
 
             {pathname?.startsWith('/room/') && (
               <div className="flex items-center gap-2">
