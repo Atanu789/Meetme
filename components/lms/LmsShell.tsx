@@ -89,8 +89,11 @@ export function LmsShell({
         </nav>
 
         <header className="lms-shell-header relative overflow-hidden border-b border-[#2a3039] pb-6">
+          <div aria-hidden="true" className="lms-shell-header__grid" />
+          <div aria-hidden="true" className="lms-shell-header__glow" />
           <div className="min-w-0">
             <div className="lms-shell-eyebrow inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#37d7ff]">
+              <span className="lms-shell-eyebrow__signal" />
               <Sparkles className="h-3.5 w-3.5" />
               {kicker}
             </div>
