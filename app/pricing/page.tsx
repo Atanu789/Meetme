@@ -8,7 +8,6 @@ import Link from 'next/link';
 import {
   ArrowRight,
   BarChart3,
-  CalendarDays,
   Check,
   CreditCard,
   Gauge,
@@ -16,7 +15,6 @@ import {
   Landmark,
   LockKeyhole,
   Sparkles,
-  Users,
   WalletCards,
   Zap,
 } from 'lucide-react';
@@ -31,9 +29,7 @@ import {
   type CreditPackKey,
   type PlanKey,
 } from '../../lib/billing-plans';
-import { CometCard } from '../../components/ui/comet-card';
 import { Footer } from '../../components/ui/footer';
-import { GlowCard } from '../../components/ui/glow-card';
 import { GradientBorderButton, GradientBorderLink } from '../../components/ui/gradient-border-button';
 
 type Membership = {
@@ -73,9 +69,9 @@ function PlanPrice({ planKey, cycle }: { planKey: PlanKey; cycle: BillingCycle }
   const suffix = planKey === 'enterprise' ? '' : cycle === 'annual' ? '/year' : '/month';
 
   return (
-    <div className="flex items-end gap-2">
-      <span className="font-display text-4xl font-semibold text-slate-950">{formatInr(price)}</span>
-      {suffix ? <span className="pb-1 text-sm font-semibold text-slate-500">{suffix}</span> : null}
+    <div className="pricing-plan-price">
+      <span>{formatInr(price)}</span>
+      {suffix ? <small>{suffix}</small> : null}
     </div>
   );
 }
@@ -217,7 +213,7 @@ export default function PricingPage() {
         prefill: {
           email: session?.user?.email || '',
         },
-        theme: { color: '#0891b2' },
+        theme: { color: '#ef233c' },
       });
 
       checkout.open();
@@ -255,319 +251,206 @@ export default function PricingPage() {
 
   return (
     <>
-    <div className="page-shell-wide space-y-8 pb-16">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
-
-      <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 shadow-[0_24px_80px_rgba(15,23,42,0.12)] backdrop-blur">
-        <div className="grid gap-0 lg:grid-cols-[1.08fr_0.92fr]">
-          <div className="p-6 sm:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
-              <Sparkles className="h-3.5 w-3.5" />
-              Melanam pricing
-            </div>
-            <h1 className="mt-5 max-w-3xl font-display text-4xl font-semibold leading-tight text-slate-950 sm:text-6xl">
-              Melanam pricing for meetings that keep moving.
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
+      <div className="pricing-noir page-shell-wide pb-20 sm:pb-28">
+        <header className="pricing-hero">
+          <div className="pricing-hero__copy">
+            <p className="pricing-kicker"><Sparkles /> Melanam pricing</p>
+            <h1>Simple plans.<br /><span>Serious capability.</span></h1>
+            <p className="pricing-hero__description">
               Start free, upgrade when AI notes and recordings become daily work, and add credits whenever your team has a busy month.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                {(['monthly', 'annual'] as BillingCycle[]).map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => setCycle(item)}
-                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                      cycle === item ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {item === 'monthly' ? 'Monthly' : 'Annual'}
-                  </button>
-                ))}
-              </div>
-              <span className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-500/20">
-                Annual saves up to 2 months
-              </span>
-              {isAuthenticated ? (
-                <GradientBorderLink href="/lms" variant="light">
-                  Continue to LMS
-                  <ArrowRight className="h-4 w-4" />
-                </GradientBorderLink>
-              ) : null}
+            <div className="pricing-cycle" aria-label="Billing cycle">
+              {(['monthly', 'annual'] as BillingCycle[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setCycle(item)}
+                  className={cycle === item ? 'pricing-cycle__option pricing-cycle__option--active' : 'pricing-cycle__option'}
+                  aria-pressed={cycle === item}
+                >
+                  {item === 'monthly' ? 'Monthly' : 'Annual'}
+                </button>
+              ))}
+            </div>
+            <div className="pricing-trust-line">
+              <span><Check /> Unlimited rooms</span>
+              <span><Check /> Save up to 2 months yearly</span>
+              <span><Check /> Secure INR checkout</span>
             </div>
           </div>
 
-          <div className="border-t border-slate-200 bg-slate-950 p-6 text-white sm:p-8 lg:border-l lg:border-t-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-200">Membership status</p>
+          <aside className="pricing-assurance" aria-label="Membership and checkout information">
+            <div className="pricing-assurance__topline">
+              <span><LockKeyhole /> Membership status</span>
+              <b>{isAuthenticated ? 'Signed in' : 'Secure access'}</b>
+            </div>
             {loadingMembership ? (
-              <p className="mt-4 text-sm text-slate-300">Loading membership...</p>
+              <p className="pricing-assurance__loading">Loading membership...</p>
             ) : membership?.active ? (
-              <div className="mt-5 space-y-5">
-                <div>
-                  <p className="font-display text-3xl font-semibold">{BILLING_PLANS.find((plan) => plan.key === membership.plan)?.title || membership.plan}</p>
-                  <p className="mt-1 text-sm text-slate-300">Active until {membership.currentPeriodEnd ? new Date(membership.currentPeriodEnd).toLocaleDateString() : 'manual renewal'}</p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                  <div className="rounded-xl bg-white/10 p-4">
-                    <p className="text-xs text-slate-300">Credits left</p>
-                    <p className="mt-1 font-display text-2xl font-semibold">{membership.creditBalance == null ? 'Custom' : Math.round(membership.creditBalance)}</p>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-4">
-                    <p className="text-xs text-slate-300">Used</p>
-                    <p className="mt-1 font-display text-2xl font-semibold">{Math.round(membership.usedCredits)}</p>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-4">
-                    <p className="text-xs text-slate-300">Extra</p>
-                    <p className="mt-1 font-display text-2xl font-semibold">{Math.round(membership.extraCredits)}</p>
-                  </div>
-                </div>
+              <div className="pricing-assurance__membership">
+                <span>Current workspace</span>
+                <strong>{BILLING_PLANS.find((plan) => plan.key === membership.plan)?.title || membership.plan}</strong>
+                <p>Active until {membership.currentPeriodEnd ? new Date(membership.currentPeriodEnd).toLocaleDateString() : 'manual renewal'} · {membership.creditBalance == null ? 'Custom credits' : `${Math.round(membership.creditBalance)} credits left`}</p>
+                <GradientBorderLink href="/lms" variant="dark" className="mt-1 w-fit">
+                  Continue to LMS <ArrowRight className="h-4 w-4" />
+                </GradientBorderLink>
               </div>
             ) : (
-              <div className="mt-5 space-y-4">
-                <LockKeyhole className="h-10 w-10 text-cyan-200" />
-                <p className="font-display text-3xl font-semibold">Select a plan to unlock the workspace.</p>
-                <p className="text-sm leading-6 text-slate-300">
-                  Free is available without payment. Pro and Business activate after Razorpay verification.
-                </p>
+              <div className="pricing-assurance__membership">
+                <span>Workspace access</span>
+                <strong>Choose a plan to begin.</strong>
+                <p>Free activates without payment. Paid plans unlock after Razorpay verification.</p>
               </div>
             )}
-
-            <div className="mt-6 grid gap-3">
+            <div className="pricing-assurance__stats">
               {valueStats.map(({ label, value, icon: Icon }) => (
-                <div key={label} className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-3">
-                  <span className="inline-flex items-center gap-2 text-sm text-slate-300">
-                    <Icon className="h-4 w-4 text-cyan-200" />
-                    {label}
-                  </span>
-                  <span className="font-semibold">{value}</span>
+                <div key={label}>
+                  <span><Icon /> {label}</span>
+                  <strong>{value}</strong>
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-xs leading-5 text-slate-400">
-              Seats mean signed-in workspace members. People who join a live meeting are counted separately as participants.
-            </p>
-          </div>
-        </div>
-      </section>
+            <small>Seats are signed-in workspace members. Meeting participants are counted separately.</small>
+          </aside>
+        </header>
 
-      {message ? (
-        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
-          message.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-        }`}>
-          {message.text}
-        </div>
-      ) : null}
+        {message ? (
+          <div className={`pricing-message pricing-message--${message.type}`} role="status">{message.text}</div>
+        ) : null}
 
-      {currentPlan ? (
-        <section className="rounded-[1.5rem] border border-cyan-200 bg-cyan-50/70 p-5 shadow-[0_18px_50px_rgba(8,145,178,0.12)]">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        {currentPlan ? (
+          <section className="pricing-current-plan">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-700">Current plan</p>
-              <h2 className="mt-2 font-display text-3xl font-semibold text-slate-950">{currentPlan.title}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                {currentPlan.description} Downgrades are locked while this paid plan is active, unless the Pro quota is used up.
-              </p>
+              <p className="pricing-kicker">Current plan</p>
+              <h2>{currentPlan.title}</h2>
+              <p>{currentPlan.description} Downgrades stay locked while this paid plan is active unless the quota is used.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-4 lg:min-w-[38rem]">
-              <div className="rounded-xl bg-white p-4 ring-1 ring-cyan-500/15">
-                <CalendarDays className="h-4 w-4 text-cyan-700" />
-                <p className="mt-2 text-xs text-slate-500">Rooms</p>
-                <p className="font-semibold text-slate-950">{currentPlan.limits.monthlyRooms}</p>
+            <dl>
+              <div><dt>Rooms</dt><dd>{currentPlan.limits.monthlyRooms}</dd></div>
+              <div><dt>Participants</dt><dd>{currentPlan.limits.participants}</dd></div>
+              <div><dt>Seats</dt><dd>{currentPlan.limits.seats}</dd></div>
+              <div><dt>Credits left</dt><dd>{membership.creditBalance == null ? 'Custom' : Math.round(membership.creditBalance)}</dd></div>
+            </dl>
+          </section>
+        ) : null}
+
+        <section className="pricing-plans" aria-labelledby="pricing-plans-title">
+          <div className="pricing-section-heading">
+            <div>
+              <p className="pricing-kicker">{currentPlan ? 'Other plans' : 'Choose your plan'}</p>
+              <h2 id="pricing-plans-title">One clear tier for every stage.</h2>
+            </div>
+            <p>All plans include unlimited meeting rooms.</p>
+          </div>
+
+          <div className={`pricing-plan-grid ${visiblePlans.length < 4 ? 'pricing-plan-grid--compact' : ''}`}>
+            {visiblePlans.map((plan) => {
+              const isCurrent = membership?.active && membership.plan === plan.key;
+              const annualSavings = getAnnualSavings(plan.key);
+              const blockedReason = planChangeBlocked(membership, plan.key);
+              const disabled = Boolean(isCurrent || busyKey || blockedReason);
+
+              return (
+                <article key={plan.key} className={`pricing-plan-card ${plan.recommended ? 'pricing-plan-card--recommended' : ''}`}>
+                  {plan.recommended ? <span className="pricing-plan-card__recommended">Recommended</span> : null}
+                  <div className="pricing-plan-card__header">
+                    <span>{plan.badge}</span>
+                    <h3>{plan.title}</h3>
+                    <p>{plan.description}</p>
+                  </div>
+
+                  <div className="pricing-plan-card__price">
+                    <PlanPrice planKey={plan.key} cycle={cycle} />
+                    {cycle === 'annual' && annualSavings > 0 ? <span>Save {formatInr(annualSavings)} yearly</span> : null}
+                  </div>
+
+                  <dl className="pricing-plan-card__metrics">
+                    <div><dt>Room length</dt><dd>{plan.limits.meetingMinutes}</dd></div>
+                    <div><dt>Participants</dt><dd>{plan.limits.participants}</dd></div>
+                    <div><dt>Workspace seats</dt><dd>{plan.limits.seats}</dd></div>
+                    <div><dt>Credits</dt><dd>{plan.limits.credits}</dd></div>
+                  </dl>
+
+                  <ul className="pricing-plan-card__features">
+                    {plan.highlights.slice(0, 3).map((highlight) => (
+                      <li key={highlight}><Check /> <span>{highlight}</span></li>
+                    ))}
+                  </ul>
+
+                  <div className="pricing-plan-card__action">
+                    <GradientBorderButton
+                      variant={plan.recommended ? 'create' : 'dark'}
+                      onClick={() => selectPlan(plan.key)}
+                      disabled={disabled}
+                      className="w-full"
+                    >
+                      {plan.key === 'enterprise' ? <Infinity className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
+                      {isCurrent ? 'Current plan' : blockedReason ? 'Downgrade locked' : busyKey === plan.key ? 'Working...' : plan.key === 'free' ? 'Activate Free' : plan.key === 'enterprise' ? 'Contact Sales' : `Buy ${plan.title}`}
+                    </GradientBorderButton>
+                    {blockedReason ? <p>{blockedReason}</p> : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="pricing-comparison" aria-labelledby="pricing-comparison-title">
+          <div className="pricing-section-heading">
+            <div>
+              <p className="pricing-kicker">System matrix</p>
+              <h2 id="pricing-comparison-title">Compare the essentials.</h2>
+            </div>
+            <Link href="/sign-up">Create account <ArrowRight /></Link>
+          </div>
+          <div className="pricing-comparison__scroll">
+            <div className="pricing-comparison__table">
+              <div className="pricing-comparison__head">
+                <span>Capability</span><span>Free</span><span>Pro</span><span>Business</span>
               </div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-cyan-500/15">
-                <Users className="h-4 w-4 text-cyan-700" />
-                <p className="mt-2 text-xs text-slate-500">Participants</p>
-                <p className="font-semibold text-slate-950">{currentPlan.limits.participants}</p>
-              </div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-cyan-500/15">
-                <Users className="h-4 w-4 text-cyan-700" />
-                <p className="mt-2 text-xs text-slate-500">Seats</p>
-                <p className="font-semibold text-slate-950">{currentPlan.limits.seats}</p>
-              </div>
-              <div className="rounded-xl bg-white p-4 ring-1 ring-cyan-500/15">
-                <Zap className="h-4 w-4 text-cyan-700" />
-                <p className="mt-2 text-xs text-slate-500">Credits left</p>
-                <p className="font-semibold text-slate-950">{membership.creditBalance == null ? 'Custom' : Math.round(membership.creditBalance)}</p>
-              </div>
+              {comparisonRows.map(([feature, free, pro, business]) => (
+                <div key={feature} className="pricing-comparison__row">
+                  <strong>{feature}</strong><span>{free}</span><span>{pro}</span><span>{business}</span>
+                </div>
+              ))}
             </div>
           </div>
         </section>
-      ) : null}
 
-      <section>
-        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-              {currentPlan ? 'Other plans' : 'Choose your plan'}
-            </p>
-            <h2 className="mt-1 font-display text-2xl font-semibold text-slate-950">
-              {currentPlan ? 'Upgrade or compare what comes next' : 'Start free or buy Pro in seconds'}
-            </h2>
+        <section className="pricing-credits" aria-labelledby="pricing-credits-title">
+          <div className="pricing-credits__intro">
+            <span><WalletCards /></span>
+            <p className="pricing-kicker">On-demand power</p>
+            <h2 id="pricing-credits-title">Extra credits, only when needed.</h2>
+            <p>Top up AI summaries, captions, and recording workflows without changing your plan.</p>
           </div>
-          <p className="text-sm text-slate-500">All plans include unlimited meeting rooms.</p>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-3">
-          {visiblePlans.map((plan) => {
-            const isCurrent = membership?.active && membership.plan === plan.key;
-            const annualSavings = getAnnualSavings(plan.key);
-            const blockedReason = planChangeBlocked(membership, plan.key);
-            const disabled = Boolean(isCurrent || busyKey || blockedReason);
-
-            return (
-              <CometCard
-                key={plan.key}
-                intensity={plan.recommended ? 'strong' : 'soft'}
-                className={plan.recommended ? 'border-[#37d7ff]' : ''}
-                innerClassName="p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white shadow-sm">
-                      {plan.badge}
-                    </span>
-                    <h2 className="mt-4 font-display text-2xl font-semibold text-slate-950">{plan.title}</h2>
-                  </div>
-                  {plan.recommended ? (
-                    <span className="rounded-lg bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700 ring-1 ring-cyan-500/20">
-                      Best value
-                    </span>
-                  ) : null}
-                </div>
-
-                <p className="mt-3 min-h-[3rem] text-sm leading-6 text-slate-600">{plan.description}</p>
-                <div className="mt-5">
-                  <PlanPrice planKey={plan.key} cycle={cycle} />
-                  {cycle === 'annual' && annualSavings > 0 ? (
-                    <p className="mt-2 text-xs font-semibold text-emerald-700">Save {formatInr(annualSavings)} yearly</p>
-                  ) : null}
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 p-3">
-                    <CalendarDays className="h-4 w-4 text-cyan-700" />
-                    <p className="mt-2 text-xs font-medium text-slate-500">Rooms</p>
-                    <p className="text-sm font-semibold text-slate-950">{plan.limits.monthlyRooms}</p>
-                  </div>
-                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
-                    <Users className="h-4 w-4 text-emerald-700" />
-                    <p className="mt-2 text-xs font-medium text-slate-500">Participants</p>
-                    <p className="text-sm font-semibold text-slate-950">{plan.limits.participants}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <Users className="h-4 w-4 text-slate-700" />
-                    <p className="mt-2 text-xs font-medium text-slate-500">Seats</p>
-                    <p className="text-sm font-semibold text-slate-950">{plan.limits.seats}</p>
-                  </div>
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
-                    <Zap className="h-4 w-4 text-amber-700" />
-                    <p className="mt-2 text-xs font-medium text-slate-500">Credits</p>
-                    <p className="text-sm font-semibold text-slate-950">{plan.limits.credits}</p>
-                  </div>
-                </div>
-
-                <div className="mt-5 rounded-xl border border-slate-200 bg-white/75 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">You get</p>
-                  <ul className="mt-3 space-y-2">
-                    {[plan.limits.meetingMinutes, ...plan.highlights].map((highlight) => (
-                      <li key={highlight} className="flex items-start gap-2 text-sm text-slate-600">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>{highlight}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="mt-auto pt-6">
-                  <GradientBorderButton
-                    variant={plan.key === 'enterprise' ? 'light' : plan.recommended ? 'create' : 'join'}
-                    onClick={() => selectPlan(plan.key)}
-                    disabled={disabled}
-                    className="w-full justify-center"
-                  >
-                    {plan.key === 'enterprise' ? <Infinity className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
-                    {isCurrent ? 'Current plan' : blockedReason ? 'Downgrade locked' : busyKey === plan.key ? 'Working...' : plan.key === 'free' ? 'Activate Free' : plan.key === 'enterprise' ? 'Contact Sales' : `Buy ${plan.title}`}
-                  </GradientBorderButton>
-                  {blockedReason ? (
-                    <p className="mt-3 text-xs leading-5 text-amber-700">{blockedReason}</p>
-                  ) : null}
-                </div>
-              </CometCard>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-        <GlowCard className="p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Plan comparison</p>
-              <h2 className="mt-2 font-display text-2xl font-semibold text-slate-950">What users get</h2>
-            </div>
-            <Link href="/sign-up" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-700">
-              Create account
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <div className="grid grid-cols-4 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              <div>Feature</div>
-              <div className="text-center">Free</div>
-              <div className="text-center">Pro</div>
-              <div className="text-center">Business</div>
-            </div>
-            {comparisonRows.map(([feature, free, pro, business]) => (
-              <div key={feature} className="grid grid-cols-4 border-t border-slate-200 px-4 py-3 text-sm">
-                <div className="font-medium text-slate-800">{feature}</div>
-                <div className="text-center text-slate-500">{free}</div>
-                <div className="text-center text-slate-500">{pro}</div>
-                <div className="text-center text-slate-500">{business}</div>
-              </div>
-            ))}
-          </div>
-        </GlowCard>
-
-        <GlowCard className="p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-950 text-white">
-              <WalletCards className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Extra credits</p>
-              <h2 className="font-display text-2xl font-semibold text-slate-950">Buy only when needed</h2>
-            </div>
-          </div>
-          <div className="mt-5 space-y-3">
+          <div className="pricing-credit-grid">
             {CREDIT_PACKS.map((pack) => (
-              <div key={pack.key} className="rounded-xl border border-slate-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-950">{pack.title}</p>
-                    <p className="mt-1 text-sm text-slate-500">{pack.credits} credits</p>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">{pack.description}</p>
-                  </div>
-                  <p className="font-display text-xl font-semibold text-slate-950">{formatInr(pack.amountInr)}</p>
+              <article key={pack.key} className={pack.key === 'growth' ? 'pricing-credit-card pricing-credit-card--popular' : 'pricing-credit-card'}>
+                {pack.key === 'growth' ? <span className="pricing-credit-card__badge">Popular</span> : null}
+                <div>
+                  <span>{pack.title}</span>
+                  <strong>{formatInr(pack.amountInr)}</strong>
+                  <b>{pack.credits} credits</b>
+                  <p>{pack.description}</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => openCheckout({ creditPackKey: pack.key })}
                   disabled={!membership?.active || Boolean(busyKey)}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={pack.key === 'growth' ? 'noir-shimmer-button' : ''}
                 >
-                  <Zap className="h-4 w-4" />
-                  {busyKey === pack.key ? 'Opening...' : 'Buy credits'}
+                  <span><Zap /> {busyKey === pack.key ? 'Opening...' : 'Select pack'}</span>
                 </button>
-              </div>
+              </article>
             ))}
           </div>
-          {!membership?.active ? (
-            <p className="mt-3 text-xs text-slate-500">Activate Free, Pro, or Business before adding credits.</p>
-          ) : null}
-        </GlowCard>
-      </section>
-    </div>
-    <Footer />
+          {!membership?.active ? <p className="pricing-credits__note">Activate Free, Pro, or Business before adding credits.</p> : null}
+        </section>
+      </div>
+      <Footer />
     </>
   );
 }
