@@ -20,14 +20,14 @@ export function InfoPage({ eyebrow, title, description, sections, ctaHref = '/lm
     <>
       <div className="page-shell-wide pb-14">
         <header className="border-b border-[#2a3039] pb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-[#8f9aa8] hover:text-[#37d7ff]">
+          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-[#a1a1aa] hover:text-[#ef233c]">
             <ArrowLeft className="h-4 w-4" />
             Back to Melanam
           </Link>
-          <p className="mt-10 text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">{eyebrow}</p>
+          <p className="mt-10 text-xs font-bold uppercase tracking-[0.16em] text-[#ef233c]">{eyebrow}</p>
           <h1 className="mt-3 max-w-4xl font-display text-3xl font-semibold leading-tight text-[#f4f7fa] sm:text-5xl">{title}</h1>
           <p className="mt-5 max-w-3xl text-base leading-8 text-[#a7b1bc]">{description}</p>
-          <Link href={ctaHref} className="mt-7 inline-flex items-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-4 py-2.5 text-sm font-semibold text-[#f4f7fa] hover:border-[#37d7ff] hover:text-[#37d7ff]">
+          <Link href={ctaHref} className="mt-7 inline-flex items-center gap-2 rounded-full border border-[#ef233c]/50 bg-[#ef233c] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#ff4056]">
             {ctaLabel}
             <ArrowRight className="h-4 w-4" />
           </Link>
@@ -37,7 +37,7 @@ export function InfoPage({ eyebrow, title, description, sections, ctaHref = '/lm
           {sections.map((section, index) => (
             <article key={section.title} className="grid gap-4 py-7 md:grid-cols-[minmax(160px,0.34fr)_1fr] md:gap-8">
               <div className="flex items-start gap-3">
-                <span className="pt-0.5 text-xs font-bold text-[#37d7ff]">{String(index + 1).padStart(2, '0')}</span>
+                <span className="pt-0.5 text-xs font-bold text-[#ef233c]">{String(index + 1).padStart(2, '0')}</span>
                 <h2 className="text-base font-semibold text-[#f4f7fa]">{section.title}</h2>
               </div>
               <div>

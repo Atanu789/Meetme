@@ -37,7 +37,7 @@ export function Footer() {
         <div>
           <p className="font-display text-base font-semibold text-[#f4f7fa]">Melanam</p>
           <p className="mt-3 max-w-sm text-sm leading-6 text-[#8f9aa8]">Secure video rooms, learning workspaces and AI meeting context in one place.</p>
-          <Link href="/sign-up" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#37d7ff] hover:text-[#6be3ff]">
+          <Link href="/sign-up" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#ef233c] hover:text-[#ff4056]">
             Get started
             <ArrowRight className="h-4 w-4" />
           </Link>
@@ -48,7 +48,7 @@ export function Footer() {
             <ul className="mt-4 space-y-2.5 text-sm">
               {section.links.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-[#c7d0d9] hover:text-[#37d7ff]">{link.label}</Link>
+                  <Link href={link.href} className="text-[#c7d0d9] hover:text-[#ef233c]">{link.label}</Link>
                 </li>
               ))}
             </ul>

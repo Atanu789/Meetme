@@ -185,13 +185,13 @@ export function Navbar() {
     'hover:border-[#ef6b73] hover:text-[#ef6b73]';
 
   return (
-    <nav className="fixed inset-x-0 top-0 z-50 border-b border-[#2a3039] bg-[#0b0d10] px-3 sm:px-5">
-      <div className="mx-auto max-w-[80rem]">
+    <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-5">
+      <div className="mx-auto max-w-[80rem] rounded-full border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl">
         <div className="flex h-16 items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md border border-[#2a3039] bg-[#181c22] text-[#37d7ff] sm:h-9 sm:w-9">
-                <span className="font-display text-base font-semibold">M</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-[4px] bg-[#ef233c] text-white rotate-45 sm:h-9 sm:w-9">
+                <span className="font-display text-base font-semibold -rotate-45">M</span>
               </div>
               <span className="hidden font-display text-lg font-semibold text-[#f4f7fa] sm:inline">
                 Melanam
@@ -378,7 +378,7 @@ export function Navbar() {
                 {pathname === '/' && (
                   <Link
                     href="/admin/login"
-                    className="font-display inline-flex items-center gap-2 rounded-xl border border-slate-300/80 bg-white/55 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white/85 hover:text-slate-950"
+                    className="font-display inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-zinc-300 transition hover:border-[#ef233c]/60 hover:bg-white/10 hover:text-white"
                   >
                     <ShieldCheck className="h-4 w-4" />
                     <span className="hidden sm:inline">Admin Login</span>
@@ -386,13 +386,13 @@ export function Navbar() {
                 )}
                 <Link
                   href={signInHref}
-                  className="font-display inline-flex items-center gap-2 rounded-xl border border-cyan-200/70 bg-cyan-50/70 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:bg-cyan-100/85 hover:text-cyan-900"
+                  className="font-display inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-[#ef233c]/60 hover:bg-white/10 hover:text-white"
                 >
                   Sign In
                 </Link>
                 <Link
                   href={signInHref}
-                  className="font-display group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-cyan-500/25 transition-all hover:-translate-y-0.5 hover:from-cyan-400 hover:to-emerald-400 active:scale-[0.97]"
+                  className="font-display group inline-flex items-center gap-2 rounded-full border border-[#ef233c]/70 bg-[#ef233c] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_24px_rgba(239,35,60,0.22)] transition-all hover:-translate-y-0.5 hover:bg-[#ff4056] active:scale-[0.97]"
                 >
                   Get Started
                 </Link>

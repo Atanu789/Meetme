@@ -36,3 +36,11 @@ Melanam is a premium operating environment for live meetings, courses, recording
 - Preserve every current feature and route, changing only navigation, visual hierarchy, controls, and interaction ergonomics.
 - Do not introduce gradients, SVG illustrations, decorative bokeh/orbs, oversized heroes, card-inside-card layouts, or one-off animated scenes.
 - Maintain strong contrast, clear keyboard focus, responsive layouts, and no text clipping at mobile or desktop widths.
+
+## Landing-page redesign exception — Red Noir
+
+The public landing page adopts a premium red-noir treatment while preserving all real Melanam product claims, routes, and accessibility. Use a near-black foundation (`#050505`), charcoal layers (`#111113`, `#18181B`), white (`#F4F4F5`), muted zinc (`#A1A1AA`), and one high-contrast crimson signal (`#EF233C`, hover `#FF4056`). Use Space Grotesk throughout, with a tight, editorial display scale only in the hero.
+
+Use a fixed atmospheric background: a soft crimson radial glow at the center, a sparse star field, and a faint 40px technical grid fading outward from the hero. The header floats within a glass-black, rounded-full navigation bar with a subtle blur and 1px white/10 border. Feature panels are black or charcoal glass, with understated white/10 borders, 12–16px corners, and restrained red hover glows. Avoid cyan, purple, blue, generic neon gradients, illustrative characters, or decorative mock brands.
+
+Motion is refined and intentional: staggered upward entrances, a breathing live-status dot, extremely slow star-field drift, a rotating red conic border on the primary CTA, and a seamless horizontally infinite feature marquee that pauses on hover and respects `prefers-reduced-motion`. The meeting product preview may use a red scan line, active-speaker edge pulse, and live recording indicator. Keep controls legible, content high contrast, and motion gentle enough for a serious collaboration product.

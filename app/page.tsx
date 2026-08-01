@@ -6,6 +6,7 @@ import {
   Brain,
   FileText,
   ShieldCheck,
+  Sparkles,
   Video,
   Wand2,
 } from 'lucide-react';
@@ -29,172 +30,95 @@ const workflow = [
 
 function WorkspacePreview() {
   return (
-    <div className="workspace-preview landing-stage overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a]">
-      <div className="workspace-preview__header flex h-12 items-center justify-between border-b border-[#2a3039] px-4">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#f4f7fa]">
-          <span className="workspace-status-dot h-2 w-2 rounded-full bg-[#49d17d]" />
-          Live session
-        </div>
-        <span className="text-xs text-[#8f9aa8]">43:18</span>
+    <div className="noir-workspace">
+      <div className="noir-workspace__chrome">
+        <div className="flex gap-1.5"><span /><span /><span /></div>
+        <div className="noir-workspace__record"><i /> Live seminar · 43:18</div>
       </div>
-      <div className="grid gap-px bg-[#2a3039] sm:grid-cols-[1.4fr_0.8fr]">
-        <div className="grid min-h-[320px] grid-cols-2 gap-px bg-[#2a3039]">
-          {['Instructor', 'Student 01', 'Student 02', 'Shared whiteboard'].map((label, index) => (
-            <div key={label} className={`workspace-tile relative flex items-end bg-[#181c22] p-3 ${index === 0 ? 'workspace-tile--active' : ''} ${index === 3 ? 'bg-[#10161a]' : ''}`}>
-              {index === 3 ? (
-                <div className="workspace-board relative w-full space-y-3 border border-[#2a3039] p-3">
-                  <div className="h-2 w-3/4 bg-[#2a3039]" />
-                  <div className="h-2 w-1/2 bg-[#2a3039]" />
-                  <div className="h-px w-full bg-[#37d7ff]" />
-                  <div className="h-2 w-2/3 bg-[#2a3039]" />
-                  <span className="workspace-board__cursor" />
-                </div>
-              ) : (
-                <div className={`absolute inset-0 ${index === 0 ? 'bg-[#19242b]' : index === 1 ? 'bg-[#1b2028]' : 'bg-[#202126]'}`} />
-              )}
-              <span className="relative z-10 border border-[#2a3039] bg-[#0b0d10] px-2 py-1 text-[11px] font-medium text-[#d8e0e7]">{label}</span>
+      <div className="noir-workspace__body">
+        <div className="noir-workspace__tiles">
+          {['Lead instructor', 'Student 01', 'Student 02', 'Shared whiteboard'].map((label, index) => (
+            <div className={`noir-tile noir-tile--${index}`} key={label}>
+              {index === 3 ? <div className="noir-board"><b /><b /><em /><b /></div> : <span className="noir-tile__avatar" />}
+              <small>{label}</small>
             </div>
           ))}
         </div>
-        <aside className="workspace-context bg-[#12151a] p-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#37d7ff]">Meeting context</p>
-          <div className="mt-4 space-y-4">
-            <div className="workspace-context__item">
-              <p className="text-xs font-semibold text-[#f4f7fa]">Live captions</p>
-              <p className="mt-1 text-xs leading-5 text-[#8f9aa8]">Design review begins with the learning flow.</p>
-            </div>
-            <div className="workspace-context__item border-t border-[#2a3039] pt-4">
-              <p className="text-xs font-semibold text-[#f4f7fa]">Shared files</p>
-              <p className="mt-1 text-xs text-[#8f9aa8]">3 resources available</p>
-            </div>
-            <div className="workspace-context__item border-t border-[#2a3039] pt-4">
-              <p className="text-xs font-semibold text-[#f4f7fa]">Session notes</p>
-              <p className="mt-1 text-xs text-[#8f9aa8]">Summary ready after recording.</p>
-            </div>
-          </div>
+        <aside className="noir-workspace__side">
+          <p>Meeting intelligence</p>
+          <div><strong>Live summary</strong><span>Key decisions and resources are being captured automatically.</span></div>
+          <div><strong>Shared resources</strong><span>03 files attached to this session</span></div>
+          <div><strong>Next action</strong><span>Review the lesson outline</span></div>
         </aside>
       </div>
-      <div className="workspace-toolbar flex items-center justify-between border-t border-[#2a3039] px-4 py-3">
-        <div className="flex gap-2">
-          <span className="workspace-control h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
-          <span className="workspace-control h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
-          <span className="workspace-control h-7 w-7 border border-[#2a3039] bg-[#181c22]" />
-        </div>
-        <span className="border border-[#ef6b73] px-3 py-1.5 text-xs font-semibold text-[#ef6b73]">End session</span>
-      </div>
+      <div className="noir-workspace__controls"><span /><span /><span /><b>End session</b></div>
     </div>
+  );
+}
+
+function FeatureRail() {
+  const cards = [...capabilities, ...capabilities];
+  return (
+    <section id="features" className="noir-features">
+      <div className="page-shell-wide noir-section-heading">
+        <p>Connected by design</p>
+        <h2>Everything that happens live stays in context.</h2>
+      </div>
+      <div className="noir-marquee" aria-label="Melanam capabilities">
+        <div className="noir-marquee__track">
+          {cards.map(({ icon: Icon, title, description }, index) => (
+            <article className="noir-feature-card" key={`${title}-${index}`} aria-hidden={index >= capabilities.length}>
+              <Icon />
+              <div><h3>{title}</h3><p>{description}</p></div>
+              <ArrowRight className="noir-feature-card__arrow" />
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
 export default function HomePage() {
   return (
-    <div className="landing-page-new pb-0 text-[#f4f7fa]">
-      <section className="landing-hero page-shell-wide grid gap-10 pb-14 pt-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:pt-16">
-        <div className="landing-copy">
-          <p className="landing-eyebrow text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">Meeting and learning workspace</p>
-          <h1 className="landing-title mt-4 max-w-xl font-display text-4xl font-semibold leading-tight sm:text-5xl">
-            Melanam
-          </h1>
-          <p className="landing-offer mt-3 max-w-xl text-[24px] font-semibold leading-tight text-[#f4f7fa] sm:text-[30px]">
-            Meet. Teach. Remember.
-          </p>
-          <p className="landing-description mt-4 max-w-xl text-lg leading-8 text-[#a7b1bc]">
-            Meetings, learning workflows and AI meeting memory in one controlled workspace.
-          </p>
-          <div className="landing-command-rail mt-7">
-            <div>
-              <Video className="h-4 w-4" />
-              <span>Meet</span>
-              <small>Rooms, captions and recordings</small>
+    <div className="landing-noir">
+      <section className="noir-hero">
+        <div className="noir-hero__stars" aria-hidden="true" />
+        <div className="page-shell-wide noir-hero__inner">
+          <div className="noir-hero__copy">
+            <p className="noir-live"><span /><span>Melanam workspace is live</span><ArrowRight /></p>
+            <h1>Meet. Teach.<br /><span>Remember.</span></h1>
+            <p className="noir-hero__description">A secure operating environment for live meetings, learning workflows, and the intelligence that moves work forward.</p>
+            <div className="noir-hero__actions">
+              <Link href="/sign-up" className="noir-primary-action">Enter Melanam <ArrowRight /></Link>
+              <Link href="/lms" className="noir-secondary-action">Explore workspace</Link>
             </div>
-            <div>
-              <BookOpen className="h-4 w-4" />
-              <span>Learn</span>
-              <small>Courses, sessions and assignments</small>
-            </div>
-            <div>
-              <Brain className="h-4 w-4" />
-              <span>Remember</span>
-              <small>AI notes, decisions and follow-up</small>
+            <div className="noir-proof">
+              <span><b>01</b> One record for every session</span>
+              <span><b>AI</b> Context built in</span>
+              <span><b>∞</b> Work continues after the call</span>
             </div>
           </div>
-          <div className="landing-actions mt-7 flex flex-wrap gap-3">
-            <Link href="/sign-up" className="landing-primary-action inline-flex items-center gap-2 rounded-md bg-[#37d7ff] px-4 py-2.5 text-sm font-semibold text-[#061014] hover:bg-[#6be3ff]">
-              Get started
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/lms" className="landing-secondary-action inline-flex items-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-4 py-2.5 text-sm font-semibold text-[#f4f7fa] hover:bg-[#20252d]">
-              Open workspace
-            </Link>
-          </div>
-          <dl className="landing-metrics mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-4">
-            {[
-              ['Rooms', 'Video, captions and recording'],
-              ['Courses', 'Sessions and assignments'],
-              ['Context', 'AI notes and transcripts'],
-              ['Work', 'Files, polls and boards'],
-            ].map(([label, value]) => (
-              <div key={label} className="landing-metric bg-[#12151a] p-3">
-                <dt className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d8897]">{label}</dt>
-                <dd className="mt-2 text-xs leading-5 text-[#d8e0e7]">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <WorkspacePreview />
-      </section>
-
-      <section id="features" className="landing-capabilities border-y border-[#2a3039] bg-[#101216]">
-        <div className="page-shell-wide py-12">
-          <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">Capabilities</p>
-            <h2 className="mt-3 font-display text-2xl font-semibold">Everything stays connected to the session.</h2>
-          </div>
-          <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-2 lg:grid-cols-3">
-            {capabilities.map(({ icon: Icon, title, description }) => (
-              <article key={title} className="landing-capability bg-[#12151a] p-5">
-                <Icon className="h-5 w-5 text-[#37d7ff]" />
-                <h3 className="mt-5 text-sm font-semibold text-[#f4f7fa]">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#a7b1bc]">{description}</p>
-              </article>
-            ))}
-          </div>
+          <WorkspacePreview />
         </div>
       </section>
 
-      <section className="page-shell-wide py-14">
-        <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr]">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#37d7ff]">How it flows</p>
-            <h2 className="mt-3 font-display text-2xl font-semibold">One record from live session to follow-up work.</h2>
-            <p className="mt-4 text-sm leading-7 text-[#a7b1bc]">Melanam keeps the meeting record, learning activity and related resources in the same place.</p>
-          </div>
-          <ol className="grid gap-px overflow-hidden rounded-lg border border-[#2a3039] bg-[#2a3039] sm:grid-cols-2">
-            {workflow.map(([number, title, description]) => (
-              <li key={title} className="landing-workflow-step bg-[#12151a] p-5">
-                <span className="text-xs font-bold text-[#37d7ff]">{number}</span>
-                <h3 className="mt-8 text-sm font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#a7b1bc]">{description}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
+      <section className="noir-partner-strip"><span>Built for the entire session lifecycle</span><b>MEETINGS</b><b>LEARNING</b><b>AI MEMORY</b><b>RESOURCES</b><b>FOLLOW-UP</b></section>
+      <FeatureRail />
+
+      <section className="page-shell-wide noir-workflow">
+        <div className="noir-workflow__intro"><p>From signal to memory</p><h2>Live work deserves a lasting record.</h2><span>Melanam keeps your rooms, lessons, decisions, and follow-up work inside one intentional system.</span></div>
+        <ol>
+          {workflow.map(([number, title, description]) => <li key={title}><b>{number}</b><div><h3>{title}</h3><p>{description}</p></div><ArrowRight /></li>)}
+        </ol>
       </section>
 
-      <section className="border-t border-[#2a3039] bg-[#101216]">
-        <div className="page-shell-wide flex flex-col gap-6 py-10 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#49d17d]" />
-            <div>
-              <p className="text-sm font-semibold">Designed for controlled collaboration.</p>
-              <p className="mt-1 text-sm text-[#a7b1bc]">Private rooms, protected workspaces and role-aware learning access.</p>
-            </div>
-          </div>
-          <Link href="/pricing" className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[#37d7ff] hover:text-[#6be3ff]">
-            View membership
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+      <section className="page-shell-wide noir-final">
+        <Sparkles />
+        <p>Private by design. Intelligent by default.</p>
+        <h2>Make every conversation count.</h2>
+        <Link href="/sign-up" className="noir-primary-action">Get started free <ArrowRight /></Link>
+        <span><ShieldCheck /> Secure rooms · controlled workspaces · role-aware access</span>
       </section>
       <Footer />
     </div>
