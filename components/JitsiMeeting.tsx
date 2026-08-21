@@ -481,11 +481,11 @@ export function JitsiMeeting({
             enableAdaptiveMode: true,
           },
           p2p: {
-            // Route even two-person meetings through Jitsi Videobridge. This
-            // avoids failed direct peer connections on mobile carriers, CGNAT,
-            // and restrictive corporate Wi-Fi, while keeping the media path
-            // unchanged when more people join.
-            enabled: false,
+            // Keep Jitsi's direct WebRTC path available for two participants.
+            // Disabling this forced every call through the videobridge, so an
+            // unavailable bridge media port resulted in both users joining but
+            // receiving no remote audio or video.
+            enabled: true,
             codecPreferenceOrder: codecOrder,
             mobileCodecPreferenceOrder: codecOrder,
           },
