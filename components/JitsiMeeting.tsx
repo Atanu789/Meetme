@@ -420,14 +420,14 @@ export function JitsiMeeting({
       });
       setLoading(true);
 
-      // Do not make phones encode a desktop 1080p VP9 stream. In particular,
-      // iOS browsers share WebKit and are substantially more reliable with
-      // H.264 at a lower capture resolution.
+      // Do not make phones encode a desktop 1080p stream. Keep VP8 first for
+      // every participant: it is the most consistently interoperable Jitsi
+      // WebRTC codec across Chrome, Firefox, and Safari.
       const mobileBrowser = isMobileBrowser();
       const captureWidth = mobileBrowser ? MOBILE_CAPTURE_WIDTH : IDEAL_CAPTURE_WIDTH;
       const captureHeight = mobileBrowser ? MOBILE_CAPTURE_HEIGHT : IDEAL_CAPTURE_HEIGHT;
       const preferredResolution = mobileBrowser ? MOBILE_VIDEO_QUALITY : DEFAULT_VIDEO_QUALITY;
-      const codecOrder = mobileBrowser ? ['H264', 'VP8', 'VP9', 'AV1'] : ['VP9', 'VP8', 'H264', 'AV1'];
+      const codecOrder = ['VP8', 'H264', 'VP9', 'AV1'];
       const effectivePrejoinPageEnabled = prejoinPageEnabled && !joinedOnceRef.current;
       const options = {
         roomName: roomName,
@@ -475,15 +475,19 @@ export function JitsiMeeting({
             receiveMultipleVideoStreams: !mobileBrowser,
           },
           videoQuality: {
-            preferredCodec: mobileBrowser ? 'H264' : 'VP9',
+            preferredCodec: 'VP8',
             codecPreferenceOrder: codecOrder,
-            mobileCodecPreferenceOrder: ['H264', 'VP8', 'VP9', 'AV1'],
+            mobileCodecPreferenceOrder: codecOrder,
             enableAdaptiveMode: true,
           },
           p2p: {
-            enabled: true,
+            // Route even two-person meetings through Jitsi Videobridge. This
+            // avoids failed direct peer connections on mobile carriers, CGNAT,
+            // and restrictive corporate Wi-Fi, while keeping the media path
+            // unchanged when more people join.
+            enabled: false,
             codecPreferenceOrder: codecOrder,
-            mobileCodecPreferenceOrder: ['H264', 'VP8', 'VP9', 'AV1'],
+            mobileCodecPreferenceOrder: codecOrder,
           },
           enableNoisyMicDetection: true,
           prejoinPageEnabled: effectivePrejoinPageEnabled,
