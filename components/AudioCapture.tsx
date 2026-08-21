@@ -53,6 +53,11 @@ const RECORDER_MIME_TYPES = [
   'audio/ogg',
   'audio/mp4',
 ];
+const APPLE_RECORDER_MIME_TYPES = [
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/mp4',
+  ...RECORDER_MIME_TYPES,
+];
 const RECORDER_SEGMENT_MS = 3000;
 
 declare global {
@@ -270,11 +275,27 @@ export function AudioCapture({
   };
 
   const startRecorderFallback = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      throw new Error('Live captions require microphone recording support in this browser');
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
     console.log('[audio] Microphone access granted, stream:', stream);
     streamRef.current = stream;
 
-    startRecorderSegment(stream);
+    try {
+      startRecorderSegment(stream);
+    } catch (error) {
+      stream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      throw error;
+    }
     console.log('[audio] MediaRecorder fallback started');
   };
 
@@ -316,6 +337,9 @@ export function AudioCapture({
 
       if (shouldKeepListeningRef.current && streamRef.current?.active) {
         startRecorderSegment(streamRef.current);
+      } else if (streamRef.current === stream) {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
     };
 
@@ -341,13 +365,12 @@ export function AudioCapture({
         mediaRecorderRef.current.stop();
       } catch {
         mediaRecorderRef.current = null;
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
       }
     } else {
       mediaRecorderRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
   };
@@ -441,11 +464,16 @@ export function AudioCapture({
 }
 
 function getSupportedAudioMimeType() {
-  if (typeof MediaRecorder === 'undefined') {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
     return '';
   }
 
-  return RECORDER_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+  // Safari records AAC in MP4, while Chromium is most reliable with Opus in
+  // WebM. Choosing the native container avoids uploads that cannot be decoded
+  // by the transcription service.
+  const isAppleWebKit = /applewebkit/i.test(navigator.userAgent) && !/android/i.test(navigator.userAgent);
+  const mimeTypes = isAppleWebKit ? APPLE_RECORDER_MIME_TYPES : RECORDER_MIME_TYPES;
+  return mimeTypes.find((type) => MediaRecorder.isTypeSupported(type)) || '';
 }
 
 function getAudioExtension(mimeType: string) {

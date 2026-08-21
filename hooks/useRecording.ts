@@ -34,6 +34,8 @@ const MAX_RECORDING_HEIGHT = 1080;
 const MAX_RECORDING_FRAME_RATE = 30;
 const HIGH_QUALITY_VIDEO_BITS_PER_SECOND = 8_000_000;
 const HIGH_QUALITY_AUDIO_BITS_PER_SECOND = 192_000;
+const MOBILE_VIDEO_BITS_PER_SECOND = 2_500_000;
+const MOBILE_AUDIO_BITS_PER_SECOND = 96_000;
 
 const RECORDING_PROFILES: RecordingProfile[] = [
   {
@@ -96,6 +98,19 @@ function isTypeSupported(mimeType: string) {
   } catch {
     return false;
   }
+}
+
+function isMobileBrowser() {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  const userAgentData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+  if (userAgentData?.mobile) {
+    return true;
+  }
+
+  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
 }
 
 function getSupportedProfiles() {
@@ -178,13 +193,20 @@ async function requestDisplayStream(profile: RecordingProfile) {
 
 function createMediaRecorder(stream: MediaStream) {
   const supportedProfiles = getSupportedProfiles();
+  const mobileBrowser = isMobileBrowser();
+  const videoBitsPerSecond = mobileBrowser
+    ? MOBILE_VIDEO_BITS_PER_SECOND
+    : HIGH_QUALITY_VIDEO_BITS_PER_SECOND;
+  const audioBitsPerSecond = mobileBrowser
+    ? MOBILE_AUDIO_BITS_PER_SECOND
+    : HIGH_QUALITY_AUDIO_BITS_PER_SECOND;
 
   for (const profile of supportedProfiles) {
     try {
       const recorder = new MediaRecorder(stream, {
         mimeType: profile.mimeType,
-        videoBitsPerSecond: HIGH_QUALITY_VIDEO_BITS_PER_SECOND,
-        audioBitsPerSecond: HIGH_QUALITY_AUDIO_BITS_PER_SECOND,
+        videoBitsPerSecond,
+        audioBitsPerSecond,
       });
       const mimeType = recorder.mimeType || profile.mimeType;
 
@@ -215,8 +237,8 @@ function createMediaRecorder(stream: MediaStream) {
 
   try {
     recorder = new MediaRecorder(stream, {
-      videoBitsPerSecond: HIGH_QUALITY_VIDEO_BITS_PER_SECOND,
-      audioBitsPerSecond: HIGH_QUALITY_AUDIO_BITS_PER_SECOND,
+      videoBitsPerSecond,
+      audioBitsPerSecond,
     });
   } catch {
     recorder = new MediaRecorder(stream);
@@ -304,6 +326,17 @@ async function createMixedRecordingStream(
   if (audioStreams.length === 0) {
     return {
       stream: new MediaStream(videoTracks),
+      audioContext: null as AudioContext | null,
+      sourceNodes: [] as MediaStreamAudioSourceNode[],
+    };
+  }
+
+  // Mixing through an AudioContext is unnecessary for a single track and is
+  // fragile on iOS when the page is backgrounded. Preserve that track exactly
+  // as the browser supplied it.
+  if (audioStreams.length === 1) {
+    return {
+      stream: new MediaStream([...videoTracks, ...audioStreams[0].getAudioTracks()]),
       audioContext: null as AudioContext | null,
       sourceNodes: [] as MediaStreamAudioSourceNode[],
     };
@@ -633,7 +666,7 @@ export function useRecording(roomName: string): UseRecordingReturn {
       if (!navigator.mediaDevices?.getDisplayMedia) {
         setState((prev) => ({
           ...prev,
-          error: 'Screen or tab capture is not supported in this browser',
+          error: 'Screen recording is not available in this mobile browser. Use a current Android Chrome browser or desktop browser.',
         }));
         return;
       }
@@ -641,7 +674,10 @@ export function useRecording(roomName: string): UseRecordingReturn {
       try {
         // Keep getDisplayMedia first in the async path. Safari/Firefox are strict
         // about transient user activation and can reject capture after awaits/prompts.
-        const preferredProfile = getSupportedProfiles()[0] || RECORDING_PROFILES[0];
+        const baseProfile = getSupportedProfiles()[0] || RECORDING_PROFILES[0];
+        const preferredProfile = isMobileBrowser()
+          ? { ...baseProfile, width: 1280, height: 720, label: '720p mobile capture' }
+          : baseProfile;
         const displayStream = await requestDisplayStream(preferredProfile);
         displayStreamRef.current = displayStream;
 
@@ -732,6 +768,8 @@ export function useRecording(roomName: string): UseRecordingReturn {
         const errorMessage =
           error instanceof DOMException && error.name === 'NotAllowedError'
             ? 'Recording cancelled.'
+            : error instanceof DOMException && ['NotSupportedError', 'TypeError'].includes(error.name)
+              ? 'Screen recording is not supported by this browser. Use a current Android Chrome browser or desktop browser.'
             : error instanceof Error
               ? error.message
               : 'Failed to start local recording';

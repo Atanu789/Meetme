@@ -35,6 +35,22 @@ const VIDEO_QUALITY_LEVELS = [
 ];
 const REJOIN_BASE_DELAY_MS = 1500;
 const REJOIN_MAX_DELAY_MS = 12000;
+const MOBILE_VIDEO_QUALITY = 720;
+const MOBILE_CAPTURE_WIDTH = 1280;
+const MOBILE_CAPTURE_HEIGHT = 720;
+
+function isMobileBrowser() {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  const userAgentData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+  if (userAgentData?.mobile) {
+    return true;
+  }
+
+  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+}
 
 declare global {
   interface Window {
@@ -404,6 +420,14 @@ export function JitsiMeeting({
       });
       setLoading(true);
 
+      // Do not make phones encode a desktop 1080p VP9 stream. In particular,
+      // iOS browsers share WebKit and are substantially more reliable with
+      // H.264 at a lower capture resolution.
+      const mobileBrowser = isMobileBrowser();
+      const captureWidth = mobileBrowser ? MOBILE_CAPTURE_WIDTH : IDEAL_CAPTURE_WIDTH;
+      const captureHeight = mobileBrowser ? MOBILE_CAPTURE_HEIGHT : IDEAL_CAPTURE_HEIGHT;
+      const preferredResolution = mobileBrowser ? MOBILE_VIDEO_QUALITY : DEFAULT_VIDEO_QUALITY;
+      const codecOrder = mobileBrowser ? ['H264', 'VP8', 'VP9', 'AV1'] : ['VP9', 'VP8', 'H264', 'AV1'];
       const effectivePrejoinPageEnabled = prejoinPageEnabled && !joinedOnceRef.current;
       const options = {
         roomName: roomName,
@@ -420,21 +444,26 @@ export function JitsiMeeting({
           startWithAudioMuted,
           startWithVideoMuted,
           disableDeepLinking: true,
-          disableSimulcast: false,
-          resolution: DEFAULT_VIDEO_QUALITY,
-          startBitrate: 1500,
+          disableSimulcast: mobileBrowser,
+          resolution: preferredResolution,
+          startBitrate: mobileBrowser ? 800 : 1500,
           constraints: {
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
             video: {
               height: {
-                ideal: IDEAL_CAPTURE_HEIGHT,
-                max: IDEAL_CAPTURE_HEIGHT,
+                ideal: captureHeight,
+                max: captureHeight,
               },
               width: {
-                ideal: IDEAL_CAPTURE_WIDTH,
-                max: IDEAL_CAPTURE_WIDTH,
+                ideal: captureWidth,
+                max: captureWidth,
               },
               frameRate: {
-                ideal: 30,
+                ideal: mobileBrowser ? 24 : 30,
                 max: 30,
               },
             },
@@ -442,29 +471,19 @@ export function JitsiMeeting({
           channelLastN: -1,
           flags: {
             sourceNameSignaling: true,
-            sendMultipleVideoStreams: true,
-            receiveMultipleVideoStreams: true,
+            sendMultipleVideoStreams: !mobileBrowser,
+            receiveMultipleVideoStreams: !mobileBrowser,
           },
           videoQuality: {
-            preferredCodec: 'VP9',
-            codecPreferenceOrder: [
-              'VP9',
-              'VP8',
-              'H264',
-              'AV1',
-            ],
-            mobileCodecPreferenceOrder: [
-              'VP8',
-              'H264',
-              'VP9',
-              'AV1',
-            ],
+            preferredCodec: mobileBrowser ? 'H264' : 'VP9',
+            codecPreferenceOrder: codecOrder,
+            mobileCodecPreferenceOrder: ['H264', 'VP8', 'VP9', 'AV1'],
             enableAdaptiveMode: true,
           },
           p2p: {
             enabled: true,
-            codecPreferenceOrder: ['VP9', 'VP8', 'H264', 'AV1'],
-            mobileCodecPreferenceOrder: ['VP8', 'H264', 'VP9', 'AV1'],
+            codecPreferenceOrder: codecOrder,
+            mobileCodecPreferenceOrder: ['H264', 'VP8', 'VP9', 'AV1'],
           },
           enableNoisyMicDetection: true,
           prejoinPageEnabled: effectivePrejoinPageEnabled,
