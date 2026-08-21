@@ -315,7 +315,7 @@ export function Navbar() {
                     <span className="hidden lg:inline">Files</span>
                   </button>
                   {isFilesOpen && (
-                    <div className="absolute left-0 z-[1010] mt-3 w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+                    <div className="fixed left-1/2 top-20 z-[1010] w-[calc(100vw-1.5rem)] max-w-[520px] -translate-x-1/2 overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:absolute sm:left-0 sm:top-auto sm:mt-3 sm:w-[520px] sm:max-w-[calc(100vw-2rem)] sm:translate-x-0">
                       <FileShare
                         meetingId={roomMeetingId}
                         scopeType="meeting"
@@ -337,9 +337,11 @@ export function Navbar() {
                     Pricing
                   </Link>
                 )}
-                <Link href="/lms" className="noir-shimmer-button font-display inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
-                  <span>Continue</span>
-                </Link>
+                {!isRoomPage && (
+                  <Link href="/lms" className="noir-shimmer-button font-display inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
+                    <span>Continue</span>
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={handleLogout}
