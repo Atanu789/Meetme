@@ -28,6 +28,7 @@ export function Navbar() {
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
+  const isRoomPage = Boolean(roomMatch);
   const currentUrl = pathname ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}` : '/';
   const signInHref = status === 'authenticated' ? '/lms' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
@@ -185,8 +186,8 @@ export function Navbar() {
     'hover:border-[#ef6b73] hover:text-[#ef6b73]';
 
   return (
-    <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-5">
-      <div className={`app-navbar-shell mx-auto max-w-[80rem] rounded-2xl border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl ${pathname === '/' ? 'app-navbar-shell--landing' : ''}`}>
+    <nav className="fixed inset-x-0 top-0 z-[1000] px-3 pt-3 sm:px-5 sm:pt-5">
+      <div className={`app-navbar-shell mx-auto max-w-[80rem] rounded-2xl border border-white/10 bg-black/70 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl ${pathname === '/' ? 'app-navbar-shell--landing' : ''} ${isRoomPage ? 'app-navbar-shell--room' : ''}`}>
         <div className="flex h-14 items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-4">
             <Link href="/" className="app-navbar-brand flex items-center gap-2.5" aria-label="Melanam home">
@@ -314,7 +315,7 @@ export function Navbar() {
                     <span className="hidden lg:inline">Files</span>
                   </button>
                   {isFilesOpen && (
-                    <div className="absolute left-0 mt-3 w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+                    <div className="absolute left-0 z-[1010] mt-3 w-[520px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
                       <FileShare
                         meetingId={roomMeetingId}
                         scopeType="meeting"
@@ -331,9 +332,11 @@ export function Navbar() {
           <div className="flex items-center gap-2 sm:gap-2.5">
             {isLoggedIn ? (
               <div className="flex items-center gap-2 sm:gap-2.5">
-                <Link href="/pricing" className="font-display inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-[#ef233c]/60 hover:bg-white/10 hover:text-white">
-                  Pricing
-                </Link>
+                {!isRoomPage && (
+                  <Link href="/pricing" className="font-display inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-[#ef233c]/60 hover:bg-white/10 hover:text-white">
+                    Pricing
+                  </Link>
+                )}
                 <Link href="/lms" className="noir-shimmer-button font-display inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
                   <span>Continue</span>
                 </Link>
@@ -356,7 +359,7 @@ export function Navbar() {
                   </button>
 
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-3 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-52">
+                    <div className="absolute right-0 z-[1010] mt-3 w-48 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-52">
                       <Link
                         href="/studio"
                         className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-cyan-50 hover:text-cyan-800"
@@ -370,12 +373,14 @@ export function Navbar() {
                       >
                         LMS Dashboard
                       </Link>
-                      <Link
-                        href="/pricing"
-                        className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
-                      >
-                        Membership & credits
-                      </Link>
+                      {!isRoomPage && (
+                        <Link
+                          href="/pricing"
+                          className="block px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition"
+                        >
+                          Membership & credits
+                        </Link>
+                      )}
                       {(session?.user as any)?.role === 'admin' && (
                         <Link
                           href="/lms/admin"
@@ -411,9 +416,11 @@ export function Navbar() {
                 >
                   Sign In
                 </Link>
-                <Link href="/pricing" className="noir-shimmer-button font-display group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
-                  <span>Pricing</span>
-                </Link>
+                {!isRoomPage && (
+                  <Link href="/pricing" className="noir-shimmer-button font-display group inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
+                    <span>Pricing</span>
+                  </Link>
+                )}
               </div>
             )}
           </div>
