@@ -551,8 +551,11 @@ export default function RoomPage() {
                 jwt={jwt || undefined}
                 height="100%"
                 prejoinPageEnabled
-                startWithAudioMuted
-                startWithVideoMuted
+                // A bare boolean JSX prop is `true`. Passing these without a
+                // value made every participant join with both microphone and
+                // camera off, which looked exactly like a broken call.
+                startWithAudioMuted={false}
+                startWithVideoMuted={false}
                 onApiReady={handleApiReady}
                 onReadyToClose={handleMeetingReadyToClose}
                 toolbarButtons={roomToolbarButtons}
