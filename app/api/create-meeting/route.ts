@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth-options';
 import { normalizeLmsRole } from '../../../lib/lms-role';
 import { checkRoomCreationLimit } from '../../../lib/membership';
+import { getWorkspaceQuota } from '../../../lib/workspace-usage';
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,7 +28,12 @@ export async function POST(req: NextRequest) {
     let orgPolicies = null;
     const dbUser = await User.findOne({ email: userEmail.toLowerCase() });
     const role = normalizeLmsRole(String((dbUser as any)?.role || (session.user as any)?.lmsRole || (session.user as any)?.role || ''));
-    if (role !== 'admin') {
+    const workspaceQuota = await getWorkspaceQuota(userEmail, role === 'admin');
+    if (!workspaceQuota) {
+      return NextResponse.json({ error: 'Active workspace plan required' }, { status: 402 });
+    }
+
+    if (role !== 'admin' && workspaceQuota.scope === 'user') {
       const membershipCheck = await checkRoomCreationLimit(userEmail);
       if (!membershipCheck.ok) {
         return NextResponse.json(
@@ -87,6 +93,9 @@ export async function POST(req: NextRequest) {
       isPrivate,
       chatEnabled,
       recordingEnabled,
+      planSnapshot: workspaceQuota.plan,
+      maxParticipants: workspaceQuota.planDefinition.maxParticipants,
+      maxMeetingMinutes: workspaceQuota.planDefinition.maxMeetingMinutes,
     });
 
     await meeting.save();

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { canManageCourse, canViewCourse, getCourseOr404, getLmsContext, json } from '../../../_shared';
 import { LMS_STORAGE_BUCKET, buildLmsStoragePath, getLmsStorageRoot } from '@/lib/lms-storage';
 import { supabaseServer } from '@/lib/supabaseServer';
-import { requireFeatureAccess } from '@/lib/membership';
+import { assertStorageCapacity, getWorkspaceQuota } from '@/lib/workspace-usage';
 
 function getCourseScope(courseId: string) {
   return getLmsStorageRoot('course', courseId);
@@ -61,14 +61,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return json({ error: 'Forbidden' }, 403);
   }
 
-  if (context.lmsRole !== 'admin') {
-    const membershipCheck = await requireFeatureAccess(context.userEmail, 'files');
-    if (!membershipCheck.ok) {
-      return json(
-        { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
-        membershipCheck.status
-      );
-    }
+  const workspaceQuota = await getWorkspaceQuota(context.userEmail, context.lmsRole === 'admin');
+  if (!workspaceQuota?.planDefinition.features.files) {
+    return json({ error: 'File sharing requires Pro, Business, or Enterprise.', code: 'FEATURE_NOT_INCLUDED' }, 402);
   }
 
   const formData = await req.formData();
@@ -76,6 +71,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   if (!file) {
     return json({ error: 'File is required' }, 400);
+  }
+
+  const storageCheck = await assertStorageCapacity(
+    context.userEmail,
+    file.size,
+    context.lmsRole === 'admin'
+  );
+  if (!storageCheck.ok) {
+    return json({ error: storageCheck.error, code: 'STORAGE_LIMIT_REACHED' }, 402);
   }
 
   const scope = getCourseScope(params.id);

@@ -35,6 +35,11 @@ interface IMeeting extends Document {
   chatEnabled: boolean;
   recordingEnabled: boolean;
   joinCount: number;
+  activeSessionStartedAt?: Date | null;
+  activeSessionEndsAt?: Date | null;
+  planSnapshot?: 'free' | 'pro' | 'business' | 'enterprise';
+  maxParticipants?: number | null;
+  maxMeetingMinutes?: number | null;
   lastSessionAt?: Date;
   lastRecordingAt?: Date;
   recorded?: boolean;
@@ -97,6 +102,27 @@ const MeetingSchema = new Schema<IMeeting>(
     joinCount: {
       type: Number,
       default: 0,
+    },
+    activeSessionStartedAt: {
+      type: Date,
+      default: null,
+    },
+    activeSessionEndsAt: {
+      type: Date,
+      default: null,
+    },
+    planSnapshot: {
+      type: String,
+      enum: ['free', 'pro', 'business', 'enterprise'],
+      default: 'free',
+    },
+    maxParticipants: {
+      type: Number,
+      default: null,
+    },
+    maxMeetingMinutes: {
+      type: Number,
+      default: null,
     },
     lastSessionAt: {
       type: Date,

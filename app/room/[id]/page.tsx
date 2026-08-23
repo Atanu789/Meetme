@@ -50,6 +50,9 @@ export default function RoomPage() {
   const [meeting, setMeeting] = useState<MeetingDetails | null>(null);
   const [jwt, setJwt] = useState<string | null>(null);
   const [tokenResolved, setTokenResolved] = useState(false);
+  const [sessionEndsAt, setSessionEndsAt] = useState<string | null>(null);
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [durationNotice, setDurationNotice] = useState('');
   const [showAiResults, setShowAiResults] = useState(false);
   const [aiResults, setAiResults] = useState<any | null>(null);
   const [captionPortalTarget, setCaptionPortalTarget] = useState<HTMLElement | null>(null);
@@ -67,6 +70,7 @@ export default function RoomPage() {
   const displayRoomName = meeting?.title?.trim() || meetingId;
   const userDisplayName = session?.user?.email || guestName || 'Guest';
   const userEmail = session?.user?.email || undefined;
+  const participantKey = userEmail ? `user:${userEmail}` : `guest:${guestName || 'guest'}`;
   const fallbackRoute = session?.user?.email ? '/lms' : '/';
 
   useEffect(() => {
@@ -110,6 +114,8 @@ export default function RoomPage() {
 
     const verifyMeeting = async () => {
       setTokenResolved(false);
+      setAccessGranted(false);
+      setSessionEndsAt(null);
       try {
         const controller = new AbortController();
         const requestTimeout = setTimeout(() => controller.abort(), 10000);
@@ -131,6 +137,19 @@ export default function RoomPage() {
         const meetingData = await meetingResponse.json();
         const loadedMeeting = meetingData.meeting;
         setMeeting(loadedMeeting);
+
+        const accessResponse = await fetch('/api/meeting-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ meetingId, participantKey, action: 'join' }),
+        });
+        const accessData = await accessResponse.json().catch(() => ({}));
+        if (!accessResponse.ok) {
+          setMeetingError(accessData.error || 'Unable to join this meeting.');
+          return;
+        }
+        setSessionEndsAt(accessData.sessionEndsAt || null);
+        setAccessGranted(true);
 
         transcriptEntriesRef.current = Array.isArray(loadedMeeting?.transcript)
           ? loadedMeeting.transcript
@@ -193,7 +212,57 @@ export default function RoomPage() {
     };
 
     verifyMeeting();
-  }, [fallbackRoute, nameReady, meetingId, router, userDisplayName]);
+  }, [fallbackRoute, nameReady, meetingId, participantKey, router, userDisplayName]);
+
+  useEffect(() => {
+    if (!accessGranted || !meetingId || !participantKey) {
+      return;
+    }
+
+    const heartbeat = () => {
+      void fetch('/api/meeting-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId, participantKey, action: 'heartbeat' }),
+        keepalive: true,
+      }).then(async (response) => {
+        if (response.ok) return;
+        const body = await response.json().catch(() => ({}));
+        setDurationNotice(body.error || 'Your access to this meeting has ended.');
+        apiRef.current?.executeCommand?.('hangup');
+      }).catch(() => undefined);
+    };
+
+    const intervalId = window.setInterval(heartbeat, 30_000);
+    const leave = () => {
+      void fetch('/api/meeting-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId, participantKey, action: 'leave' }),
+        keepalive: true,
+      });
+    };
+
+    window.addEventListener('pagehide', leave);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('pagehide', leave);
+      leave();
+    };
+  }, [accessGranted, meetingId, participantKey]);
+
+  useEffect(() => {
+    if (!sessionEndsAt) return;
+    const waitMs = new Date(sessionEndsAt).getTime() - Date.now();
+    if (!Number.isFinite(waitMs) || waitMs <= 0) return;
+
+    const timer = window.setTimeout(() => {
+      setDurationNotice('This meeting has reached the maximum duration for its plan.');
+      apiRef.current?.executeCommand?.('hangup');
+    }, waitMs + 250);
+
+    return () => window.clearTimeout(timer);
+  }, [sessionEndsAt]);
 
   const getTranscriptSnapshot = useCallback(() => {
     const finalEntries = transcriptEntriesRef.current;
@@ -508,6 +577,7 @@ export default function RoomPage() {
   const canMountJitsi = Boolean(
     meeting &&
     tokenResolved &&
+    accessGranted &&
     (!meeting.isPrivate || jwt)
   );
 
@@ -573,6 +643,11 @@ export default function RoomPage() {
             </div>
           )}
         </div>
+        {durationNotice && (
+          <div className="absolute inset-x-3 top-3 z-50 rounded-lg border border-amber-300/50 bg-amber-100/95 px-3 py-2 text-center text-sm font-semibold text-amber-950 shadow-lg">
+            {durationNotice}
+          </div>
+        )}
         {showAiResults && aiResults && (
           <div className="fixed right-0 top-16 z-60 h-[calc(100vh-4rem)] w-full max-w-lg overflow-auto border-l border-gray-200 bg-white/95 shadow-2xl dark:border-gray-800 dark:bg-slate-900/95">
             <div className="flex items-center justify-between border-b border-gray-100 p-4 dark:border-gray-800">

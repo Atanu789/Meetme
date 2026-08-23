@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { normalizeLmsRole } from '@/lib/lms-role';
 import { LmsMeetingActions } from './LmsMeetingActions';
 import { LmsShell } from './LmsShell';
+import { MembershipSummaryCard } from './MembershipSummaryCard';
 
 export function LmsMeetingHome() {
   const { data: session } = useSession();
@@ -18,6 +19,7 @@ export function LmsMeetingHome() {
       title="Create a meeting"
       description="Create a room, join with an invite, or start an instant meeting from one focused workspace."
     >
+      <MembershipSummaryCard />
       <LmsMeetingActions roleLabel={roleLabel} />
     </LmsShell>
   );

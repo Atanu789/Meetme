@@ -3,7 +3,7 @@ import { supabaseServer } from '../../../../lib/supabaseServer'
 import { LMS_STORAGE_BUCKET, buildLmsStoragePath } from '../../../../lib/lms-storage'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../../lib/auth-options'
-import { requireFeatureAccess } from '../../../../lib/membership'
+import { assertStorageCapacity, getWorkspaceQuota } from '../../../../lib/workspace-usage'
 
 const UPLOAD_LIMITS: Record<string, number> = {
   free: 100 * 1024 * 1024,
@@ -17,6 +17,7 @@ export async function POST(req: Request) {
     console.log('[API/files/upload] Request received')
     const session = await getServerSession(authOptions)
     const userEmail = String(session?.user?.email || '').toLowerCase()
+    const isAdmin = (session?.user as any)?.role === 'admin'
     if (!userEmail) {
       return NextResponse.json({ error: 'Sign in and select a plan to upload files' }, { status: 401 })
     }
@@ -37,17 +38,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'missing file' }, { status: 400 })
     }
 
-    const membershipCheck = await requireFeatureAccess(userEmail, 'files')
-    if (!membershipCheck.ok) {
-      return NextResponse.json(
-        { error: membershipCheck.error, code: membershipCheck.code, membership: membershipCheck.membership || null },
-        { status: membershipCheck.status }
-      )
+    const workspaceQuota = await getWorkspaceQuota(userEmail, isAdmin)
+    if (!workspaceQuota?.planDefinition.features.files) {
+      return NextResponse.json({ error: 'File sharing requires Pro, Business, or Enterprise.', code: 'FEATURE_NOT_INCLUDED' }, { status: 402 })
     }
 
-    const maxFileSize = UPLOAD_LIMITS[membershipCheck.subscription.plan] || UPLOAD_LIMITS.free
+    const maxFileSize = UPLOAD_LIMITS[workspaceQuota.plan] || UPLOAD_LIMITS.free
     if (file.size > maxFileSize) {
       return NextResponse.json({ error: `file too large (max ${Math.round(maxFileSize / 1024 / 1024)}MB for this plan)` }, { status: 413 })
+    }
+
+    const storageCheck = await assertStorageCapacity(userEmail, file.size, isAdmin)
+    if (!storageCheck.ok) {
+      return NextResponse.json({ error: storageCheck.error, code: 'STORAGE_LIMIT_REACHED' }, { status: 402 })
     }
 
     const path = buildLmsStoragePath(scopeType, scopeId, file.name)

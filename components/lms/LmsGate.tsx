@@ -46,9 +46,9 @@ export function LmsGate({
 
       void (async () => {
         try {
-          const response = await fetch('/api/billing/subscription', { credentials: 'include' });
+          const response = await fetch('/api/billing/usage', { credentials: 'include' });
           const body = await response.json().catch(() => ({}));
-          if (!response.ok || !body.subscription?.active) {
+          if (!response.ok || !body.workspace) {
             router.push('/pricing?reason=plan');
             return;
           }

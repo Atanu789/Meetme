@@ -7,6 +7,7 @@ import dbConnect from './db';
 import User from '../models/User';
 import Organization from '../models/Organization';
 import { normalizeLmsRole } from './lms-role';
+import { canAddOrganizationSeat } from './workspace-usage';
 
 const emailFrom = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'no-reply@localhost';
 
@@ -180,11 +181,14 @@ export const authOptions: NextAuthOptions = {
             const domain = dbUser.email.split('@')[1];
             const ignoreDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'example.com'];
             if (domain && !ignoreDomains.includes(domain.toLowerCase())) {
-              const org = await Organization.findOne({ domain: domain.toLowerCase() });
-              if (org) {
+            const org = await Organization.findOne({ domain: domain.toLowerCase() });
+            if (org) {
+              const seatCheck = await canAddOrganizationSeat(org._id.toString());
+              if (seatCheck.ok) {
                 dbUser.organizationId = org._id.toString();
                 updated = true;
               }
+            }
             }
           }
           

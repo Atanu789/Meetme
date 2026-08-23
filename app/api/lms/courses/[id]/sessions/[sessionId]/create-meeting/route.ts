@@ -4,6 +4,7 @@ import CourseSession from '@/models/CourseSession';
 import Meeting from '@/models/Meeting';
 import crypto from 'crypto';
 import { checkRoomCreationLimit } from '@/lib/membership';
+import { getWorkspaceQuota } from '@/lib/workspace-usage';
 
 export async function POST(_: NextRequest, { params }: { params: { id: string; sessionId: string } }) {
   const { context, response } = await getLmsContext();
@@ -18,6 +19,9 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
     if (session.courseId !== params.id) return json({ error: 'Session not found' }, 404);
     if (!canManageCourse(courseResult.course, context)) return json({ error: 'Forbidden' }, 403);
 
+    const workspaceQuota = await getWorkspaceQuota(context.userEmail, context.lmsRole === 'admin');
+    if (!workspaceQuota) return json({ error: 'Active workspace plan required' }, 402);
+
     // If session already linked to a Meeting, ensure the Meeting record exists and return it
     if (session.meetingId) {
       // Check whether a Meeting document exists for this meetingId
@@ -26,7 +30,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
         return json({ success: true, meetingId: session.meetingId });
       }
 
-      if (context.lmsRole !== 'admin') {
+      if (context.lmsRole !== 'admin' && workspaceQuota.scope === 'user') {
         const membershipCheck = await checkRoomCreationLimit(context.userEmail);
         if (!membershipCheck.ok) {
           return json(
@@ -46,6 +50,9 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
         isPrivate: false,
         chatEnabled: true,
         recordingEnabled: true,
+        planSnapshot: workspaceQuota.plan,
+        maxParticipants: workspaceQuota.planDefinition.maxParticipants,
+        maxMeetingMinutes: workspaceQuota.planDefinition.maxMeetingMinutes,
       });
 
       await meeting.save();
@@ -55,7 +62,7 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
     // Generate a short unique meetingId
     const meetingId = `sess-${crypto.randomBytes(6).toString('hex')}`;
 
-    if (context.lmsRole !== 'admin') {
+    if (context.lmsRole !== 'admin' && workspaceQuota.scope === 'user') {
       const membershipCheck = await checkRoomCreationLimit(context.userEmail);
       if (!membershipCheck.ok) {
         return json(
@@ -74,6 +81,9 @@ export async function POST(_: NextRequest, { params }: { params: { id: string; s
       isPrivate: false,
       chatEnabled: true,
       recordingEnabled: true,
+      planSnapshot: workspaceQuota.plan,
+      maxParticipants: workspaceQuota.planDefinition.maxParticipants,
+      maxMeetingMinutes: workspaceQuota.planDefinition.maxMeetingMinutes,
     });
 
     await meeting.save();

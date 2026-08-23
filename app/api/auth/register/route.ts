@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '../../../../lib/db';
 import User from '../../../../models/User';
 import Organization from '../../../../models/Organization';
+import { canAddOrganizationSeat } from '../../../../lib/workspace-usage';
 
 type SignupRole = 'student' | 'instructor' | 'admin';
 
@@ -46,9 +47,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Admin accounts cannot be created via this endpoint' }, { status: 403 });
     }
 
-    // Keep the legacy organization model available for existing enterprise flows,
-    // but new sign-ups use the fresh LMS role set directly.
     let orgId: string | null = null;
+
+    const domain = normalizedEmail.split('@')[1] || '';
+    if (domain) {
+      const organization = await Organization.findOne({ domain });
+      if (organization) {
+        const seatCheck = await canAddOrganizationSeat(String(organization._id));
+        if (!seatCheck.ok) {
+          return NextResponse.json({ error: seatCheck.error, code: 'SEAT_LIMIT_REACHED' }, { status: 402 });
+        }
+        orgId = String(organization._id);
+      }
+    }
 
     // Create user record
     const user = new User({
