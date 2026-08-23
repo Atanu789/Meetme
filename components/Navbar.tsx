@@ -5,13 +5,32 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, PencilLine, Radio, ShieldCheck, Sparkles, Square, Upload, Video } from 'lucide-react';
+import { Copy, LockKeyhole, PencilLine, Radio, ShieldCheck, Sparkles, Square, Upload, Video } from 'lucide-react';
 import FileShare from './FileShare';
 import { AudioCapture } from './AudioCapture';
 import Whiteboard from './Whiteboard';
 import { YouTubeStreamModal } from './YouTubeStreamModal';
 import { useRecording } from '@/hooks/useRecording';
 import { useLivestream } from '@/hooks/useLivestream';
+
+type MembershipPlan = 'free' | 'pro' | 'business' | 'enterprise';
+
+type Membership = {
+  plan: MembershipPlan;
+  active: boolean;
+};
+
+type UpgradePrompt = {
+  feature: string;
+  plan: 'Pro' | 'Business';
+} | null;
+
+const PLAN_RANK: Record<MembershipPlan, number> = {
+  free: 0,
+  pro: 1,
+  business: 2,
+  enterprise: 3,
+};
 
 export function Navbar() {
   const { data: session, status } = useSession();
@@ -25,6 +44,9 @@ export function Navbar() {
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
   const [guestSpeakerName, setGuestSpeakerName] = useState('');
+  const [membership, setMembership] = useState<Membership | null>(null);
+  const [membershipResolved, setMembershipResolved] = useState(false);
+  const [upgradePrompt, setUpgradePrompt] = useState<UpgradePrompt>(null);
   const filesPopoverRef = useRef<HTMLDivElement | null>(null);
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
@@ -80,6 +102,46 @@ export function Navbar() {
 
     setGuestSpeakerName(storedName);
   }, [roomMeetingId, status]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') {
+      setMembership(null);
+      setMembershipResolved(status !== 'loading');
+      return;
+    }
+
+    let cancelled = false;
+    setMembershipResolved(false);
+
+    fetch('/api/billing/subscription', { credentials: 'include' })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok || !body.subscription) {
+          return null;
+        }
+
+        return body.subscription as Membership;
+      })
+      .then((nextMembership) => {
+        if (!cancelled) {
+          setMembership(nextMembership);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMembership(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setMembershipResolved(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   useEffect(() => {
     if (!isFilesOpen) return;
@@ -144,6 +206,34 @@ export function Navbar() {
   const captionSpeakerId = userEmail
     ? `user:${userEmail}`
     : `guest:${guestSpeakerName || 'guest'}`;
+
+  const requestPaidFeature = (feature: string, minimumPlan: 'pro' | 'business') => {
+    if (!isLoggedIn) {
+      router.push(`/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`);
+      return false;
+    }
+
+    const allowed = membership?.active && PLAN_RANK[membership.plan] >= PLAN_RANK[minimumPlan];
+    if (allowed) {
+      return true;
+    }
+
+    // If the subscription request has not returned yet, the server remains the
+    // authority. Once resolved, show the upgrade action instead of letting a
+    // free user start a request that will be rejected.
+    if (membershipResolved) {
+      setUpgradePrompt({ feature, plan: minimumPlan === 'pro' ? 'Pro' : 'Business' });
+      return false;
+    }
+
+    return false;
+  };
+
+  const currentPlanRank = membership?.active ? PLAN_RANK[membership.plan] : -1;
+  const canUseCaptions = currentPlanRank >= PLAN_RANK.pro;
+  const canUseRecording = currentPlanRank >= PLAN_RANK.pro;
+  const canUseFiles = currentPlanRank >= PLAN_RANK.pro;
+  const canUseLivestream = currentPlanRank >= PLAN_RANK.business;
 
   const productLinks = [
     {
@@ -220,20 +310,33 @@ export function Navbar() {
                   <Copy className="h-4 w-4" />
                   <span className="hidden lg:inline">Copy link</span>
                 </button>
-                <AudioCapture
-                  meetingId={roomMeetingId}
-                  className="relative flex flex-col gap-2"
-                  buttonClassName={`${navActionButtonClass} border-slate-200 bg-slate-100/80 text-slate-950 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-950 hover:shadow-[0_14px_30px_rgba(59,130,246,0.2)]`}
-                  labelClassName="hidden lg:inline"
-                  speakerName={captionSpeakerName}
-                  speakerId={captionSpeakerId}
-                />
+                {canUseCaptions ? (
+                  <AudioCapture
+                    meetingId={roomMeetingId}
+                    className="relative flex flex-col gap-2"
+                    buttonClassName={`${navActionButtonClass} border-slate-200 bg-slate-100/80 text-slate-950 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-950 hover:shadow-[0_14px_30px_rgba(59,130,246,0.2)]`}
+                    labelClassName="hidden lg:inline"
+                    speakerName={captionSpeakerName}
+                    speakerId={captionSpeakerId}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => requestPaidFeature('Live captions', 'pro')}
+                    className={`${navActionButtonClass} border-slate-200 bg-slate-100/80 text-slate-950 hover:border-blue-300 hover:bg-blue-100 hover:text-blue-950`}
+                    aria-label="Live captions require Pro"
+                    title="Live captions require Pro"
+                  >
+                    <LockKeyhole className="h-4 w-4" />
+                    <span className="hidden lg:inline">Captions</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
                     if (isRecording) {
                       void stopRecording(roomMeetingId);
-                    } else {
+                    } else if (requestPaidFeature('Recording', 'pro')) {
                       void startRecording(roomMeetingId);
                     }
                   }}
@@ -244,9 +347,9 @@ export function Navbar() {
                       : `border-slate-200 bg-slate-100/80 text-slate-950 ${recordingHoverClass}`
                   } disabled:opacity-50`}
                   aria-label={isRecording ? 'Stop local recording' : 'Start local recording'}
-                  title={isRecording ? 'Stop local recording' : 'Start local recording'}
+                  title={isRecording ? 'Stop local recording' : canUseRecording ? 'Start local recording' : 'Recording requires Pro'}
                 >
-                  {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Radio className="h-4 w-4" />}
+                  {isRecording ? <Square className="h-4 w-4 fill-current" /> : canUseRecording ? <Radio className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                   <span className="hidden lg:inline">
                     {recordingLoading ? 'Preparing...' : isRecording ? 'Stop Recording' : 'Start Recording'}
                   </span>
@@ -265,7 +368,7 @@ export function Navbar() {
                   onClick={() => {
                     if (isStreaming) {
                       stopLivestream(roomMeetingId);
-                    } else {
+                    } else if (requestPaidFeature('Livestreaming', 'business')) {
                       setIsYouTubeModalOpen(true);
                     }
                   }}
@@ -276,9 +379,9 @@ export function Navbar() {
                       : livestreamHoverClass
                   } disabled:opacity-50`}
                   aria-label={isStreaming ? 'Stop livestream' : 'Start livestream'}
-                  title={isStreaming ? 'Stop livestream' : 'Start livestream'}
+                  title={isStreaming ? 'Stop livestream' : canUseLivestream ? 'Start livestream' : 'Livestreaming requires Business'}
                 >
-                  <Video className="h-4 w-4" />
+                  {canUseLivestream || isStreaming ? <Video className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                   <span className="hidden lg:inline">{isStreaming ? 'Stop Live' : 'Go Live'}</span>
                 </button>
                 <button
@@ -302,16 +405,22 @@ export function Navbar() {
                 </button>
                 <div ref={filesPopoverRef} className="relative">
                   <button
-                    onClick={() => setIsFilesOpen((prev) => !prev)}
+                    onClick={() => {
+                      if (isFilesOpen) {
+                        setIsFilesOpen(false);
+                      } else if (requestPaidFeature('File sharing', 'pro')) {
+                        setIsFilesOpen(true);
+                      }
+                    }}
                     className={`${navActionButtonClass} ${
                       isFilesOpen
                         ? 'border-emerald-200 bg-emerald-50/85 text-emerald-950 shadow-[0_10px_24px_rgba(16,185,129,0.12)]'
                         : uploadMediaHoverClass
                     }`}
                     aria-label={isFilesOpen ? 'Close upload media' : 'Open upload media'}
-                    title={isFilesOpen ? 'Close upload media' : 'Open upload media'}
+                    title={isFilesOpen ? 'Close upload media' : canUseFiles ? 'Open upload media' : 'File sharing requires Pro'}
                   >
-                    <Upload className="h-4 w-4" />
+                    {canUseFiles ? <Upload className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                     <span className="hidden lg:inline">Files</span>
                   </button>
                   {isFilesOpen && (
@@ -453,6 +562,35 @@ export function Navbar() {
           >
             ✕
           </button>
+        </div>
+      )}
+      {upgradePrompt && (
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#161b22] p-6 text-white shadow-2xl">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-400/15 text-cyan-200">
+              <LockKeyhole className="h-5 w-5" />
+            </div>
+            <h2 id="upgrade-title" className="mt-4 text-xl font-semibold">Upgrade to {upgradePrompt.plan}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              {upgradePrompt.feature} is available on the {upgradePrompt.plan} plan. Upgrade your membership to use this feature.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setUpgradePrompt(null)}
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                Not now
+              </button>
+              <Link
+                href="/pricing"
+                onClick={() => setUpgradePrompt(null)}
+                className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+              >
+                View plans
+              </Link>
+            </div>
+          </div>
         </div>
       )}
       {isWhiteboardOpen && roomMeetingId && typeof document !== 'undefined' && createPortal(
