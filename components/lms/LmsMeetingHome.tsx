@@ -18,6 +18,7 @@ export function LmsMeetingHome() {
       kicker="Meeting workspace"
       title="Create a meeting"
       description="Create a room, join with an invite, or start an instant meeting from one focused workspace."
+      showHeader={false}
     >
       <MembershipSummaryCard />
       <LmsMeetingActions roleLabel={roleLabel} />

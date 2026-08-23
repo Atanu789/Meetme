@@ -99,7 +99,7 @@ select:focus-visible {
 
 .section-kicker {
   color: var(--app-cyan);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -279,7 +279,8 @@ nav [class*='backdrop-'] {
   border-radius: 6px;
   background: #101319;
   color: var(--app-text);
-  padding: 0.7rem 0.85rem;
+  padding: 0.8rem 0.95rem;
+  font-size: 1rem;
 }
 
 .input-modern::placeholder {
@@ -293,8 +294,9 @@ nav [class*='backdrop-'] {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 6px;
-  padding: 0.7rem 1rem;
-  font-size: 0.875rem;
+  min-height: 2.9rem;
+  padding: 0.78rem 1.15rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -501,6 +503,23 @@ nav [class*='backdrop-'] {
   }
 }
 
+/* Clearer LMS navigation and touch targets on desktop and mobile. */
+.lms-sidebar__link {
+  min-height: 2.75rem;
+  padding: .62rem .72rem;
+  font-size: .86rem;
+}
+
+.lms-sidebar__footer {
+  font-size: .76rem;
+}
+
+.lms-mobile-nav__link {
+  min-height: 2.45rem;
+  padding: .62rem .8rem;
+  font-size: .8rem;
+}
+
 /* Red noir landing system */
 .app-background {
   position: fixed;
@@ -532,7 +551,7 @@ nav [class*='backdrop-'] {
 .noir-hero h1 span { color: #ef233c; text-shadow: 0 0 36px rgba(239,35,60,.18); }
 .noir-hero__description { max-width: 33rem; margin: 2rem 0 0; color: #a1a1aa; font-size: clamp(1rem, 1.4vw, 1.18rem); line-height: 1.7; animation: noir-reveal .7s .2s both; }
 .noir-hero__actions { display: flex; flex-wrap: wrap; gap: .85rem; margin-top: 2.2rem; animation: noir-reveal .7s .3s both; }
-.noir-primary-action, .noir-secondary-action { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; min-height: 3.2rem; padding: .75rem 1.25rem; border-radius: 999px; font-size: .88rem; font-weight: 700; transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease; }
+.noir-primary-action, .noir-secondary-action { display: inline-flex; align-items: center; justify-content: center; gap: .65rem; min-height: 3.45rem; padding: .82rem 1.4rem; border-radius: 999px; font-size: 1rem; font-weight: 700; transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease; }
 .noir-primary-action { position: relative; overflow: hidden; border: 1px solid rgba(239,35,60,.8); background: #ef233c; color: #fff; box-shadow: 0 0 28px rgba(239,35,60,.18); }
 .noir-primary-action::after { content: ''; position: absolute; inset: -120% -20%; background: conic-gradient(from 90deg, transparent 0 70%, rgba(255,255,255,.75) 77%, transparent 85%); animation: noir-cta-spin 3.4s linear infinite; }
 .noir-primary-action > * { position: relative; z-index: 1; }

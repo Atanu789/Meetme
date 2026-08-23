@@ -263,7 +263,7 @@ export function Navbar() {
   ];
 
   const navActionButtonClass =
-    'inline-flex h-9 w-9 items-center justify-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-0 text-sm font-semibold text-[#f4f7fa] transition-colors hover:bg-[#20252d] lg:w-auto lg:px-3';
+    'inline-flex h-10 w-10 items-center justify-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-0 text-base font-semibold text-[#f4f7fa] transition-colors hover:bg-[#20252d] lg:w-auto lg:px-4';
   const copyInviteHoverClass =
     'hover:border-[#37d7ff] hover:text-[#37d7ff]';
   const uploadMediaHoverClass =

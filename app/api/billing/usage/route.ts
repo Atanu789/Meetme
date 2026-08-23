@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getWorkspaceQuota, getWorkspaceUsage } from '@/lib/workspace-usage';
-import { findMembershipByEmail, isSubscriptionActive } from '@/lib/membership';
+import { findMembershipByEmail, getCreditBalance, isSubscriptionActive } from '@/lib/membership';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +20,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
     }
 
+    const subscription = isAdmin ? null : await findMembershipByEmail(userEmail);
     if (quota.scope === 'user' && !isAdmin) {
-      const subscription = await findMembershipByEmail(userEmail);
       if (!subscription || !isSubscriptionActive(subscription)) {
         return NextResponse.json({ error: 'Choose an active plan to use the workspace.', code: 'PLAN_REQUIRED' }, { status: 402 });
       }
@@ -39,6 +39,8 @@ export async function GET() {
         title: workspace.planDefinition.title,
         scope: workspace.scope,
         organizationName: workspace.organizationName || null,
+        activeUntil: subscription?.currentPeriodEnd?.toISOString() || null,
+        creditBalance: subscription ? getCreditBalance(subscription) : workspace.planDefinition.includedCredits,
         limits: {
           maxMeetingMinutes: workspace.planDefinition.maxMeetingMinutes,
           maxParticipants: workspace.planDefinition.maxParticipants,

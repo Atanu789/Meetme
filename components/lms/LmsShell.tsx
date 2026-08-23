@@ -20,6 +20,7 @@ export function LmsShell({
   children,
   stats,
   role,
+  showHeader = true,
 }: {
   kicker: string;
   title: string;
@@ -27,6 +28,7 @@ export function LmsShell({
   children: React.ReactNode;
   stats?: Array<{ label: string; value: string | number; helper?: string }>;
   role?: 'instructor' | 'student' | 'admin';
+  showHeader?: boolean;
 }) {
   const pathname = usePathname();
   const workspaceRole = role || (kicker.toLowerCase().includes('instructor') ? 'instructor' : kicker.toLowerCase().includes('admin') ? 'admin' : 'student');
@@ -88,7 +90,7 @@ export function LmsShell({
           ))}
         </nav>
 
-        <header className="lms-shell-header relative overflow-hidden border-b border-[#2a3039] pb-6">
+        {showHeader ? <header className="lms-shell-header relative overflow-hidden border-b border-[#2a3039] pb-6">
           <div aria-hidden="true" className="lms-shell-header__grid" />
           <div aria-hidden="true" className="lms-shell-header__glow" />
           <div className="min-w-0">
@@ -115,8 +117,8 @@ export function LmsShell({
               </div>
             ) : null}
           </div>
-        </header>
-        <main className="lms-shell-body grid min-w-0 gap-5 pt-6">{children}</main>
+        </header> : null}
+        <main className={`lms-shell-body grid min-w-0 gap-5 ${showHeader ? 'pt-6' : ''}`}>{children}</main>
       </div>
     </div>
   );
