@@ -394,7 +394,7 @@ export default function PricingPage() {
               <p className="pricing-kicker">System matrix</p>
               <h2 id="pricing-comparison-title">Compare the essentials.</h2>
             </div>
-            <Link href="/sign-up">Create account <ArrowRight /></Link>
+            <Link href="/sign-in">Create account <ArrowRight /></Link>
           </div>
           <div className="pricing-comparison__scroll">
             <div className="pricing-comparison__table">

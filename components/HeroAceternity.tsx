@@ -33,7 +33,7 @@ export default function HeroAceternity() {
             transition={{ delay: 0.25 }}
             className="mt-8 flex justify-center gap-3"
           >
-            <Link href="/sign-up" className="button-primary inline-flex items-center">
+            <Link href="/sign-in" className="button-primary inline-flex items-center">
               Get started free
             </Link>
             <Link href="/lms" className="button-secondary inline-flex items-center">

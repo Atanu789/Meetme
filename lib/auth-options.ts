@@ -18,6 +18,7 @@ const smtpPass = process.env.EMAIL_PASS || process.env.EMAIL_SERVER_PASSWORD;
 const emailTransportMode =
   process.env.EMAIL_TRANSPORT ||
   (process.env.EMAIL_USER && process.env.EMAIL_PASS ? 'smtp' : 'console');
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 function escapeHtml(value: string) {
   return value
@@ -127,6 +128,11 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    updateAge: 24 * 60 * 60,
+  },
+  jwt: {
+    maxAge: SESSION_MAX_AGE_SECONDS,
   },
   callbacks: {
     async signIn({ user }) {

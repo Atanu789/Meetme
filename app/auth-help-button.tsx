@@ -1,6 +1,5 @@
 "use client";
 
-import Link from 'next/link';
 import { HelpCircle, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -34,8 +33,8 @@ export function AuthHelpButton({ mode }: AuthHelpButtonProps) {
               </h3>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 {isSignUp
-                  ? 'Choose Student or Instructor, enter your email, then open the magic link sent to your inbox.'
-                  : 'Enter the email you used during sign up. If the account exists, we send a magic login link.'}
+                  ? 'Enter your email and open the secure magic link sent to your inbox.'
+                  : 'Enter your email and we will send a secure magic link. New accounts are created automatically.'}
               </p>
             </div>
             <button
@@ -48,23 +47,10 @@ export function AuthHelpButton({ mode }: AuthHelpButtonProps) {
             </button>
           </div>
           <div className="mt-3 rounded-xl bg-cyan-50 p-3 text-xs leading-5 text-cyan-900">
-            {isSignUp ? (
-              <>
-                Already signed up? Use the{' '}
-                <Link href="/sign-in" className="font-bold underline">
-                  sign in page
-                </Link>{' '}
-                instead.
-              </>
-            ) : (
-              <>
-                New here? Create your account on the{' '}
-                <Link href="/sign-up" className="font-bold underline">
-                  sign up page
-                </Link>{' '}
-                first.
-              </>
-            )}
+            <>
+              Use the same email screen whether this is your first visit or you are returning.
+              {isSignUp ? ' Existing links now open that screen too.' : ''}
+            </>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">
             Admin users should use the admin login because admin accounts are provisioned separately.

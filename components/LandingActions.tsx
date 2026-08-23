@@ -19,7 +19,7 @@ export function LandingActions({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className={compact ? 'noir-hero__actions noir-hero__actions--compact' : 'noir-hero__actions'}>
-      <Link href="/sign-up" className="noir-primary-action noir-shimmer-button"><span>Enter Melanam</span> <ArrowRight /></Link>
+      <Link href="/sign-in" className="noir-primary-action noir-shimmer-button"><span>Enter Melanam</span> <ArrowRight /></Link>
       <Link href="/pricing" className="noir-secondary-action">Pricing</Link>
     </div>
   );
