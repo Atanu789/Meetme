@@ -46,8 +46,30 @@ export function LmsGate({
 
       void (async () => {
         try {
-          const response = await fetch('/api/billing/usage', { credentials: 'include' });
-          const body = await response.json().catch(() => ({}));
+          let response = await fetch('/api/billing/usage', { credentials: 'include' });
+          let body = await response.json().catch(() => ({}));
+
+          // A first-time signed-in user should enter the LMS on Free rather
+          // than be bounced to pricing. Never overwrite an existing inactive
+          // or paid membership here; only a missing membership is provisioned.
+          if (!response.ok && body.code === 'PLAN_REQUIRED') {
+            const membershipResponse = await fetch('/api/billing/subscription', { credentials: 'include' });
+            const membershipBody = await membershipResponse.json().catch(() => ({}));
+            if (membershipResponse.ok && !membershipBody.subscription) {
+              const activateResponse = await fetch('/api/billing/subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ plan: 'free', notes: 'Free plan activated on first LMS visit' }),
+              });
+
+              if (activateResponse.ok) {
+                response = await fetch('/api/billing/usage', { credentials: 'include' });
+                body = await response.json().catch(() => ({}));
+              }
+            }
+          }
+
           if (!response.ok || !body.workspace) {
             router.push('/pricing?reason=plan');
             return;

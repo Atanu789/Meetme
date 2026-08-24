@@ -5,6 +5,7 @@ import { ArrowRight, CreditCard, HardDrive, LockKeyhole, Users, Video } from 'lu
 import { useEffect, useState } from 'react';
 
 type WorkspaceUsage = {
+  plan: 'free' | 'pro' | 'business' | 'enterprise';
   title: string;
   scope: 'user' | 'organization';
   organizationName: string | null;
@@ -72,7 +73,7 @@ export function MembershipSummaryCard() {
 
         <div className="flex shrink-0 flex-col items-start gap-3 xl:items-end">
           <Link href="/pricing" className="inline-flex h-11 items-center gap-2 rounded-full border-2 border-[#ef233c] bg-[#141416] px-5 text-base font-bold text-white transition hover:bg-[#ef233c]">
-            Manage plan <ArrowRight className="h-4 w-4" />
+            {workspace.plan === 'free' ? 'Upgrade to Pro' : 'Manage plan'} <ArrowRight className="h-4 w-4" />
           </Link>
           <p className="max-w-[17rem] text-sm leading-5 text-[#777277] xl:text-right">Seats are workspace members. Meeting participants are counted separately.</p>
         </div>

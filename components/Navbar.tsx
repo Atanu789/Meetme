@@ -264,7 +264,7 @@ export function Navbar() {
   ];
 
   const navActionButtonClass =
-    'inline-flex h-10 w-10 items-center justify-center gap-2 rounded-md border border-[#2a3039] bg-[#181c22] px-0 text-base font-semibold text-[#f4f7fa] transition-colors hover:bg-[#20252d] lg:w-auto lg:px-4';
+    'inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-md border border-[#2a3039] bg-[#181c22] px-0 text-base font-semibold text-[#f4f7fa] transition-colors hover:bg-[#20252d] lg:w-auto lg:px-4';
   const copyInviteHoverClass =
     'hover:border-[#37d7ff] hover:text-[#37d7ff]';
   const uploadMediaHoverClass =
@@ -301,7 +301,7 @@ export function Navbar() {
             )}
 
             {pathname?.startsWith('/room/') && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-nowrap items-center gap-2">
                 <button
                   onClick={handleCopyInvite}
                   className={`${navActionButtonClass} ${copyInviteHoverClass}`}
@@ -365,6 +365,7 @@ export function Navbar() {
                     <span className="font-mono text-red-900">{recordingElapsedTime}</span>
                   </div>
                 )}
+                {/* Livestream is temporarily hidden until the server-side streaming setup is ready.
                 <button
                   onClick={() => {
                     if (isStreaming) {
@@ -384,7 +385,7 @@ export function Navbar() {
                 >
                   {canUseLivestream || isStreaming ? <Video className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                   <span className="hidden lg:inline">{isStreaming ? 'Stop Live' : 'Go Live'}</span>
-                </button>
+                </button> */}
                 <button
                   onClick={() => {
                     if (isWhiteboardOpen) {
