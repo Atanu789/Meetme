@@ -51,6 +51,7 @@ export function Navbar() {
   const roomMatch = pathname?.match(/^\/room\/([^/]+)$/);
   const roomMeetingId = roomMatch?.[1] ? decodeURIComponent(roomMatch[1]) : '';
   const isRoomPage = Boolean(roomMatch);
+  const isLmsPage = pathname?.startsWith('/lms');
   const currentUrl = pathname ? `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}` : '/';
   const signInHref = status === 'authenticated' ? '/lms' : `/sign-in?callbackUrl=${encodeURIComponent(currentUrl)}`;
 
@@ -446,7 +447,7 @@ export function Navbar() {
                     Pricing
                   </Link>
                 )}
-                {!isRoomPage && (
+                {!isRoomPage && !isLmsPage && (
                   <Link href="/lms" className="noir-shimmer-button font-display inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 active:scale-[0.97]">
                     <span>Continue</span>
                   </Link>

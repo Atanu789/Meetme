@@ -48,7 +48,7 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
       <section id="live-sessions" className="lms-meeting-actions scroll-mt-24 grid overflow-hidden rounded-lg border border-[#2a3039] bg-[#12151a] lg:grid-cols-[0.72fr_1.28fr]">
         <div className="lms-meeting-actions__intro border-b border-[#2a3039] bg-[#101319] p-5 lg:border-b-0 lg:border-r">
           <Video className="h-5 w-5 text-[#37d7ff]" />
-          <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#37d7ff]">Meeting hub</p>
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[#37d7ff]">Meeting hub</p>
           <h3 className="mt-2 font-display text-xl font-semibold text-[#f4f7fa]">Live session controls</h3>
           {error ? <p className="mt-4 border border-[#ef6b73] bg-[#27171b] px-3 py-2 text-sm text-[#efb2b7]">{error}</p> : null}
         </div>
@@ -57,7 +57,7 @@ export function LmsMeetingActions({ roleLabel }: { roleLabel: string }) {
             <div key={title} className="lms-meeting-action flex min-h-[170px] flex-col justify-between bg-[#12151a] p-5">
               <div>
                 <Icon className="h-5 w-5 text-[#37d7ff]" />
-                <h4 className="mt-8 text-sm font-semibold text-[#f4f7fa]">{title}</h4>
+                <h4 className="mt-8 text-base font-semibold text-[#f4f7fa]">{title}</h4>
               </div>
               <div className="mt-5">{button}</div>
             </div>

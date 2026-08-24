@@ -82,7 +82,9 @@ select:focus-visible {
   z-index: 1;
   min-height: calc(100vh - 80px);
   width: 100%;
-  padding-top: 36px;
+  /* The navigation is fixed (12–20px top inset plus a 56px bar). Reserve
+     its full height so pages and the meeting video never render behind it. */
+  padding-top: 84px;
 }
 
 .page-shell-wide {
@@ -570,9 +572,10 @@ nav [class*='backdrop-'] {
 .noir-features { padding: 8rem 0; }.noir-section-heading { margin-bottom: 2.8rem; }.noir-section-heading p, .noir-workflow__intro > p { margin: 0; color: #ef233c; font-size: .68rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }.noir-section-heading h2 { max-width: 42rem; margin: .8rem 0 0; font-size: clamp(2rem, 3.5vw, 3.45rem); font-weight: 600; letter-spacing: -.055em; line-height: 1.05; }.noir-marquee { overflow: hidden; padding: .7rem 0 1.25rem; mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent); }.noir-marquee__track { display: flex; width: max-content; gap: 1rem; animation: noir-marquee 48s linear infinite; }.noir-marquee:hover .noir-marquee__track { animation-play-state: paused; }.noir-feature-card { display: flex; flex-direction: column; justify-content: space-between; width: min(22rem, 78vw); height: 15rem; padding: 1.7rem; border: 1px solid rgba(255,255,255,.10); border-radius: 14px; background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.015)); transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }.noir-feature-card:hover { transform: translateY(-5px); border-color: rgba(239,35,60,.58); box-shadow: 0 18px 42px rgba(239,35,60,.12); }.noir-feature-card > svg:first-child { width: 1.5rem; height: 1.5rem; color: #ef233c; }.noir-feature-card h3 { margin: 0; color: #f4f4f5; font-size: 1.15rem; }.noir-feature-card p { margin: .65rem 0 0; color: #a1a1aa; font-size: .82rem; line-height: 1.6; }.noir-feature-card__arrow { align-self: flex-end; width: 1rem; height: 1rem; color: #ef233c; }
 .noir-workflow { display: grid; grid-template-columns: minmax(0,.72fr) minmax(0,1.28fr); gap: clamp(3rem, 9vw, 10rem); padding-top: 8rem; padding-bottom: 9rem; }.noir-workflow__intro { position: sticky; top: 8rem; align-self: start; }.noir-workflow__intro h2 { margin: 1rem 0 0; font-size: clamp(2.25rem, 4vw, 4.2rem); font-weight: 600; letter-spacing: -.065em; line-height: .98; }.noir-workflow__intro span { display: block; max-width: 24rem; margin-top: 1.5rem; color: #a1a1aa; line-height: 1.7; }.noir-workflow ol { margin: 0; padding: 0; list-style: none; border-top: 1px solid rgba(255,255,255,.1); }.noir-workflow li { display: grid; grid-template-columns: 4rem 1fr auto; gap: 1.3rem; padding: 2.1rem 0; border-bottom: 1px solid rgba(255,255,255,.1); transition: padding .2s ease; }.noir-workflow li:hover { padding-left: .7rem; }.noir-workflow li > b { color: rgba(239,35,60,.8); font-size: .78rem; letter-spacing: .08em; }.noir-workflow h3 { margin: 0; color: #f4f4f5; font-size: 1.3rem; }.noir-workflow p { max-width: 31rem; margin: .65rem 0 0; color: #a1a1aa; font-size: .92rem; line-height: 1.65; }.noir-workflow li > svg { width: 1rem; color: #71717a; }
 .noir-final { position: relative; margin-bottom: 8rem; padding: clamp(3rem, 8vw, 7rem) clamp(1.5rem, 8vw, 8rem); overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 24px; background: radial-gradient(circle at 50% 100%, rgba(239,35,60,.25), transparent 48%), #0c0c0e; text-align: center; }.noir-final::after { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 40px 40px; mask-image: linear-gradient(transparent, black); }.noir-final > * { position: relative; z-index: 1; }.noir-final > svg { width: 1.6rem; height: 1.6rem; color: #ef233c; }.noir-final > p { margin: 1.2rem 0 0; color: #fecdd3; font-size: .68rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }.noir-final h2 { margin: 1rem auto 2rem; max-width: 50rem; font-size: clamp(2.55rem, 5vw, 5rem); font-weight: 600; letter-spacing: -.07em; line-height: 1; }.noir-final > span { display: flex; align-items: center; justify-content: center; gap: .5rem; margin-top: 2rem; color: #a1a1aa; font-size: .72rem; }.noir-final > span svg { width: .95rem; color: #ef233c; }
+.noir-final .noir-hero__actions { justify-content: center; }
 @keyframes noir-reveal { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } } @keyframes noir-workspace-in { from { opacity: 0; transform: translateY(22px) scale(.98); } to { opacity: 1; transform: none; } } @keyframes noir-status { 50% { box-shadow: 0 0 0 6px rgba(239,35,60,0); } } @keyframes noir-speaker { 50% { box-shadow: inset 0 0 0 1px rgba(239,35,60,.22); } } @keyframes noir-cta-spin { to { transform: rotate(360deg); } } @keyframes noir-scan { 0%, 55%, 100% { transform: translateX(-130%); } 72% { transform: translateX(130%); } } @keyframes noir-star-drift { to { background-position: 0 -420px, 91px -248px, 36px -610px; } } @keyframes noir-marquee { to { transform: translateX(calc(-50% - .5rem)); } }
 @media (max-width: 900px) { .noir-hero__inner, .noir-workflow { grid-template-columns: 1fr; }.noir-hero { padding-top: 2rem; }.noir-workspace { max-width: 44rem; width: 100%; }.noir-workflow__intro { position: static; }.noir-workflow { gap: 3rem; } }
-@media (max-width: 560px) { .app-main { padding-top: 70px; }.noir-hero__inner { padding-top: 4rem; padding-bottom: 5rem; }.noir-hero h1 { font-size: clamp(3.25rem, 16vw, 5.2rem); }.noir-workspace__body { grid-template-columns: 1fr; }.noir-workspace__side { display: none; }.noir-tile { min-height: 7.5rem; }.noir-partner-strip { gap: 1rem 1.4rem; padding: 1.6rem; }.noir-workflow li { grid-template-columns: 2.6rem 1fr; }.noir-workflow li > svg { display: none; }.noir-final { margin-bottom: 4rem; }.noir-proof { gap: .8rem 1rem; } }
+@media (max-width: 560px) { .app-main { padding-top: 76px; }.noir-hero__inner { padding-top: 4rem; padding-bottom: 5rem; }.noir-hero h1 { font-size: clamp(3.25rem, 16vw, 5.2rem); }.noir-workspace__body { grid-template-columns: 1fr; }.noir-workspace__side { display: none; }.noir-tile { min-height: 7.5rem; }.noir-partner-strip { gap: 1rem 1.4rem; padding: 1.6rem; }.noir-workflow li { grid-template-columns: 2.6rem 1fr; }.noir-workflow li > svg { display: none; }.noir-final { margin-bottom: 4rem; }.noir-proof { gap: .8rem 1rem; } }
 @media (prefers-reduced-motion: reduce) { .noir-hero__stars, .noir-live span:first-child, .noir-workspace::before, .noir-workspace__record i, .noir-tile--0, .noir-primary-action::after, .noir-marquee__track { animation: none !important; }.noir-marquee { overflow-x: auto; mask-image: none; }.noir-marquee__track { width: max-content; }.noir-feature-card[aria-hidden='true'] { display: none; } }
 
 /* Two-lane feature loop and the shared Superdesign-style CTA border. */
@@ -755,4 +758,37 @@ nav [class*='backdrop-'] {
   .app-background__vortex { animation-duration: 84s !important; }
   .app-background__vortex-sweep--one { animation-duration: 36s !important; }
   .app-background__vortex-sweep--two { animation-duration: 58s !important; }
+}
+
+/* Readable LMS labels and comfortable touch targets. These rules are kept at
+   the end so they deliberately override the compact dashboard defaults. */
+.lms-sidebar__brand > span:last-child {
+  font-size: .76rem !important;
+  letter-spacing: .1em !important;
+}
+
+.lms-sidebar__link {
+  min-height: 2.9rem;
+  padding: .7rem .78rem;
+  font-size: .94rem;
+}
+
+.lms-sidebar__link svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.lms-sidebar__footer {
+  font-size: .82rem;
+}
+
+.lms-mobile-nav__link {
+  min-height: 2.65rem;
+  padding: .68rem .88rem;
+  font-size: .9rem;
+}
+
+.lms-mobile-nav__link svg {
+  width: 1rem;
+  height: 1rem;
 }
