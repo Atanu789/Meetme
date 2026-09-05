@@ -429,6 +429,12 @@ export function JitsiMeeting({
       const preferredResolution = mobileBrowser ? MOBILE_VIDEO_QUALITY : DEFAULT_VIDEO_QUALITY;
       const codecOrder = ['VP8', 'H264', 'VP9', 'AV1'];
       const effectivePrejoinPageEnabled = prejoinPageEnabled && !joinedOnceRef.current;
+      // Mobile browsers, especially in-app Safari views, can deny automatic
+      // camera or microphone requests before a participant has interacted with
+      // the meeting. Join muted, then let them enable each device deliberately
+      // from Jitsi's toolbar when they are ready.
+      const startWithAudioMutedOnJoin = startWithAudioMuted || mobileBrowser;
+      const startWithVideoMutedOnJoin = startWithVideoMuted || mobileBrowser;
       const options = {
         roomName: roomName,
         parentNode: containerRef.current,
@@ -441,8 +447,8 @@ export function JitsiMeeting({
         },
         configOverwrite: {
           toolbarButtons: toolbarButtonsRef.current,
-          startWithAudioMuted,
-          startWithVideoMuted,
+          startWithAudioMuted: startWithAudioMutedOnJoin,
+          startWithVideoMuted: startWithVideoMutedOnJoin,
           disableDeepLinking: true,
           disableSimulcast: mobileBrowser,
           resolution: preferredResolution,
