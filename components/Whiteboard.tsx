@@ -47,7 +47,10 @@ export function Whiteboard({ meetingId, onClose, closeRequestId = 0 }: Whiteboar
   const saveTimerRef = useRef<number | null>(null);
   const excalidrawApiRef = useRef<any>(null);
   const closeInFlightRef = useRef(false);
-  const handledCloseRequestRef = useRef(0);
+  // A close request can have been handled by a previous Whiteboard instance.
+  // Treat the ID supplied at mount as already handled so reopening the board
+  // does not immediately process that stale request and close itself.
+  const handledCloseRequestRef = useRef(closeRequestId);
 
   const sanitizeAppState = (appState: ExcalidrawInitialDataState['appState']) => {
     const { collaborators, ...rest } = (appState || {}) as Record<string, unknown>;
